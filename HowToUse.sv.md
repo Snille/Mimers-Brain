@@ -118,7 +118,23 @@ https://brain.example.net/mcp?key=<MCP_OPEN_KEY>
 
 `MCP_OPEN_KEY` är en andra nyckel som bara den öppna lyssnaren accepterar, och den
 får inte vara samma värde som `MCP_ACCESS_KEY` — se *Inloggning* i
-[README.sv.md](README.sv.md) för varför. Sätt den i `.env` och starta om. Vill du
+[README.sv.md](README.sv.md) för varför. Sätt den i `.env` och starta om.
+
+**Ligger det en autentiserare framför krävs en sak till.** Klienten frågar efter
+OAuth-metadata innan den skickar någon JSON-RPC. Bakom forward-auth svarar de
+sökvägarna 302 till inloggningssidan, som svarar 200 — och då bestämmer sig
+klienten för att det finns en auktoriseringsserver, försöker registrera sig hos
+den, och misslyckas med *couldn't register with the sign-in service*. URL-nyckeln
+får aldrig en chans, för anropet den skulle autentiserat blir aldrig av. Proxyn
+måste svara 404 där istället; blocket finns i
+[docs/nginx-brain.conf](docs/nginx-brain.conf). Kontrollera med:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://brain.example.net/.well-known/oauth-authorization-server
+```
+
+404 är rätt. Får du 302 kommer connectorn att misslyckas oavsett vilken nyckel du
+ger den. Vill du
 hellre ha riktig inloggning än en delad nyckel finns designen för det i
 [docs/oidc-connector-plan.md](docs/oidc-connector-plan.md); den kräver en
 OIDC-provider, vilket är skälet till att den inte är standard.

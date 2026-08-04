@@ -119,7 +119,23 @@ https://brain.example.net/mcp?key=<MCP_OPEN_KEY>
 
 `MCP_OPEN_KEY` is a second key that only the open listener honours, and it must
 not be the same value as `MCP_ACCESS_KEY` — see *Authentication* in the
-[README](README.md) for why. Set it in `.env` and restart. If you would rather
+[README](README.md) for why. Set it in `.env` and restart.
+
+**If there is an authenticator in front, one more thing is needed.** The client
+asks for OAuth metadata before it sends any JSON-RPC. Behind forward auth those
+paths answer 302 to the login page, which answers 200 — so the client decides an
+authorization server exists, tries to register with it, and fails with *couldn't
+register with the sign-in service*. The URL key never gets a chance, because the
+request it would have authenticated is never made. The proxy has to answer 404
+there instead; the block is in [docs/nginx-brain.conf](docs/nginx-brain.conf).
+Check it with:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://brain.example.net/.well-known/oauth-authorization-server
+```
+
+404 is correct. A 302 means the connector will fail no matter what key you give
+it. If you would rather
 have real sign-in than a shared key, the design for that is in
 [docs/oidc-connector-plan.md](docs/oidc-connector-plan.md); it needs an OIDC
 provider, which is why it is not the default.

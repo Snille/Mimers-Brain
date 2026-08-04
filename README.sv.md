@@ -146,7 +146,11 @@ up -d --build` direkt på servern och hela skeppandet ovan försvinner.
    `http://<lxc-ip>:8791`. **Kontrollera att det står 8791 och inte 8790.**
 4. Authelia framför den: notera att MCP-klienter inte kan göra en interaktiv
    inloggning, så sökvägen `/mcp` behöver en bypass-regel — skyddet där är
-   bearer-nyckeln. Gränssnittet ligger ändå bara på 8790 och exponeras inte alls.
+   bearer-nyckeln. `/.well-known/oauth-*` behöver också en, som svarar **404**:
+   bakom forward-auth omdirigerar den till en inloggningssida som svarar 200, och
+   en klient som letar efter OAuth läser det som en auktoriseringsserver den måste
+   registrera sig hos. Gränssnittet ligger ändå bara på 8790 och exponeras inte
+   alls.
 
 ## Migrera från Mimers Brain
 

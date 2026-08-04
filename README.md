@@ -135,7 +135,10 @@ inside (neither BuildKit nor `DOCKER_BUILDKIT=0` accepts `--security-opt`).
    8791 and not 8790.**
 4. If you put an authenticator in front: MCP clients cannot complete an
    interactive login, so `/mcp` needs a bypass — the bearer key is the protection
-   there. See [docs/nginx-brain.conf](docs/nginx-brain.conf).
+   there. `/.well-known/oauth-*` needs one too, answering **404**: behind forward
+   auth it redirects to a login page that answers 200, and a client probing for
+   OAuth reads that as an authorization server it must register with. See
+   [docs/nginx-brain.conf](docs/nginx-brain.conf).
 
 ## Backups
 
