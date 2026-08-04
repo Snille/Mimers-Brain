@@ -1,89 +1,90 @@
-# Så använder du Mimers Brain
+# Using Mimers Brain
 
-Hur du kopplar en AI-modell till minnet, och hur du sätter upp allt igen om en
-maskin behöver installeras om.
+*[Svenska](HowToUse.sv.md)*
+
+How to connect an AI model to the memory, and how to set everything up again if a
+machine has to be reinstalled.
 
 ---
 
-## Vad det är, kort
+## What it is, briefly
 
-Mimers Brain är en **MCP-server** (Model Context Protocol) — ett standardiserat
-sätt för en språkmodell att anropa verktyg. Den exponerar sex verktyg:
+Mimers Brain is an **MCP server** (Model Context Protocol) — a standard way for a
+language model to call tools. It exposes six:
 
-| Verktyg | Vad det gör |
+| Tool | What it does |
 | --- | --- |
-| `search_thoughts` | Sök på betydelse, inte ord. Det här är det viktiga. |
-| `list_thoughts` | Lista senaste, med filter på typ, ämne, person, tid |
-| `capture_thought` | Spara ett nytt minne |
-| `thought_stats` | Totaler, typer, ämnen, personer |
-| `search` + `fetch` | Samma sak i det format ChatGPT och Gemini förväntar sig |
-| `delete_thought` | Endast på LAN-porten |
+| `search_thoughts` | Search by meaning, not words. This is the important one. |
+| `list_thoughts` | List recent memories, filtered by type, topic, person, time |
+| `capture_thought` | Save a new memory |
+| `thought_stats` | Totals, types, topics, people |
+| `search` + `fetch` | The same thing in the shape ChatGPT and Gemini expect |
+| `delete_thought` | LAN listener only |
 
-Allt som talar MCP kan alltså använda minnet — du behöver inte bygga något per
-modell.
+Anything that speaks MCP can therefore use the memory — you do not build
+something per model.
 
 ---
 
-## De två adresserna
+## The two addresses
 
-Det här är den enda detalj som verkligen betyder något:
+This is the only detail that really matters:
 
-| Adress | Innehåll | Använd när |
+| Address | Contents | Use when |
 | --- | --- | --- |
-| `http://192.0.2.41:8790/mcp` | öppet **+ valvet** | du är hemma eller på VPN |
-| `https://brain.example.net/mcp` | **endast öppet** | allt annat, och alla andra modeller |
+| `http://192.0.2.41:8790/mcp` | open **+ vault** | on the LAN or over VPN |
+| `https://brain.example.net/mcp` | **open only** | everything else, and every other model |
 
-Valvet — nycklar, lösenord, tokens — serveras bara av den första. Det är inte en
-inställning som går att slå på för den andra: MCP-servern på 8791 byggs helt utan
-förmågan att nå de raderna, så ingen header, parameter eller sökväg kan lyfta ut
-dem. Därför kan du peka vilken extern modell som helst på `brain.example.net` utan
-att fundera.
+The vault — keys, passwords, tokens — is served only by the first. This is not a
+setting that can be switched on for the second: the MCP server on 8791 is built
+entirely without the ability to reach those rows, so no header, parameter or path
+can lift them out. That is why you can point any external model at the public
+hostname without thinking about it.
 
-Båda kräver `MCP_ACCESS_KEY` som bearer-token.
+Both require `MCP_ACCESS_KEY` as a bearer token.
 
-### Var nyckeln finns
+### Where the key lives
 
 ```bash
-ssh valv 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
+ssh <server> 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
 ```
 
 ---
 
-## Koppla in en modell
+## Connecting a model
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <NYCKEL>"
+claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <KEY>"
 ```
 
-Eller redigera `~/.claude.json` direkt — lägg under `mcpServers` på toppnivå:
+Or edit `~/.claude.json` directly — under `mcpServers` at the top level:
 
 ```json
 "mimers-brain": {
   "type": "http",
   "url": "http://192.0.2.41:8790/mcp",
-  "headers": { "Authorization": "Bearer <NYCKEL>" }
+  "headers": { "Authorization": "Bearer <KEY>" }
 }
 ```
 
-Lägg gärna in **båda** adresserna som två poster (`mimers-brain` och
-`mimers-brain-remote`). Då fungerar minnet även när laptopen är utanför hemnätet —
-med bara öppen nivå, men det är bättre än inget. Så är det redan uppsatt idag.
+Consider registering **both** addresses as two entries (`mimers-brain` and
+`mimers-brain-remote`). The memory then still works when the laptop is off the
+home network — open tier only, but better than nothing.
 
-Ändringen slår igenom vid nästa session.
+The change takes effect in the next session.
 
 ### Claude Desktop
 
-Claude Desktop lägger till fjärranslutna MCP-servrar som **connectors** via
-inställningarna: leta efter *Connectors* eller *Anslutningar* och en knapp för att
-lägga till en egen. Fyll i URL:en och lägg nyckeln som en `Authorization`-header
-med värdet `Bearer <NYCKEL>`.
+Claude Desktop adds remote MCP servers as **connectors** through its settings:
+look for *Connectors* and a button to add a custom one. Fill in the URL and add
+the key as an `Authorization` header with the value `Bearer <KEY>`.
 
-Menyformuleringarna flyttar sig mellan versioner, så gå efter *connector* och
-*custom* snarare än en exakt sökväg. Vissa äldre versioner tar bara stdio-servrar
-i `claude_desktop_config.json` och behöver då bryggan
-[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) däremellan:
+Menu wording moves between versions, so navigate by *connector* and *custom*
+rather than an exact path. Some older versions only accept stdio servers in
+`claude_desktop_config.json` and need [`mcp-remote`](https://www.npmjs.com/package/mcp-remote)
+as a bridge:
 
 ```json
 {
@@ -91,131 +92,131 @@ i `claude_desktop_config.json` och behöver då bryggan
     "mimers-brain": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://brain.example.net/mcp",
-               "--header", "Authorization: Bearer <NYCKEL>"]
+               "--header", "Authorization: Bearer <KEY>"]
     }
   }
 }
 ```
 
-Filen ligger på Windows i `%APPDATA%\Claude\claude_desktop_config.json`.
+On Windows that file is at `%APPDATA%\Claude\claude_desktop_config.json`.
 
 ### ChatGPT
 
-ChatGPT läser MCP-servrar som connectors och kräver att servern har verktygen
-`search` och `fetch` — de finns just för det. Peka den på
-`https://brain.example.net/mcp` med samma bearer-header. Använd **aldrig**
-8790-adressen här: den är inte nåbar utifrån, och skulle den bli det vore valvet
-exponerat för en tredjepart.
+ChatGPT reads MCP servers as connectors and expects the server to provide
+`search` and `fetch` — which exist for exactly this. Point it at the public
+hostname with the same bearer header. **Never** use the 8790 address here: it is
+not reachable from outside, and if it ever became so the vault would be exposed
+to a third party.
 
-### Gemini och övriga
+### Gemini and others
 
-Samma princip: en fjärransluten MCP-server över HTTP med en bearer-token. Allt som
-följer specen fungerar. `search`/`fetch`-paret finns för klienter som förväntar sig
-den enklare sök-och-hämta-modellen istället för de namngivna verktygen.
+Same principle: a remote MCP server over HTTP with a bearer token. Anything that
+follows the spec works. The `search`/`fetch` pair exists for clients that expect
+the simpler search-and-fetch model instead of the named tools.
 
-### Testa att det gick fram
+### Checking that it worked
 
 ```bash
-curl -s -X POST https://brain.example.net/mcp -H "Authorization: Bearer <NYCKEL>" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+curl -s -X POST https://brain.example.net/mcp -H "Authorization: Bearer <KEY>" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-Sex verktyg i svaret betyder att allt fungerar. Får du `401` är nyckeln fel; får
-du `302` mot `auth.example.net` proxar Nginx `/mcp` genom Authelia, vilket den inte
-ska göra — se avsnittet om proxyn nedan.
+Six tools in the response means everything works. A `401` means the key is wrong.
+A `302` towards your authenticator means the proxy is sending `/mcp` through
+forward auth, which it must not — see the proxy section below.
 
 ---
 
-## Webbgränssnittet
+## The web interface
 
-| Adress | Vad du ser |
+| Address | What you see |
 | --- | --- |
-| `http://192.0.2.41:8790` | allt, inklusive valvet |
-| `https://brain.example.net` | endast öppen nivå, bakom Authelia |
+| `http://192.0.2.41:8790` | everything, including the vault |
+| `https://brain.example.net` | open tier only, behind the authenticator |
 
-På 8790 loggar du in genom att klistra in `MCP_ACCESS_KEY` en gång; den byts mot
-en cookie som ligger kvar i 30 dagar. Utifrån sköter Authelia inloggningen.
+On 8790 you sign in by pasting `MCP_ACCESS_KEY` once; it is traded for a cookie
+that lasts 30 days. From outside the authenticator handles it.
 
 ---
 
-## Om laptopen måste installeras om
+## If the client machine is reinstalled
 
-Servern på 192.0.2.41 påverkas inte — den är en egen maskin med egen backup. Det
-enda som försvinner är klientsidan. Så här får du tillbaka den:
+The server is unaffected — it is a separate machine with its own backups. Only
+the client side is lost:
 
-1. **SSH-nyckel.** Skapa en ny och lägg den publika delen i
-   `~/.ssh/authorized_keys` för `mimer` på 192.0.2.41. Obs: skapa den via `cmd`,
-   inte PowerShell —
+1. **SSH key.** Create one and put the public half in `~/.ssh/authorized_keys` on
+   the server. On Windows, create it through `cmd`, not PowerShell:
 
    ```powershell
-   cmd /c 'ssh-keygen -t ed25519 -C "mimers-brain" -f C:\Users\<du>\.ssh\mimers_valv -N ""'
+   cmd /c 'ssh-keygen -t ed25519 -C "mimers-brain" -f C:\Users\<you>\.ssh\mimers_brain -N ""'
    ```
 
-   PowerShell gör `-N '""'` till en lösenfras bestående av två citattecken, och
-   nyckeln blir oanvändbar obevakat. Lägg sedan till i `~/.ssh/config`:
+   PowerShell turns `-N '""'` into a passphrase consisting of two literal quote
+   characters, which makes the key unusable unattended. Then add to
+   `~/.ssh/config`:
 
    ```
-   Host valv
+   Host brain
        HostName 192.0.2.41
-       User mimer
-       IdentityFile ~/.ssh/mimers_valv
+       User <user>
+       IdentityFile ~/.ssh/mimers_brain
        StrictHostKeyChecking accept-new
    ```
 
-2. **Hämta nyckeln** enligt kommandot längst upp.
+2. **Fetch the key** with the command near the top.
 
-3. **Koppla in MCP** enligt avsnittet ovan.
+3. **Register the MCP server** as described above.
 
-Det är allt. Kunskapen ligger i databasen på servern, inte på laptopen.
+That is all. The knowledge lives in the database on the server, not on the
+client.
 
-## Om servern måste byggas om
+## If the server has to be rebuilt
 
 ```bash
-git clone <detta repo> ~/mimers-brain && cd ~/mimers-brain
-cp .env.example .env          # fyll i POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
+git clone <this repo> ~/mimers-brain && cd ~/mimers-brain
+cp .env.example .env          # fill in POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
 docker compose up -d --build
 ```
 
-Sedan återställer du senaste dumpen:
+Then restore the most recent dump:
 
 ```bash
-gunzip -c ~/valv-backups/valv-<senaste>.sql.gz | docker exec -i valv-db psql -U mimer -d valv
+gunzip -c ~/backups/valv-<latest>.sql.gz | docker exec -i valv-db psql -U <user> -d valv
 ```
 
-**Nytt `MCP_ACCESS_KEY` betyder att varje klient måste uppdateras.** Vill du
-slippa det, återanvänd den gamla nyckeln från backupen av `.env`.
+**A new `MCP_ACCESS_KEY` means every client has to be updated.** To avoid that,
+reuse the old key from a backup of `.env`.
 
-### Docker i LXC
+### Docker inside an LXC
 
-En oprivilegierad Proxmox-LXC kan inte applicera AppArmor-profiler, och då failar
-varje containerstart — ofta maskerat som ett `npm install`-fel mitt i ett bygge.
-Lös det på **värden**, inte i containern:
+An unprivileged Proxmox LXC cannot apply AppArmor profiles, so every container
+start fails — often disguised as an `npm install` error mid-build. Fix it on the
+**host**, not in the container:
 
 ```bash
 echo "lxc.apparmor.profile: unconfined" >> /etc/pve/lxc/<vmid>.conf
 pct reboot <vmid>
 ```
 
-`security_opt: apparmor=unconfined` ligger kvar i compose-filen som bälte och
-hängslen och är ofarligt även efteråt.
+`security_opt: apparmor=unconfined` stays in the compose file as belt and braces,
+and is harmless afterwards.
 
 ### Reverse proxy
 
-I Nginx Proxy Manager pekar `brain.example.net` på **8791**. Custom-configen måste
-ge `/mcp` en egen `location` **utan** `auth_request`, eftersom MCP-klienter inte
-kan göra Authelias interaktiva inloggning — skyddet där är bearer-nyckeln. Den
-behöver också `proxy_buffering off`, för MCP håller en SSE-ström öppen. Hela
-configen finns i `docs/nginx-brain.conf`.
+The public hostname points at **8791**. The config must give `/mcp` its own
+`location` **without** forward auth, because MCP clients cannot complete an
+interactive login — the bearer key is the protection there. It also needs
+`proxy_buffering off`, because MCP holds an SSE stream open. The complete config
+is in [docs/nginx-brain.conf](docs/nginx-brain.conf).
 
 ---
 
-## Vad som ska sparas i minnet
+## What belongs in the memory
 
-Skriv varje minne som ett **fristående påstående** som går att förstå långt senare
-utan sammanhang. "Det fungerade" är värdelöst; "deployen av Lagersystem avbryter
-om `data/languages/` avviker från origin, eftersom översättningsverktyget skriver
-dem live" är användbart.
+Write each memory as a **standalone statement** that makes sense years later with
+no surrounding context. "It worked" is worthless; "the Lagersystem deploy aborts
+if `data/languages/` differs from origin, because the translation tool writes
+those files live on the server" is useful.
 
-Lägg i **valvet** om det innehåller en nyckel, ett lösenord eller en token — eller
-om det skulle hjälpa någon utomstående att ta sig in. Allt annat är öppet, och
-öppet är bättre: det når dig varsomhelst och kan användas av vilken modell som
-helst.
+Put it in the **vault** if it contains a key, a password or a token — or if it
+would help an outsider get in. Everything else is open, and open is better: it
+reaches you anywhere and can be used by any model.

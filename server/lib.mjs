@@ -111,7 +111,7 @@ export async function getThought(tiers, id) {
 
 export async function captureThought(tiers, content, { tier = "open", metadata } = {}) {
   if (!tiers.includes(tier))
-    throw new Error(`Denna endpoint får inte skriva till nivån "${tier}"`);
+    throw new Error(`This endpoint may not write to tier "${tier}"`);
 
   const [vector, auto] = await Promise.all([
     embed(content).catch(() => null),
@@ -134,9 +134,9 @@ export async function captureThought(tiers, content, { tier = "open", metadata }
 
 export async function updateThought(tiers, id, { content, metadata, tier }) {
   const existing = await getThought(tiers, id);
-  if (!existing) throw new Error("Hittades inte");
+  if (!existing) throw new Error("Not found");
   if (tier && !tiers.includes(tier))
-    throw new Error(`Denna endpoint får inte flytta poster till nivån "${tier}"`);
+    throw new Error(`This endpoint may not move rows to tier "${tier}"`);
 
   const sets = [];
   const args = [id];
@@ -148,7 +148,7 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
   }
   if (metadata) sets.push(`metadata = $${args.push(JSON.stringify(metadata))}::jsonb`);
   if (tier) sets.push(`tier = $${args.push(tier)}`);
-  if (!sets.length) throw new Error("Ingenting att uppdatera");
+  if (!sets.length) throw new Error("Nothing to update");
 
   const { rows } = await pool.query(
     `UPDATE thoughts SET ${sets.join(", ")} WHERE id = $1 RETURNING ${COLS}`, args);
@@ -158,7 +158,7 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
 export async function deleteThought(tiers, id) {
   const { rowCount } = await pool.query(
     `DELETE FROM thoughts WHERE id = $1 AND tier = ANY($2)`, [id, tiers]);
-  if (!rowCount) throw new Error("Hittades inte");
+  if (!rowCount) throw new Error("Not found");
   return { deleted: id };
 }
 

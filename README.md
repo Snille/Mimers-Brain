@@ -1,151 +1,158 @@
 # Mimers Brain
 
-Ett självhostat långtidsminne för språkmodeller. Samma idé som
-[OB1](https://github.com/NateBJones-Projects/OB1), men på egen hårdvara — och med
-en nivå som aldrig lämnar det privata nätverket.
+*[Svenska](README.sv.md)*
 
-Vilken modell som helst som talar MCP kan läsa och skriva till minnet, så
-kunskapen om ens system beskrivs en gång i stället för i varje ny konversation.
-Hemligheter serveras bara på LAN; allt annat går att nå varifrån som helst.
+A self-hosted long-term memory for language models. Same idea as
+[OB1](https://github.com/NateBJones-Projects/OB1), but on your own hardware — and
+with a tier that never leaves the local network.
+
+Anything that speaks MCP can read and write the memory, so what you know about
+your systems gets written down once instead of re-explained in every new
+conversation. Secrets are served on the LAN only; everything else is reachable
+from anywhere.
 
 | | |
 | --- | --- |
-| **[HowToUse.md](HowToUse.md)** | Koppla in en modell, och sätta upp allt igen efter en ominstallation |
-| **[history.md](history.md)** | Vad som byggts, varför, och vad som gick fel |
-| **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Färdig reverse-proxy-config |
-| **[migrate/](migrate/)** | Engångsimport av befintlig kunskap |
+| **[HowToUse.md](HowToUse.md)** | Connecting a model, and rebuilding after a reinstall |
+| **[history.md](history.md)** | What was built, why, and what went wrong |
+| **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Ready-made reverse proxy config |
+| **[migrate/](migrate/)** | One-time import of existing knowledge |
 
-> **Adresser i dokumentationen är platshållare.** `192.0.2.x`
-> ([RFC 5737](https://www.rfc-editor.org/rfc/rfc5737)) och `example.net`
-> ([RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)) är reserverade just för
-> dokumentation och pekar aldrig på något verkligt. Byt dem mot dina egna. Den
-> som kör en installation kan hålla sina riktiga värden i
-> `docs/deployment.local.md`, som är gitignorerad.
+> **Addresses in the docs are placeholders.** `192.0.2.x`
+> ([RFC 5737](https://www.rfc-editor.org/rfc/rfc5737)) and `example.net`
+> ([RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)) are reserved for
+> documentation and resolve to nothing. Substitute your own. Keep the real values
+> for a deployment in `docs/deployment.local.md`, which is gitignored.
 
-## Varför två portar
+## Why two ports
 
-Nivåuppdelningen bygger **inte** på att inspektera `X-Forwarded-For`. Den kan
-sättas av vem som helst, så en enda header hade räckt för att lyfta ut hela
-valvet. Istället är nivån en egenskap hos **lyssnaren**:
+The tier split does **not** work by inspecting `X-Forwarded-For`. Anyone can set
+that header, so a single line would lift the entire vault. Instead the tier is a
+property of the **listener**:
 
-| Port | Innehåll | Vem |
+| Port | Contents | Who |
 | --- | --- | --- |
-| **8790** | öppen + valv, plus webbgränssnittet | Endast LAN. **Proxa aldrig hit.** |
-| **8791** | endast öppen nivå | Den enda port NPM ska vidarebefordra `brain.example.net` till |
+| **8790** | open + vault, plus the web UI | LAN only. **Never proxy this one.** |
+| **8791** | open tier only | The only port a reverse proxy should forward to |
 
-MCP-servern på 8791 byggs utan förmågan att nå valvet — verktygen konstrueras med
-`tiers = ['open']` och `delete_thought` registreras inte alls. Det finns ingen
-parameter, header eller sökväg som ändrar det. En angripare som tar sig förbi
-proxyn når fortfarande bara öppen kunskap.
+The MCP server on 8791 is built without the ability to reach the vault — its
+tools are constructed with `tiers = ['open']` and `delete_thought` is not
+registered at all. No parameter, header or path changes that. An attacker who
+gets past the proxy still only reaches open knowledge.
 
-Verifierat av `test-isolation.ps1` (11 kontroller, alla gröna):
+Guarded by `test-isolation.ps1` (11 checks, all green):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
 ```
 
-Testerna täcker: valv-rader syns inte via öppna porten, hemligt innehåll läcker
-aldrig ut, direkt id-uppslag av en valv-rad nekas, skrivförsök till valvet
-utifrån nekas, statistik avslöjar inte ens att valvet finns, och fel nyckel ger
-401.
+The tests cover: vault rows are invisible on the open port, secret content never
+leaks, looking a vault row up by id is refused, writing to the vault from outside
+is refused, statistics do not even reveal that the vault exists, and a wrong key
+returns 401.
 
-## Kom igång lokalt
+## Running it
 
 ```powershell
-Copy-Item .env.example .env    # fyll i POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
+Copy-Item .env.example .env    # fill in POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
 docker compose up -d --build
 ```
 
-Gränssnittet: <http://localhost:8790>
+The interface: <http://localhost:8790>
 
-Generera en nyckel:
+Generate a key:
 ```powershell
 -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Maximum 256) })
 ```
 
-**OPENROUTER_API_KEY är inte valfri i praktiken.** Utan den får inget en
-embedding, och då fungerar varken semantisk sökning eller `search_thoughts` —
-bara listning och textsökning.
+**`OPENROUTER_API_KEY` is not optional in practice.** Without it nothing gets an
+embedding, so neither semantic search nor `search_thoughts` works — only listing
+and substring search.
 
-## Koppla in i Claude Code
+## Connecting Claude Code
 
 ```bash
 claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <MCP_ACCESS_KEY>"
 ```
 
-Utifrån (och för andra LLM:er) används `https://brain.example.net/mcp`, som pekar
-på 8791.
+From outside — and for other models — use the proxied hostname, which points at
+8791. See [HowToUse.md](HowToUse.md) for every client.
 
-## Inloggning
+## Authentication
 
-Tre vägar in, i den ordning servern provar dem:
+Three ways in, in the order the server tries them:
 
-1. **Bearer-nyckel** (`Authorization: Bearer <MCP_ACCESS_KEY>`) — det MCP-klienter
-   och skript använder.
-2. **Cookie** — webbläsaren byter nyckeln mot en HttpOnly-cookie en gång via
-   `POST /api/login`. Cookien härleds ur nyckeln, så det finns ingen
-   sessionstabell att underhålla.
-3. **Authelia** — endast på den öppna lyssnaren. nginx har då redan kört
-   requesten förbi Authelia och satt `Remote-User`.
+1. **Bearer key** (`Authorization: Bearer <MCP_ACCESS_KEY>`) — what MCP clients
+   and scripts use.
+2. **Cookie** — the browser trades the key for an HttpOnly cookie once, via
+   `POST /api/login`. It is derived from the key rather than stored, so there is
+   no session table to maintain.
+3. **Forward auth** (Authelia or similar) — on the open listener only. The proxy
+   has already run the request past the authenticator and set `Remote-User`.
 
-Punkt 3 är säker *just där och bara där*: den lyssnaren kan över huvud taget inte
-nå valv-rader, så det värsta headern kan ge är öppen kunskap som vem som helst på
-LAN:et ändå kan läsa från 8790. Gör aldrig samma sak på den fulla lyssnaren.
+Point 3 is safe *there and only there*: that listener cannot reach vault rows at
+all, so the worst a spoofed header grants is open-tier data anyone on the LAN
+could read from 8790 anyway. Never do the same on the full listener.
 
-Gränssnittet serveras på **båda** portarna. På 8790 (LAN) ser du valvet och loggar
-in med nyckeln; via `brain.example.net` ser du bara öppen nivå och Authelia
-sköter inloggningen.
+The UI is served on **both** ports. On 8790 you see the vault and sign in with
+the key; through the proxy you see the open tier and the authenticator handles
+sign-in.
 
-## Docker i LXC
+## Docker inside an LXC
 
-I en oprivilegierad Proxmox-LXC kan containrar inte applicera en AppArmor-profil.
-Varje containerstart failar med `runc run failed: unable to apply apparmor
-profile`. Det visar sig lömskt nog som ett `npm install`-fel mitt i ett bygge —
-läs hela loggen efter `runc run failed` innan du felsöker npm.
+An unprivileged Proxmox LXC cannot apply an AppArmor profile, so every container
+start fails with `runc run failed: unable to apply apparmor profile`. It shows up
+deviously as an `npm install` failure mid-build — read the whole log for
+`runc run failed` before debugging npm.
 
-`security_opt: [apparmor=unconfined]` i compose-filen löser **körningen** och är
-ofarligt på maskiner utan problemet. **Bygget** går inte att rädda inifrån
-(varken BuildKit eller `DOCKER_BUILDKIT=0` tar `--security-opt`), så imagen byggs
-på laptopen och skeppas över:
+`security_opt: [apparmor=unconfined]` in the compose file fixes **running**, and
+is harmless on machines without the problem. **Building** cannot be fixed from
+inside (neither BuildKit nor `DOCKER_BUILDKIT=0` accepts `--security-opt`).
 
-```powershell
-docker build -t mimers-brain:latest ./server
-docker save -o img.tar mimers-brain:latest
-scp img.tar valv:/tmp/ ; ssh valv 'docker load -i /tmp/img.tar && rm /tmp/img.tar'
-ssh valv 'cd ~/mimers-brain && docker compose up -d'
+**The proper fix is on the Proxmox host**, not in the container: add
+`lxc.apparmor.profile: unconfined` to `/etc/pve/lxc/<vmid>.conf`, check that
+`features: nesting=1` is set, and reboot the container. Then
+`docker compose up -d --build` works on the server directly.
+
+## Deploying
+
+1. Create an LXC (Debian or Ubuntu, 2 vCPU, 2 GB RAM, 20 GB disk is plenty —
+   pgvector with a few thousand memories is small).
+2. Install Docker, clone the repo, fill in `.env`, `docker compose up -d --build`.
+3. Point a reverse proxy host at `http://<lxc-ip>:8791`. **Check that it says
+   8791 and not 8790.**
+4. If you put an authenticator in front: MCP clients cannot complete an
+   interactive login, so `/mcp` needs a bypass — the bearer key is the protection
+   there. See [docs/nginx-brain.conf](docs/nginx-brain.conf).
+
+## Backups
+
+`backup.sh` runs a nightly `pg_dump`, gzips it, and keeps ten days. It verifies
+that the dump is valid gzip **and** contains the thoughts data before rotating
+anything out — a truncated dump must never push a working one off the end.
+
+```
+10 0 * * * /path/to/mimers-brain/backup.sh >> /path/to/backups/backup.log 2>&1
 ```
 
-Compose har både `build:` och `image:`, så laptopen bygger med `--build` medan
-servern använder den inlästa imagen utan.
-
-**Permanent fix (rekommenderas)** — på Proxmox-värden, inte i containern:
-lägg `lxc.apparmor.profile: unconfined` i `/etc/pve/lxc/<vmid>.conf`, kontrollera
-att `features: nesting=1` är satt, starta om LXC:n. Då fungerar `docker compose
-up -d --build` direkt på servern och hela skeppandet ovan försvinner.
-
-## Deploy till Proxmox
-
-1. Skapa en LXC på `192.0.2.12` (Debian 12, 2 vCPU, 2 GB RAM, 20 GB disk räcker
-   gott — pgvector med några tusen minnen är litet).
-2. Installera Docker, klona repot, fyll i `.env`, `docker compose up -d`.
-3. I Nginx Proxy Manager: ny proxy host `brain.example.net` →
-   `http://<lxc-ip>:8791`. **Kontrollera att det står 8791 och inte 8790.**
-4. Authelia framför den: notera att MCP-klienter inte kan göra en interaktiv
-   inloggning, så sökvägen `/mcp` behöver en bypass-regel — skyddet där är
-   bearer-nyckeln. Gränssnittet ligger ändå bara på 8790 och exponeras inte alls.
-
-## Migrera från Mimers Brain
-
-De minnen som ligger i Supabase idag flyttas genom att läsa dem med
-`list_thoughts` och skriva in dem med `capture_thought` mot 8790. De är få och
-små. Koppla bort Supabase-connectorn efteråt så det bara finns en sanning, men
-låt projektet ligga vilande ett tag som fallback.
+A logical dump complements a full VM or container backup rather than duplicating
+it: it can be restored selectively — a single thought, or the table into a fresh
+database — which an image cannot do.
 
 ## Schema
 
-Samma form som OB1:s `thoughts`-tabell, plus `tier`. Det gör migreringen
-triviell och håller metadata-formatet identiskt (`type`, `topics`, `people`).
+The same shape as OB1's `thoughts` table plus `tier`, which keeps migration
+trivial and the metadata format identical (`type`, `topics`, `people`).
 
-En detalj i `upsert_thought`: en post kan **befordras** till valvet men aldrig
-tyst falla ur det. Fångar samma innehåll upp igen med `tier='open'` behåller
-raden `vault`.
+One detail in `upsert_thought`: a row can be **promoted** into the vault but
+never silently fall out of it. Capturing the same content again with
+`tier='open'` leaves the row as `vault`.
+
+## Naming
+
+Container names, the Docker volume, and the compose project are `valv`-prefixed
+(Swedish for *vault*), left over from when the project was called Mimers Valv.
+They are deliberately untouched: `name: mimers-valv` is pinned at the top of
+`docker-compose.yml` because Compose otherwise derives the project name from the
+directory, and the volume holding every memory is `mimers-valv_valv-data`. A
+rename would silently create a fresh, empty database.

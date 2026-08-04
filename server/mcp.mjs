@@ -6,15 +6,15 @@ import { z } from "zod";
 import * as db from "./lib.mjs";
 
 const text = (s) => ({ content: [{ type: "text", text: s }] });
-const fail = (e) => ({ content: [{ type: "text", text: `Fel: ${e.message}` }], isError: true });
+const fail = (e) => ({ content: [{ type: "text", text: `Error: ${e.message}` }], isError: true });
 
 function render(t) {
   const m = t.metadata || {};
-  const bits = [`Typ: ${m.type || "okänd"}`];
-  if (t.tier === "vault") bits.push("NIVÅ: VALV");
-  if (Array.isArray(m.topics) && m.topics.length) bits.push(`Ämnen: ${m.topics.join(", ")}`);
-  if (Array.isArray(m.people) && m.people.length) bits.push(`Personer: ${m.people.join(", ")}`);
-  if (t.similarity != null) bits.push(`Träffsäkerhet: ${(t.similarity * 100).toFixed(0)}%`);
+  const bits = [`Type: ${m.type || "unknown"}`];
+  if (t.tier === "vault") bits.push("TIER: VAULT");
+  if (Array.isArray(m.topics) && m.topics.length) bits.push(`Topics: ${m.topics.join(", ")}`);
+  if (Array.isArray(m.people) && m.people.length) bits.push(`People: ${m.people.join(", ")}`);
+  if (t.similarity != null) bits.push(`Similarity: ${(t.similarity * 100).toFixed(0)}%`);
   return `${t.content}\n  [${bits.join(" | ")}] (id ${t.id})`;
 }
 
@@ -26,28 +26,28 @@ export function buildServer(tiers) {
   });
 
   const scope = full
-    ? "Denna anslutning når både öppen kunskap och valvet (nycklar, lösenord, tokens)."
-    : "Denna anslutning når endast öppen kunskap. Valvet serveras bara på hemnätet.";
+    ? "This connection reaches both open knowledge and the vault (keys, passwords, tokens)."
+    : "This connection reaches open knowledge only. The vault is served on the local network alone.";
 
   server.registerTool("search_thoughts", {
-    title: "Sök i minnet",
-    description: `Sök Eriks minne på betydelse. Använd detta först när du behöver veta hur ett system nås eller hur något fungerar. ${scope}`,
+    title: "Search the memory",
+    description: `Search the memory by meaning. Reach for this first whenever you need to know how a system is accessed or how something works. ${scope}`,
     inputSchema: {
-      query: z.string().describe("Vad du söker efter"),
+      query: z.string().describe("What you are looking for"),
       limit: z.number().default(10),
       threshold: z.number().default(0.3),
     },
   }, async ({ query, limit, threshold }) => {
     try {
       const rows = await db.searchThoughts(tiers, query, { limit, threshold });
-      if (!rows.length) return text(`Inget matchade "${query}".`);
+      if (!rows.length) return text(`Nothing matched "${query}".`);
       return text(rows.map(render).join("\n\n"));
     } catch (e) { return fail(e); }
   });
 
   server.registerTool("list_thoughts", {
-    title: "Lista minnen",
-    description: `Lista senaste minnena, med valfria filter. ${scope}`,
+    title: "List memories",
+    description: `List the most recent memories, with optional filters. ${scope}`,
     inputSchema: {
       limit: z.number().default(10),
       type: z.string().optional(),
@@ -58,19 +58,19 @@ export function buildServer(tiers) {
   }, async (args) => {
     try {
       const rows = await db.listThoughts(tiers, args);
-      if (!rows.length) return text("Inga minnen hittades.");
+      if (!rows.length) return text("No memories found.");
       return text(rows.map(render).join("\n\n"));
     } catch (e) { return fail(e); }
   });
 
   server.registerTool("capture_thought", {
-    title: "Spara minne",
+    title: "Save a memory",
     description:
-      `Spara något i Eriks minne. Skriv det som ett fristående påstående som går ` +
-      `att förstå långt senare utan sammanhang. ` +
+      `Save something to the memory. Write it as a standalone statement that will ` +
+      `still make sense years later with no surrounding context. ` +
       (full
-        ? `Sätt tier="vault" för nycklar, lösenord och tokens — de lämnar då aldrig hemnätet.`
-        : `Denna anslutning kan bara skriva öppen kunskap; hemligheter måste sparas hemifrån.`),
+        ? `Set tier="vault" for keys, passwords and tokens - those then never leave the local network.`
+        : `This connection can only write open knowledge; secrets must be saved from the local network.`),
     inputSchema: {
       content: z.string(),
       tier: full ? z.enum(["open", "vault"]).default("open") : z.literal("open").default("open"),
@@ -80,15 +80,15 @@ export function buildServer(tiers) {
       const r = await db.captureThought(tiers, content, { tier });
       const m = r.metadata;
       return text(
-        `Sparat som ${m.type || "observation"}${r.tier === "vault" ? " i VALVET" : ""}` +
-        `${m.topics?.length ? ` — ${m.topics.join(", ")}` : ""}` +
-        `${r.embedded ? "" : " (utan embedding — blir inte sökbar semantiskt)"}`);
+        `Saved as ${m.type || "observation"}${r.tier === "vault" ? " in the VAULT" : ""}` +
+        `${m.topics?.length ? ` - ${m.topics.join(", ")}` : ""}` +
+        `${r.embedded ? "" : " (no embedding - will not be findable by semantic search)"}`);
     } catch (e) { return fail(e); }
   });
 
   server.registerTool("thought_stats", {
-    title: "Statistik",
-    description: `Sammanfattning av minnet: totaler, typer, vanligaste ämnen och personer. ${scope}`,
+    title: "Statistics",
+    description: `A summary of the memory: totals, types, most common topics and people. ${scope}`,
     inputSchema: {},
   }, async () => {
     try {
@@ -96,16 +96,16 @@ export function buildServer(tiers) {
       const top = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 10)
         .map(([k, v]) => `  ${k}: ${v}`).join("\n");
       return text(
-        `Totalt: ${s.total}\n` +
-        `Per nivå: ${Object.entries(s.byTier).map(([k, v]) => `${k}=${v}`).join(", ") || "-"}\n\n` +
-        `Typer:\n${top(s.types)}\n\nÄmnen:\n${top(s.topics)}\n\nPersoner:\n${top(s.people)}`);
+        `Total: ${s.total}\n` +
+        `Per tier: ${Object.entries(s.byTier).map(([k, v]) => `${k}=${v}`).join(", ") || "-"}\n\n` +
+        `Types:\n${top(s.types)}\n\nTopics:\n${top(s.topics)}\n\nPeople:\n${top(s.people)}`);
     } catch (e) { return fail(e); }
   });
 
   // ChatGPT / deep-research compatibility pair, same contract as OB1.
   server.registerTool("search", {
     title: "Search",
-    description: `Read-only search over Erik's memory, for clients expecting search/fetch. ${scope}`,
+    description: `Read-only search over the memory, for clients expecting search/fetch. ${scope}`,
     inputSchema: { query: z.string() },
   }, async ({ query }) => {
     try {
@@ -128,7 +128,7 @@ export function buildServer(tiers) {
   }, async ({ id }) => {
     try {
       const t = await db.getThought(tiers, id);
-      if (!t) return fail(new Error("Hittades inte"));
+      if (!t) return fail(new Error("Not found"));
       return text(JSON.stringify({
         id: t.id,
         title: t.content.replace(/\s+/g, " ").slice(0, 80),
@@ -141,8 +141,8 @@ export function buildServer(tiers) {
 
   if (full) {
     server.registerTool("delete_thought", {
-      title: "Ta bort minne",
-      description: "Ta bort ett minne permanent. Bekräfta med Erik först.",
+      title: "Delete a memory",
+      description: "Permanently delete a memory. Confirm with the user first.",
       inputSchema: { id: z.string() },
     }, async ({ id }) => {
       try {

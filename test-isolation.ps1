@@ -1,8 +1,8 @@
 # Verifies the tier boundary: the open listener must not expose vault rows,
 # must not accept vault writes, and must not serve a vault row by direct id.
 #
-#   .\test-isolation.ps1                                  # against localhost/.env
-#   .\test-isolation.ps1 -Host 192.0.2.41 -KeyFile key.txt  # against the LXC
+#   .\test-isolation.ps1                                      # localhost, key from .env
+#   .\test-isolation.ps1 -HostName 192.0.2.41 -KeyFile k.txt  # against a deployment
 param(
     [string]$HostName = "localhost",
     [string]$KeyFile
@@ -15,7 +15,7 @@ $key = if ($KeyFile) { (Get-Content $KeyFile -Raw).Trim() }
 $H = @{ Authorization = "Bearer $key"; "Content-Type" = "application/json" }
 $FULL = "http://${HostName}:8790"
 $OPEN = "http://${HostName}:8791"
-Write-Host "Testar mot $HostName" -ForegroundColor Cyan
+Write-Host "Testing against $HostName" -ForegroundColor Cyan
 
 $pass = 0; $fail = 0
 function Check($name, $ok, $detail) {
@@ -23,50 +23,57 @@ function Check($name, $ok, $detail) {
     else     { $script:fail++; Write-Host "  FAIL  $name -- $detail" -ForegroundColor Red }
 }
 
-Write-Host "`nSkriver testdata via FULL-porten" -ForegroundColor Cyan
+Write-Host "`nWriting test data through the FULL listener" -ForegroundColor Cyan
 $o = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -Body (@{
-    content = "Oppen testanteckning: Proxmox nas pa 192.0.2.12 port 8006."
+    content = "Open test note: the test system is reachable on port 8791 through the proxy."
     tier = "open" } | ConvertTo-Json)
 $v = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -Body (@{
-    content = "VALV testanteckning: hemligt losenord for testsystemet ar SUPERHEMLIGT-42."
+    content = "VAULT test note: the password for the test system is CANARY-42."
     tier = "vault" } | ConvertTo-Json)
-Check "vault-post fick tier=vault" ($v.tier -eq "vault") "fick '$($v.tier)'"
+Check "vault write kept tier=vault" ($v.tier -eq "vault") "got '$($v.tier)'"
 
-Write-Host "`nLaser via FULL-porten (ska se bada)" -ForegroundColor Cyan
+Write-Host "`nReading through the FULL listener (should see both)" -ForegroundColor Cyan
 $allFull = Invoke-RestMethod "$FULL/api/thoughts" -Headers $H
-Check "FULL ser bada nivaerna" ($allFull.Count -ge 2) "fick $($allFull.Count)"
-Check "FULL ser valv-innehallet" ([bool]($allFull | Where-Object { $_.tier -eq "vault" })) "ingen valv-rad"
+Check "FULL sees both tiers" ($allFull.Count -ge 2) "got $($allFull.Count)"
+Check "FULL sees the vault row" ([bool]($allFull | Where-Object { $_.tier -eq "vault" })) "no vault row"
 
-Write-Host "`nLaser via OPPNA porten (far INTE se valvet)" -ForegroundColor Cyan
+Write-Host "`nReading through the OPEN listener (must NOT see the vault)" -ForegroundColor Cyan
 $allOpen = Invoke-RestMethod "$OPEN/api/thoughts" -Headers $H
-Check "OPPEN ser inga valv-rader" (-not ($allOpen | Where-Object { $_.tier -eq "vault" })) "valv lackte ut"
-Check "OPPEN ser den oppna raden" ([bool]($allOpen | Where-Object { $_.id -eq $o.id })) "saknar oppen rad"
-Check "SUPERHEMLIGT syns aldrig" (-not (($allOpen | ConvertTo-Json -Depth 6) -match "SUPERHEMLIGT")) "hemlighet lackte"
+Check "OPEN sees no vault rows" (-not ($allOpen | Where-Object { $_.tier -eq "vault" })) "vault leaked"
+Check "OPEN sees the open row" ([bool]($allOpen | Where-Object { $_.id -eq $o.id })) "open row missing"
+Check "the secret never appears" (-not (($allOpen | ConvertTo-Json -Depth 6) -match "CANARY")) "secret leaked"
 
-Write-Host "`nDirekt id-uppslag av valv-raden via OPPNA porten" -ForegroundColor Cyan
+Write-Host "`nLooking the vault row up by id through the OPEN listener" -ForegroundColor Cyan
 try {
-    Invoke-RestMethod "$OPEN/api/thoughts/$($v.id)" -Method Patch -Headers $H -Body '{"content":"kapad"}'
-    Check "OPPEN kan inte rora valv-rad via id" $false "patch gick igenom"
-} catch { Check "OPPEN kan inte rora valv-rad via id" $true "" }
+    Invoke-RestMethod "$OPEN/api/thoughts/$($v.id)" -Method Patch -Headers $H -Body '{"content":"hijacked"}'
+    Check "OPEN cannot touch a vault row by id" $false "the patch went through"
+} catch { Check "OPEN cannot touch a vault row by id" $true "" }
 
-Write-Host "`nSkrivforsok till valvet via OPPNA porten" -ForegroundColor Cyan
+Write-Host "`nAttempting a vault write through the OPEN listener" -ForegroundColor Cyan
 try {
     Invoke-RestMethod "$OPEN/api/thoughts" -Method Post -Headers $H -Body (@{
-        content = "Forsok att smuggla in en hemlighet utifran."; tier = "vault" } | ConvertTo-Json)
-    Check "OPPEN nekar vault-skrivning" $false "skrivningen gick igenom"
-} catch { Check "OPPEN nekar vault-skrivning" $true "" }
+        content = "Attempt to smuggle a secret in from outside."; tier = "vault" } | ConvertTo-Json)
+    Check "OPEN refuses vault writes" $false "the write went through"
+} catch { Check "OPEN refuses vault writes" $true "" }
 
-Write-Host "`nStats" -ForegroundColor Cyan
+Write-Host "`nStatistics" -ForegroundColor Cyan
 $sFull = Invoke-RestMethod "$FULL/api/stats" -Headers $H
 $sOpen = Invoke-RestMethod "$OPEN/api/stats" -Headers $H
-Check "FULL raknar fler an OPPEN" ($sFull.total -gt $sOpen.total) "full=$($sFull.total) open=$($sOpen.total)"
-Check "OPPEN stats namner inte valv" (-not $sOpen.byTier.vault) "byTier visar valv"
+Check "FULL counts more than OPEN" ($sFull.total -gt $sOpen.total) "full=$($sFull.total) open=$($sOpen.total)"
+Check "OPEN stats do not mention the vault" (-not $sOpen.byTier.vault) "byTier exposes the vault"
 
-Write-Host "`nAutentisering" -ForegroundColor Cyan
+Write-Host "`nAuthentication" -ForegroundColor Cyan
 try {
-    Invoke-RestMethod "$OPEN/api/thoughts" -Headers @{ Authorization = "Bearer fel-nyckel" }
-    Check "fel nyckel nekas" $false "slapptes igenom"
-} catch { Check "fel nyckel nekas" $true "" }
+    Invoke-RestMethod "$OPEN/api/thoughts" -Headers @{ Authorization = "Bearer wrong-key" }
+    Check "a wrong key is refused" $false "it was let through"
+} catch { Check "a wrong key is refused" $true "" }
 
-Write-Host "`n$pass godkanda, $fail underkanda`n" -ForegroundColor $(if ($fail) { "Red" } else { "Green" })
+Write-Host "`nCleaning up test data" -ForegroundColor Cyan
+foreach ($id in @($v.id, $o.id)) {
+    try { Invoke-RestMethod "$FULL/api/thoughts/$id" -Method Delete -Headers $H | Out-Null } catch {}
+}
+$left = Invoke-RestMethod "$FULL/api/thoughts" -Headers $H | Where-Object { $_.id -in @($v.id, $o.id) }
+Check "test rows removed" (-not $left) "test rows still present"
+
+Write-Host "`n$pass passed, $fail failed`n" -ForegroundColor $(if ($fail) { "Red" } else { "Green" })
 if ($fail) { exit 1 }

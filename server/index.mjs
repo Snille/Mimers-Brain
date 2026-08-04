@@ -82,7 +82,7 @@ function authOk(req, allowAuthelia) {
 async function handleLogin(req, res) {
   const { key } = await body(req);
   if (ACCESS_KEY && !sameSecret(key, ACCESS_KEY))
-    return json(res, 401, { error: "Fel nyckel" });
+    return json(res, 401, { error: "Wrong key" });
   res.setHeader(
     "Set-Cookie",
     `valv_session=${SESSION_VALUE}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000`,
@@ -108,7 +108,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false }) {
 
       // --- MCP (stateless: fresh server + transport per request) ------------
       if (path === "/mcp") {
-        if (!keyOk(req)) return json(res, 401, { error: "Ogiltig nyckel" });
+        if (!keyOk(req)) return json(res, 401, { error: "Invalid key" });
         const server = buildServer(tiers);
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on("close", () => { transport.close(); server.close(); });
@@ -130,7 +130,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false }) {
         if (path === "/api/login" && req.method === "POST")
           return handleLogin(req, res);
 
-        if (!authOk(req, allowAuthelia)) return json(res, 401, { error: "Ej inloggad" });
+        if (!authOk(req, allowAuthelia)) return json(res, 401, { error: "Not signed in" });
         if (path === "/api/stats") return json(res, 200, await db.stats(tiers));
 
         if (path === "/api/thoughts" && req.method === "GET") {
@@ -148,13 +148,13 @@ function makeListener(tiers, { serveUi, allowAuthelia = false }) {
 
         if (path === "/api/thoughts" && req.method === "POST") {
           const { content, tier, metadata } = await body(req);
-          if (!content?.trim()) return json(res, 400, { error: "Tom tanke" });
+          if (!content?.trim()) return json(res, 400, { error: "Empty memory" });
           return json(res, 200, await db.captureThought(tiers, content.trim(), { tier, metadata }));
         }
 
         if (path === "/api/search" && req.method === "POST") {
           const { query, limit, threshold } = await body(req);
-          if (!query?.trim()) return json(res, 400, { error: "Tom sökning" });
+          if (!query?.trim()) return json(res, 400, { error: "Empty search" });
           return json(res, 200, await db.searchThoughts(tiers, query.trim(), { limit, threshold }));
         }
 
@@ -164,19 +164,19 @@ function makeListener(tiers, { serveUi, allowAuthelia = false }) {
         if (m && req.method === "DELETE")
           return json(res, 200, await db.deleteThought(tiers, m[1]));
 
-        return json(res, 404, { error: "Okänd endpoint" });
+        return json(res, 404, { error: "Unknown endpoint" });
       }
 
       // --- static UI (full listener only) -----------------------------------
       if (!serveUi) return json(res, 404, { error: "Not found" });
       const file = path === "/" ? "index.html" : path.replace(/^\/+/, "");
       const full = join(PUBLIC, file);
-      if (!full.startsWith(PUBLIC)) return json(res, 403, { error: "Nej" });
+      if (!full.startsWith(PUBLIC)) return json(res, 403, { error: "Denied" });
       const data = await readFile(full);
       res.writeHead(200, { "Content-Type": MIME[extname(full)] || "application/octet-stream" });
       res.end(data);
     } catch (err) {
-      if (err.code === "ENOENT") return json(res, 404, { error: "Hittades inte" });
+      if (err.code === "ENOENT") return json(res, 404, { error: "Not found" });
       console.error(`[${label}]`, err);
       json(res, 500, { error: String(err.message || err) });
     }
@@ -186,14 +186,14 @@ function makeListener(tiers, { serveUi, allowAuthelia = false }) {
 // Boot ------------------------------------------------------------------------
 
 await db.pool.query("SELECT 1");
-console.log("Databas ansluten.");
+console.log("Database connected.");
 
 makeListener(db.ALL, { serveUi: true }).listen(PORT_FULL, () =>
-  console.log(`FULL (öppen + valv, endast LAN)  -> http://0.0.0.0:${PORT_FULL}  [/mcp, /api, UI]`));
+  console.log(`FULL (open + vault, LAN only)  -> http://0.0.0.0:${PORT_FULL}  [/mcp, /api, UI]`));
 
 makeListener(db.OPEN, { serveUi: true, allowAuthelia: true }).listen(PORT_OPEN, () =>
-  console.log(`ÖPPEN (proxa hit från NPM)       -> http://0.0.0.0:${PORT_OPEN}  [/mcp, /api]`));
+  console.log(`OPEN (proxy to this one)       -> http://0.0.0.0:${PORT_OPEN}  [/mcp, /api]`));
 
-if (!ACCESS_KEY) console.log("VARNING: MCP_ACCESS_KEY är tom — ingen nyckel krävs.");
+if (!ACCESS_KEY) console.log("WARNING: MCP_ACCESS_KEY is empty - no key required.");
 if (!process.env.OPENROUTER_API_KEY)
-  console.log("VARNING: OPENROUTER_API_KEY saknas — inga embeddings, semantisk sökning av.");
+  console.log("WARNING: OPENROUTER_API_KEY missing - no embeddings, semantic search disabled.");
