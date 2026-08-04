@@ -121,6 +121,23 @@ Eight memories also pointed at the old path, which no longer exists. They were
 rewritten and re-embedded. **A memory that points somewhere wrong is worse than
 no memory** — the next session would have followed the path straight into a wall.
 
+### Topic casing
+
+Verifying the translation turned up a real defect. The metadata extractor had
+produced both `Home Automation` and `home automation` for the same idea, so they
+filtered as two separate facets in the UI — and the stats object ended up with
+keys differing only by case, which PowerShell's `ConvertFrom-Json` refuses,
+silently returning the raw string instead of an object. That is why the isolation
+suite suddenly reported an empty total.
+
+Topics are now trimmed, lowercased and deduped on write; people keep their
+capitalisation, being proper nouns. Twenty-five existing rows were normalised in
+place. Embeddings are computed from content, not metadata, so nothing needed
+re-embedding.
+
+The suite also grew a twelfth check: it now verifies that it cleaned up its own
+test rows. An earlier aborted run had left two behind.
+
 ### Documentation language
 
 The docs were written in Swedish throughout, against the project's own rule that

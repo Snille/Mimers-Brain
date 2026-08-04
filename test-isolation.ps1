@@ -57,17 +57,22 @@ try {
 } catch { Check "OPEN refuses vault writes" $true "" }
 
 Write-Host "`nStatistics" -ForegroundColor Cyan
-# -AsHashtable, because ConvertFrom-Json's default object model is case-insensitive
-# and throws on keys that differ only by case. Topics are normalised on write now,
-# but rows captured before that are still out there.
-function Stats($base) {
-    (Invoke-WebRequest "$base/api/stats" -Headers $H -UseBasicParsing).Content |
-        ConvertFrom-Json -AsHashtable
+# ConvertFrom-Json's object model is case-insensitive, so an object with keys
+# differing only by case (which the metadata extractor used to produce) comes
+# back as a raw string instead of an object. Topics are normalised on write now;
+# this guard turns a regression into a clear failure rather than an empty total.
+# Note -AsHashtable is not available in Windows PowerShell 5.1, so it is avoided.
+function Stats($base, $label) {
+    $s = Invoke-RestMethod "$base/api/stats" -Headers $H
+    if ($s -is [string]) {
+        throw "$label /api/stats did not parse as an object - duplicate keys differing only by case?"
+    }
+    $s
 }
-$sFull = Stats $FULL
-$sOpen = Stats $OPEN
+$sFull = Stats $FULL "FULL"
+$sOpen = Stats $OPEN "OPEN"
 Check "FULL counts more than OPEN" ($sFull.total -gt $sOpen.total) "full=$($sFull.total) open=$($sOpen.total)"
-Check "OPEN stats do not mention the vault" (-not $sOpen.byTier.ContainsKey("vault")) "byTier exposes the vault"
+Check "OPEN stats do not mention the vault" (-not $sOpen.byTier.vault) "byTier exposes the vault"
 
 Write-Host "`nAuthentication" -ForegroundColor Cyan
 try {

@@ -117,3 +117,27 @@ volym och SSH-alias fortfarande bär det gamla namnet.
 Åtta minnen pekade dessutom på `/home/mimer/mimers-valv/`, en sökväg som inte
 längre finns. De är omskrivna och omembeddade. **Ett minne som pekar fel är värre
 än inget minne** — nästa session hade följt sökvägen rakt in i väggen.
+
+### Ämnens skiftläge
+
+Verifieringen av översättningen avslöjade en verklig defekt. Metadata-extraktorn
+hade producerat både `Home Automation` och `home automation` för samma sak, så de
+filtrerade som två skilda fasetter i gränssnittet — och statistikobjektet fick
+nycklar som bara skiljde sig i skiftläge, vilket PowerShells `ConvertFrom-Json`
+vägrar hantera och tyst returnerar råsträngen för i stället för ett objekt. Det
+var därför isoleringssviten plötsligt rapporterade en tom summa.
+
+Ämnen trimmas, gemenerseras och dedupliceras nu vid skrivning; personer behåller
+sitt skiftläge eftersom de är egennamn. Tjugofem befintliga rader normaliserades
+på plats. Embeddings beräknas från innehållet, inte metadatan, så inget behövde
+embeddas om.
+
+Sviten fick också en tolfte kontroll: den verifierar nu att den städat bort sina
+egna testrader. En tidigare avbruten körning hade lämnat två kvar.
+
+### Dokumentationsspråk
+
+Dokumentationen var skriven på svenska rakt igenom, tvärtemot projektets egen
+regel att kod, kommentarer och dokumentation skrivs på engelska just för att ett
+repo ska kunna publiceras. Engelska är nu default, med den svenska texten kvar
+som `*.sv.md`.
