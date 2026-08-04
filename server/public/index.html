@@ -84,6 +84,8 @@
   .tag.vault { color: var(--warn); border-color: var(--warn); font-weight: 600; }
   .card.vault { border-left: 3px solid var(--warn); }
   .card .body { white-space: pre-wrap; word-break: break-word; }
+  .editfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 12px; }
+  .editfields input, .editfields select { width: 100%; }
   .card .actions { margin-top: 10px; display: none; gap: 8px; }
   .card:hover .actions, .card.editing .actions { display: flex; }
   .empty { color: var(--muted); text-align: center; padding: 50px 0; }
@@ -175,6 +177,7 @@
 <script type="module">
 const $ = (s) => document.querySelector(s);
 const state = { filters: {}, mode: "text", q: "", semantic: false };
+const TYPES = ["observation", "reference", "project", "task", "idea", "person_note"];
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("sv-SE") : "");
@@ -235,6 +238,20 @@ function card(t) {
     ta.rows = Math.max(4, Math.ceil(t.content.length / 90) + 1);
     ta.value = t.content;
     body.replaceWith(ta);
+
+    // Tags are edited as plain comma-separated text. It round-trips exactly what
+    // the sidebar shows, which is what makes merging two spellings of the same
+    // topic - or of the same person - a ten-second job.
+    const types = !m.type || TYPES.includes(m.type) ? TYPES : [m.type, ...TYPES];
+    const fields = document.createElement("div");
+    fields.className = "editfields";
+    fields.innerHTML = `
+      <label>Typ<select class="e-type">${types
+        .map((x) => `<option${x === m.type ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
+      <label>Ämnen (kommaseparerade)<input class="e-topics" value="${esc((m.topics || []).join(", "))}" /></label>
+      <label>Personer (kommaseparerade)<input class="e-people" value="${esc((m.people || []).join(", "))}" /></label>`;
+    ta.after(fields);
+
     const acts = el.querySelector(".actions");
     acts.innerHTML = "";
     const save = document.createElement("button");
@@ -248,10 +265,25 @@ function card(t) {
       save.disabled = true;
       save.textContent = "Sparar ...";
       try {
+        const list = (sel) =>
+          fields.querySelector(sel).value.split(",").map((s) => s.trim()).filter(Boolean);
+        // PATCH replaces metadata wholesale, so spread the existing object to
+        // keep keys the form does not show (source, and anything added later).
+        const payload = {
+          metadata: {
+            ...m,
+            type: fields.querySelector(".e-type").value,
+            topics: list(".e-topics"),
+            people: list(".e-people"),
+          },
+        };
+        // Only send content when it actually changed - the server re-embeds
+        // whenever it sees the field, and that is a paid API call.
+        if (ta.value !== t.content) payload.content = ta.value;
         await api(`/api/thoughts/${t.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: ta.value }),
+          body: JSON.stringify(payload),
         });
         refresh();
       } catch (e) { showError(e.message); save.disabled = false; save.textContent = "Spara"; }

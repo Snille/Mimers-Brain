@@ -80,6 +80,35 @@ export async function extractMetadata(text) {
   }
 }
 
+// The extractor is free-form, so it happily produces both "Home Automation" and
+// "home automation" for the same idea. Left alone they become two facets that
+// filter separately, and a stats object with case-colliding keys that some JSON
+// parsers (PowerShell's among them) refuse outright, silently returning a raw
+// string instead. Topics are lowercased; people only get trimmed and deduped,
+// because they are proper nouns and "erik" in the sidebar would look wrong.
+//
+// Applied on every write - capture and update both - so hand-edited tags in the
+// UI cannot reintroduce the collision.
+export function normaliseMeta(meta) {
+  const out = { ...meta };
+  const dedupe = (list, lower) => {
+    const seen = new Set();
+    const kept = [];
+    for (const raw of Array.isArray(list) ? list : []) {
+      const s = String(raw).replace(/\s+/g, " ").trim();
+      if (!s) continue;
+      const key = s.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      kept.push(lower ? key : s);
+    }
+    return kept;
+  };
+  if ("topics" in out) out.topics = dedupe(out.topics, true);
+  if ("people" in out) out.people = dedupe(out.people, false);
+  return out;
+}
+
 const COLS = "id, content, metadata, tier, created_at, updated_at";
 
 export async function listThoughts(tiers, { limit = 10, type, topic, person, days } = {}) {
@@ -133,17 +162,8 @@ export async function captureThought(tiers, content, { tier = "open", metadata }
     metadata ? Promise.resolve(null) : extractMetadata(content),
   ]);
 
-  const meta = { ...(auto || {}), ...(metadata || {}), source: "mimers-brain" };
+  const meta = normaliseMeta({ ...(auto || {}), ...(metadata || {}), source: "mimers-brain" });
 
-  // The extractor is free-form, so it happily produces both "Home Automation"
-  // and "home automation" for the same idea. Left alone they become two facets
-  // that filter separately, and a stats object with case-colliding keys that
-  // some JSON parsers (PowerShell's among them) refuse outright. People keep
-  // their capitalisation - they are proper nouns.
-  if (Array.isArray(meta.topics))
-    meta.topics = [...new Set(
-      meta.topics.map((t) => String(t).replace(/\s+/g, " ").trim().toLowerCase()).filter(Boolean),
-    )];
   const { rows } = await pool.query(
     `SELECT upsert_thought($1, $2::jsonb, $3) AS result`,
     [content, JSON.stringify({ metadata: meta }), tier],
@@ -171,7 +191,10 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
     const vector = await embed(content).catch(() => null);
     if (vector) sets.push(`embedding = $${args.push(JSON.stringify(vector))}::vector`);
   }
-  if (metadata) sets.push(`metadata = $${args.push(JSON.stringify(metadata))}::jsonb`);
+  // Replaces the whole object, so callers must send back the keys they want to
+  // keep. The UI merges against what it already has for exactly this reason.
+  if (metadata)
+    sets.push(`metadata = $${args.push(JSON.stringify(normaliseMeta(metadata)))}::jsonb`);
   if (tier) sets.push(`tier = $${args.push(tier)}`);
   if (!sets.length) throw new Error("Nothing to update");
 
