@@ -18,7 +18,22 @@ export const pool = new pg.Pool({
 const EMBED_URL = process.env.EMBED_URL || "https://openrouter.ai/api/v1/embeddings";
 const EMBED_MODEL = process.env.EMBED_MODEL || "openai/text-embedding-3-small";
 const EMBED_KEY = process.env.OPENROUTER_API_KEY || "";
+const META_URL = process.env.META_URL || "https://openrouter.ai/api/v1/chat/completions";
 const META_MODEL = process.env.META_MODEL || "openai/gpt-4o-mini";
+
+// OpenRouter attributes spend by these two headers and lists the request as
+// "Unknown" without them. Harmless to send to any other OpenAI-compatible API.
+const APP_NAME = process.env.APP_NAME || "Mimers Brain";
+const APP_URL = process.env.APP_URL || "https://github.com/Snille/Mimers-Brain";
+
+function aiHeaders() {
+  return {
+    Authorization: `Bearer ${EMBED_KEY}`,
+    "Content-Type": "application/json",
+    "HTTP-Referer": APP_URL,
+    "X-Title": APP_NAME,
+  };
+}
 
 export function fingerprint(content) {
   return createHash("sha256")
@@ -30,7 +45,7 @@ export async function embed(text) {
   if (!EMBED_KEY) return null;
   const r = await fetch(EMBED_URL, {
     method: "POST",
-    headers: { Authorization: `Bearer ${EMBED_KEY}`, "Content-Type": "application/json" },
+    headers: aiHeaders(),
     body: JSON.stringify({ model: EMBED_MODEL, input: text }),
   });
   if (!r.ok) throw new Error(`Embedding failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
@@ -41,9 +56,9 @@ export async function embed(text) {
 export async function extractMetadata(text) {
   if (!EMBED_KEY) return { topics: ["uncategorized"], type: "observation" };
   try {
-    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const r = await fetch(META_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${EMBED_KEY}`, "Content-Type": "application/json" },
+      headers: aiHeaders(),
       body: JSON.stringify({
         model: META_MODEL,
         response_format: { type: "json_object" },
