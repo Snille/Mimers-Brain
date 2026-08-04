@@ -136,6 +136,17 @@ forward auth, which it must not — see the proxy section below.
 On 8790 you sign in by pasting `MCP_ACCESS_KEY` once; it is traded for a cookie
 that lasts 30 days. From outside the authenticator handles it.
 
+Hovering a memory reveals **Edit**, which opens the content along with its type,
+topics and people as comma-separated fields. This is how you correct what the
+metadata extractor got wrong — it happily produces two spellings for one topic,
+or a person's full name in some rows and their first name in others, and those
+filter as separate facets in the sidebar. Merging them is a matter of editing the
+text. Topics are lowercased and deduplicated on save; people keep their
+capitalisation, being proper nouns.
+
+Editing tags costs nothing. The embedding is computed from the content, so it is
+only recomputed when the content itself changes.
+
 ---
 
 ## If the client machine is reinstalled

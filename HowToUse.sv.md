@@ -137,6 +137,17 @@ ska göra — se avsnittet om proxyn nedan.
 På 8790 loggar du in genom att klistra in `MCP_ACCESS_KEY` en gång; den byts mot
 en cookie som ligger kvar i 30 dagar. Utifrån sköter Authelia inloggningen.
 
+När du hovrar över ett minne dyker **Redigera** upp, som öppnar innehållet
+tillsammans med typ, ämnen och personer som kommaseparerade fält. Det är så du
+rättar det metadata-extraktorn missar — den producerar gärna två stavningar av
+samma ämne, eller en persons fullständiga namn i vissa rader och förnamnet i
+andra, och de filtrerar som skilda fasetter i sidopanelen. Att slå ihop dem är en
+textredigering. Ämnen gemenerseras och dedupliceras vid sparning; personer
+behåller sitt skiftläge eftersom de är egennamn.
+
+Att redigera taggar kostar ingenting. Embeddingen räknas på innehållet och räknas
+alltså bara om när innehållet självt ändras.
+
 ---
 
 ## Om laptopen måste installeras om
