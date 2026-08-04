@@ -57,10 +57,17 @@ try {
 } catch { Check "OPEN refuses vault writes" $true "" }
 
 Write-Host "`nStatistics" -ForegroundColor Cyan
-$sFull = Invoke-RestMethod "$FULL/api/stats" -Headers $H
-$sOpen = Invoke-RestMethod "$OPEN/api/stats" -Headers $H
+# -AsHashtable, because ConvertFrom-Json's default object model is case-insensitive
+# and throws on keys that differ only by case. Topics are normalised on write now,
+# but rows captured before that are still out there.
+function Stats($base) {
+    (Invoke-WebRequest "$base/api/stats" -Headers $H -UseBasicParsing).Content |
+        ConvertFrom-Json -AsHashtable
+}
+$sFull = Stats $FULL
+$sOpen = Stats $OPEN
 Check "FULL counts more than OPEN" ($sFull.total -gt $sOpen.total) "full=$($sFull.total) open=$($sOpen.total)"
-Check "OPEN stats do not mention the vault" (-not $sOpen.byTier.vault) "byTier exposes the vault"
+Check "OPEN stats do not mention the vault" (-not $sOpen.byTier.ContainsKey("vault")) "byTier exposes the vault"
 
 Write-Host "`nAuthentication" -ForegroundColor Cyan
 try {

@@ -118,7 +118,17 @@ export async function captureThought(tiers, content, { tier = "open", metadata }
     metadata ? Promise.resolve(null) : extractMetadata(content),
   ]);
 
-  const meta = { ...(auto || {}), ...(metadata || {}), source: "mimers-valv" };
+  const meta = { ...(auto || {}), ...(metadata || {}), source: "mimers-brain" };
+
+  // The extractor is free-form, so it happily produces both "Home Automation"
+  // and "home automation" for the same idea. Left alone they become two facets
+  // that filter separately, and a stats object with case-colliding keys that
+  // some JSON parsers (PowerShell's among them) refuse outright. People keep
+  // their capitalisation - they are proper nouns.
+  if (Array.isArray(meta.topics))
+    meta.topics = [...new Set(
+      meta.topics.map((t) => String(t).replace(/\s+/g, " ").trim().toLowerCase()).filter(Boolean),
+    )];
   const { rows } = await pool.query(
     `SELECT upsert_thought($1, $2::jsonb, $3) AS result`,
     [content, JSON.stringify({ metadata: meta }), tier],
