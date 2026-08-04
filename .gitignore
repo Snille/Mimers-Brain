@@ -1,6 +1,10 @@
 # Secrets
 .env
 
+# Real addresses for this particular deployment. The committed docs use RFC 5737
+# placeholders so the repo can be made public without publishing a network map.
+docs/deployment.local.md
+
 # Migration input. These files carry real credentials in the vault-tier rows -
 # they are kept on disk as a record of what was imported, never committed.
 migrate/*.tsv

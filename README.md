@@ -15,6 +15,13 @@ Hemligheter serveras bara på LAN; allt annat går att nå varifrån som helst.
 | **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Färdig reverse-proxy-config |
 | **[migrate/](migrate/)** | Engångsimport av befintlig kunskap |
 
+> **Adresser i dokumentationen är platshållare.** `192.0.2.x`
+> ([RFC 5737](https://www.rfc-editor.org/rfc/rfc5737)) och `example.net`
+> ([RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)) är reserverade just för
+> dokumentation och pekar aldrig på något verkligt. Byt dem mot dina egna. Den
+> som kör en installation kan hålla sina riktiga värden i
+> `docs/deployment.local.md`, som är gitignorerad.
+
 ## Varför två portar
 
 Nivåuppdelningen bygger **inte** på att inspektera `X-Forwarded-For`. Den kan

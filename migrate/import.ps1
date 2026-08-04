@@ -2,7 +2,7 @@
 # Idempotent: upsert_thought dedupes on a content fingerprint, so re-running
 # merges metadata instead of creating duplicates.
 param(
-    [string]$HostName = "192.0.2.41",
+    [string]$HostName = "localhost",
     [string]$TsvFile = "thoughts.tsv",
     [Parameter(Mandatory)][string]$KeyFile
 )
