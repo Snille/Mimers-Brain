@@ -53,6 +53,21 @@ ssh <server> 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
 
 ## Connecting a model
 
+### Claude Code and Claude Desktop are two different clients
+
+The desktop app holds both, which is where most of the confusion starts. The
+*Code* pane is Claude Code; the chat pane is Claude Desktop. They keep their MCP
+servers in separate registries and neither one sees the other's:
+
+| Client | Registry | Set up through |
+| --- | --- | --- |
+| Claude Code (the *Code* pane) | `~/.claude.json` | `claude mcp add`, or edit the file |
+| Claude Desktop (chat) | account connectors, `claude_desktop_config.json` | *Settings → Connectors* |
+
+A memory that answers in a Code session therefore says nothing about the chat
+side, and an empty Connectors list is not a fault — just a registry nobody has
+written to.
+
 ### Claude Code
 
 ```bash
@@ -75,30 +90,62 @@ home network — open tier only, but better than nothing.
 
 The change takes effect in the next session.
 
-### Claude Desktop
+### Claude Desktop (the chat side)
 
-Claude Desktop adds remote MCP servers as **connectors** through its settings:
-look for *Connectors* and a button to add a custom one. Fill in the URL and add
-the key as an `Authorization` header with the value `Bearer <KEY>`.
-
+Remote MCP servers go in under *Settings → Connectors*, as a custom connector.
 Menu wording moves between versions, so navigate by *connector* and *custom*
-rather than an exact path. Some older versions only accept stdio servers in
-`claude_desktop_config.json` and need [`mcp-remote`](https://www.npmjs.com/package/mcp-remote)
-as a bridge:
+rather than an exact path.
+
+Two limits decide what is actually possible there:
+
+- The URL field takes **https only**. The LAN address is plain http and cannot be
+  entered at all.
+- The connector is opened from Anthropic's infrastructure, not from your machine,
+  so a private address stays unreachable even if you give it an https name.
+
+Which means **the vault tier cannot be reached from the chat side** — and that is
+the design holding, not a limitation to work around. 8790 is never exposed
+outward; that rule is the whole point of the split. What belongs in a connector
+is the public hostname, giving chat the open tier.
+
+The dialog has no field for a header either — only OAuth Client ID and Secret.
+Given a URL it cannot authenticate to, the client falls back to the OAuth flow and
+fails with a message about not being able to register with the sign-in service.
+So the key rides in the URL instead:
+
+```
+https://brain.example.net/mcp?key=<MCP_OPEN_KEY>
+```
+
+`MCP_OPEN_KEY` is a second key that only the open listener honours, and it must
+not be the same value as `MCP_ACCESS_KEY` — see *Authentication* in the
+[README](README.md) for why. Set it in `.env` and restart. If you would rather
+have real sign-in than a shared key, the design for that is in
+[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md); it needs an OIDC
+provider, which is why it is not the default.
+
+If you do want the vault in chat, bridge it locally instead of opening a port.
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) runs as a stdio server
+on your own machine, so it reaches the LAN address over plain http and adds the
+header itself:
 
 ```json
 {
   "mcpServers": {
     "mimers-brain": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://brain.example.net/mcp",
+      "args": ["-y", "mcp-remote", "http://192.0.2.41:8790/mcp",
                "--header", "Authorization: Bearer <KEY>"]
     }
   }
 }
 ```
 
-On Windows that file is at `%APPDATA%\Claude\claude_desktop_config.json`.
+On Windows that file is at `%APPDATA%\Claude\claude_desktop_config.json`; restart
+the app afterwards. Whether a given version still reads `mcpServers` from that
+file varies — if the server never appears, keep vault work on the Code side and
+let chat have the open tier. That split costs little, since the Code side is
+where the vault is usually needed anyway.
 
 ### ChatGPT
 

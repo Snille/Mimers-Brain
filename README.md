@@ -80,7 +80,7 @@ From outside — and for other models — use the proxied hostname, which points
 
 ## Authentication
 
-Three ways in, in the order the server tries them:
+Four ways in, in the order the server tries them:
 
 1. **Bearer key** (`Authorization: Bearer <MCP_ACCESS_KEY>`) — what MCP clients
    and scripts use.
@@ -89,10 +89,22 @@ Three ways in, in the order the server tries them:
    no session table to maintain.
 3. **Forward auth** (Authelia or similar) — on the open listener only. The proxy
    has already run the request past the authenticator and set `Remote-User`.
+4. **URL key** (`/mcp?key=<MCP_OPEN_KEY>`) — open listener, `/mcp` only, and
+   only if `MCP_OPEN_KEY` is set.
 
-Point 3 is safe *there and only there*: that listener cannot reach vault rows at
-all, so the worst a spoofed header grants is open-tier data anyone on the LAN
-could read from 8790 anyway. Never do the same on the full listener.
+Points 3 and 4 are safe *there and only there*: that listener cannot reach vault
+rows at all, so the worst a spoofed header or a leaked URL grants is open-tier
+data anyone on the LAN could read from 8790 anyway. Never do the same on the full
+listener.
+
+Point 4 exists because some clients take a URL and offer no way to send a header
+— Claude Desktop's connector dialog is the case that forced it. A credential in a
+URL is a real downgrade: it is stored in the client's config and written to every
+proxy access log, so `MCP_OPEN_KEY` must be a **different** value from
+`MCP_ACCESS_KEY`, and `/mcp` has `access_log off` in
+[docs/nginx-brain.conf](docs/nginx-brain.conf). The cleaner answer for that class
+of client is OAuth, sketched but not built in
+[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md).
 
 The UI is served on **both** ports. On 8790 you see the vault and sign in with
 the key; through the proxy you see the open tier and the authenticator handles

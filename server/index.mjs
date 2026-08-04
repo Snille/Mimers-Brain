@@ -26,6 +26,7 @@ const PUBLIC = join(ROOT, "public");
 const PORT_FULL = Number(process.env.PORT_FULL || 8790);
 const PORT_OPEN = Number(process.env.PORT_OPEN || 8791);
 const ACCESS_KEY = process.env.MCP_ACCESS_KEY || "";
+const OPEN_KEY = process.env.MCP_OPEN_KEY || "";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -53,6 +54,19 @@ function keyOk(req) {
   const given = (req.headers.authorization || "").replace(/^Bearer\s+/i, "")
     || req.headers["x-access-key"] || "";
   return sameSecret(given, ACCESS_KEY);
+}
+
+// Some clients cannot send a header at all. Claude Desktop's connector dialog
+// takes a URL and nothing else, so a key that is not in the URL cannot be given
+// to it. Hence this second key, and it is deliberately a *different* one: a
+// credential in a URL ends up in the client's stored config and in every proxy
+// access log, which is a downgrade the main key should not have to accept. This
+// one is only ever honoured by the open listener, so what a leak costs is open
+// tier - readable to anyone who can log in to the web UI anyway - and it can be
+// rotated without touching a single existing client.
+function openKeyOk(url) {
+  if (!OPEN_KEY) return false;
+  return sameSecret(url.searchParams.get("key"), OPEN_KEY);
 }
 
 // Browser session. MCP clients send a bearer token, but a browser cannot - so
@@ -96,7 +110,7 @@ async function body(req) {
   return chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
 }
 
-function makeListener(tiers, { serveUi, allowAuthelia = false }) {
+function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = false }) {
   const label = tiers.includes("vault") ? "full" : "open";
 
   return createServer(async (req, res) => {
@@ -108,7 +122,10 @@ function makeListener(tiers, { serveUi, allowAuthelia = false }) {
 
       // --- MCP (stateless: fresh server + transport per request) ------------
       if (path === "/mcp") {
-        if (!keyOk(req)) return json(res, 401, { error: "Invalid key" });
+        // The URL key is accepted here and nowhere else. /api keeps the header
+        // and the cookie, since the UI has no trouble sending either.
+        if (!keyOk(req) && !(allowUrlKey && openKeyOk(url)))
+          return json(res, 401, { error: "Invalid key" });
         const server = buildServer(tiers);
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on("close", () => { transport.close(); server.close(); });
@@ -191,9 +208,12 @@ console.log("Database connected.");
 makeListener(db.ALL, { serveUi: true }).listen(PORT_FULL, () =>
   console.log(`FULL (open + vault, LAN only)  -> http://0.0.0.0:${PORT_FULL}  [/mcp, /api, UI]`));
 
-makeListener(db.OPEN, { serveUi: true, allowAuthelia: true }).listen(PORT_OPEN, () =>
+makeListener(db.OPEN, { serveUi: true, allowAuthelia: true, allowUrlKey: true }).listen(PORT_OPEN, () =>
   console.log(`OPEN (proxy to this one)       -> http://0.0.0.0:${PORT_OPEN}  [/mcp, /api]`));
 
 if (!ACCESS_KEY) console.log("WARNING: MCP_ACCESS_KEY is empty - no key required.");
+if (OPEN_KEY) console.log("MCP_OPEN_KEY set - open listener also accepts /mcp?key=");
+if (OPEN_KEY && OPEN_KEY === ACCESS_KEY)
+  console.log("WARNING: MCP_OPEN_KEY equals MCP_ACCESS_KEY - the vault key is now in URLs and logs.");
 if (!process.env.OPENROUTER_API_KEY)
   console.log("WARNING: OPENROUTER_API_KEY missing - no embeddings, semantic search disabled.");

@@ -80,7 +80,7 @@ på 8791.
 
 ## Inloggning
 
-Tre vägar in, i den ordning servern provar dem:
+Fyra vägar in, i den ordning servern provar dem:
 
 1. **Bearer-nyckel** (`Authorization: Bearer <MCP_ACCESS_KEY>`) — det MCP-klienter
    och skript använder.
@@ -89,10 +89,22 @@ Tre vägar in, i den ordning servern provar dem:
    sessionstabell att underhålla.
 3. **Authelia** — endast på den öppna lyssnaren. nginx har då redan kört
    requesten förbi Authelia och satt `Remote-User`.
+4. **Nyckel i URL:en** (`/mcp?key=<MCP_OPEN_KEY>`) — öppna lyssnaren, endast
+   `/mcp`, och bara om `MCP_OPEN_KEY` är satt.
 
-Punkt 3 är säker *just där och bara där*: den lyssnaren kan över huvud taget inte
-nå valv-rader, så det värsta headern kan ge är öppen kunskap som vem som helst på
-LAN:et ändå kan läsa från 8790. Gör aldrig samma sak på den fulla lyssnaren.
+Punkt 3 och 4 är säkra *just där och bara där*: den lyssnaren kan över huvud taget
+inte nå valv-rader, så det värsta en förfalskad header eller en läckt URL kan ge är
+öppen kunskap som vem som helst på LAN:et ändå kan läsa från 8790. Gör aldrig
+samma sak på den fulla lyssnaren.
+
+Punkt 4 finns för att vissa klienter tar en URL och inte erbjuder något sätt att
+skicka en header — Claude Desktops connector-dialog är fallet som tvingade fram
+den. En nyckel i en URL är en verklig försämring: den sparas i klientens config
+och skrivs till varje accesslogg i proxyn. Därför måste `MCP_OPEN_KEY` vara ett
+**annat** värde än `MCP_ACCESS_KEY`, och `/mcp` har `access_log off` i
+[docs/nginx-brain.conf](docs/nginx-brain.conf). Den snyggare lösningen för den
+sortens klienter är OAuth, skissad men inte byggd i
+[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md).
 
 Gränssnittet serveras på **båda** portarna. På 8790 (LAN) ser du valvet och loggar
 in med nyckeln; via `brain.example.net` ser du bara öppen nivå och Authelia

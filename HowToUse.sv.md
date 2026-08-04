@@ -53,6 +53,20 @@ ssh valv 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
 
 ## Koppla in en modell
 
+### Claude Code och Claude Desktop är två olika klienter
+
+Skrivbordsappen rymmer båda, och det är där förvirringen börjar. *Code*-delen av
+fönstret är Claude Code; chattdelen är Claude Desktop. De håller sina
+MCP-servrar i varsitt register, och ingen av dem ser den andras:
+
+| Klient | Register | Sätts upp via |
+| --- | --- | --- |
+| Claude Code (*Code*-delen) | `~/.claude.json` | `claude mcp add`, eller redigera filen |
+| Claude Desktop (chatten) | kontots connectors, `claude_desktop_config.json` | *Inställningar → Connectors* |
+
+Att minnet svarar i en Code-session säger alltså ingenting om chattsidan, och en
+tom connectors-lista är inte ett fel — bara ett register ingen har skrivit i.
+
 ### Claude Code
 
 ```bash
@@ -75,31 +89,62 @@ med bara öppen nivå, men det är bättre än inget. Så är det redan uppsatt 
 
 Ändringen slår igenom vid nästa session.
 
-### Claude Desktop
+### Claude Desktop (chattsidan)
 
-Claude Desktop lägger till fjärranslutna MCP-servrar som **connectors** via
-inställningarna: leta efter *Connectors* eller *Anslutningar* och en knapp för att
-lägga till en egen. Fyll i URL:en och lägg nyckeln som en `Authorization`-header
-med värdet `Bearer <NYCKEL>`.
+Fjärranslutna MCP-servrar läggs in under *Inställningar → Connectors*, som en egen
+connector. Menyformuleringarna flyttar sig mellan versioner, så gå efter
+*connector* och *custom* snarare än en exakt sökväg.
 
-Menyformuleringarna flyttar sig mellan versioner, så gå efter *connector* och
-*custom* snarare än en exakt sökväg. Vissa äldre versioner tar bara stdio-servrar
-i `claude_desktop_config.json` och behöver då bryggan
-[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) däremellan:
+Två begränsningar avgör vad som faktiskt går att göra där:
+
+- URL-fältet tar **endast https**. LAN-adressen är ren http och går alltså inte
+  ens att skriva in.
+- Anslutningen öppnas från Anthropics infrastruktur, inte från din maskin, så en
+  privat adress förblir onåbar även om du ger den ett https-namn.
+
+Vilket betyder att **valvet inte går att nå från chattsidan** — och det är
+uppdelningen som håller, inte ett hinder att kringgå. 8790 exponeras aldrig utåt;
+den regeln är hela poängen med tudelningen. Det som hör hemma i en connector är
+det publika värdnamnet, som ger chatten den öppna nivån.
+
+Dialogen har inget fält för en header heller — bara OAuth Client ID och Secret.
+Får den en URL den inte kan autentisera mot faller klienten tillbaka på
+OAuth-flödet och misslyckas med ett meddelande om att den inte kunde registrera
+sig hos inloggningstjänsten. Nyckeln får därför rida med i URL:en istället:
+
+```
+https://brain.example.net/mcp?key=<MCP_OPEN_KEY>
+```
+
+`MCP_OPEN_KEY` är en andra nyckel som bara den öppna lyssnaren accepterar, och den
+får inte vara samma värde som `MCP_ACCESS_KEY` — se *Inloggning* i
+[README.sv.md](README.sv.md) för varför. Sätt den i `.env` och starta om. Vill du
+hellre ha riktig inloggning än en delad nyckel finns designen för det i
+[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md); den kräver en
+OIDC-provider, vilket är skälet till att den inte är standard.
+
+Vill du ändå ha valvet i chatten, brygg det lokalt istället för att öppna en port.
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) kör som stdio-server på
+din egen maskin och når därför LAN-adressen över ren http och lägger på headern
+själv:
 
 ```json
 {
   "mcpServers": {
     "mimers-brain": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://brain.example.net/mcp",
+      "args": ["-y", "mcp-remote", "http://192.0.2.41:8790/mcp",
                "--header", "Authorization: Bearer <NYCKEL>"]
     }
   }
 }
 ```
 
-Filen ligger på Windows i `%APPDATA%\Claude\claude_desktop_config.json`.
+Filen ligger på Windows i `%APPDATA%\Claude\claude_desktop_config.json`; starta om
+appen efteråt. Om en viss version fortfarande läser `mcpServers` därifrån varierar
+— dyker servern aldrig upp, håll valvarbetet på Code-sidan och låt chatten ha den
+öppna nivån. Den uppdelningen kostar lite, eftersom Code-sidan ändå är där valvet
+oftast behövs.
 
 ### ChatGPT
 

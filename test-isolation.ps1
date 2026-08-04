@@ -1,11 +1,13 @@
 # Verifies the tier boundary: the open listener must not expose vault rows,
 # must not accept vault writes, and must not serve a vault row by direct id.
+# Also checks that MCP_OPEN_KEY stays confined to /mcp on the open listener.
 #
-#   .\test-isolation.ps1                                      # localhost, key from .env
+#   .\test-isolation.ps1                                      # localhost, keys from .env
 #   .\test-isolation.ps1 -HostName 192.0.2.41 -KeyFile k.txt  # against a deployment
 param(
     [string]$HostName = "localhost",
-    [string]$KeyFile
+    [string]$KeyFile,
+    [string]$OpenKeyFile
 )
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
@@ -79,6 +81,44 @@ try {
     Invoke-RestMethod "$OPEN/api/thoughts" -Headers @{ Authorization = "Bearer wrong-key" }
     Check "a wrong key is refused" $false "it was let through"
 } catch { Check "a wrong key is refused" $true "" }
+
+Write-Host "`nURL key" -ForegroundColor Cyan
+# MCP_OPEN_KEY buys convenience for clients that cannot send a header, and the
+# price is that it travels somewhere visible. These checks are the fence around
+# that: it must work on /mcp on the open listener and nowhere else at all.
+$openKey = if ($OpenKeyFile) { (Get-Content $OpenKeyFile -Raw).Trim() }
+           else {
+               $m = Get-Content .env -ErrorAction SilentlyContinue | Select-String '^MCP_OPEN_KEY=(.*)$'
+               if ($m) { $m.Matches.Groups[1].Value.Trim() } else { "" }
+           }
+
+if (-not $openKey) {
+    Write-Host "  SKIP  MCP_OPEN_KEY not set" -ForegroundColor DarkGray
+} else {
+    $mcpH = @{ "Content-Type" = "application/json"; Accept = "application/json, text/event-stream" }
+    $rpc  = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+
+    try {
+        Invoke-RestMethod "$OPEN/mcp?key=$openKey" -Method Post -Headers $mcpH -Body $rpc | Out-Null
+        Check "OPEN /mcp accepts the URL key" $true ""
+    } catch { Check "OPEN /mcp accepts the URL key" $false $_.Exception.Message }
+
+    # The one that matters: the vault listener must not know this key exists.
+    try {
+        Invoke-RestMethod "$FULL/mcp?key=$openKey" -Method Post -Headers $mcpH -Body $rpc | Out-Null
+        Check "FULL /mcp refuses the URL key" $false "it was let through"
+    } catch { Check "FULL /mcp refuses the URL key" $true "" }
+
+    try {
+        Invoke-RestMethod "$OPEN/api/thoughts?key=$openKey" | Out-Null
+        Check "OPEN /api ignores the URL key" $false "it was let through"
+    } catch { Check "OPEN /api ignores the URL key" $true "" }
+
+    try {
+        Invoke-RestMethod "$OPEN/mcp?key=wrong-key" -Method Post -Headers $mcpH -Body $rpc | Out-Null
+        Check "a wrong URL key is refused" $false "it was let through"
+    } catch { Check "a wrong URL key is refused" $true "" }
+}
 
 Write-Host "`nCleaning up test data" -ForegroundColor Cyan
 foreach ($id in @($v.id, $o.id)) {

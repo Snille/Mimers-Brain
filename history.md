@@ -6,6 +6,56 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-04 — A key that fits in a URL
+
+Two clients had been registered in Claude Code for a while, and the memory
+answered there every day. Then an attempt to add the same server on the chat side
+of the desktop app came back with *"Couldn't register with Mimers Brain's
+sign-in service"*.
+
+The first thing that had to be untangled was that Claude Code and Claude Desktop
+are **two different clients that happen to share a window**. Code reads
+`~/.claude.json`; chat reads its own connector list. Neither sees the other's, so
+a working memory in one says nothing about the other, and the empty Connectors
+list was never a fault. That distinction is now written down in HowToUse — it is
+the sort of thing that costs an hour exactly once per person.
+
+The error itself was the connector dialog having no field for a header. Only
+OAuth Client ID and Secret. Given a URL it cannot authenticate to, the client
+falls back to the OAuth flow, tries to register dynamically, and fails — the
+server has no OAuth at all.
+
+### What was considered
+
+Doing it properly means becoming an OAuth resource server: RFC 9728 metadata, a
+`WWW-Authenticate` header pointing at it, JWT validation against a provider's
+JWKS, and a provider to issue the tokens. The existing authenticator could have
+been that provider — but its OIDC side turned out not to be enabled at all, so
+that work would have started from zero.
+
+It was a lot of machinery for one client's dialog, and it was shelved rather than
+discarded: the whole design is in
+[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md), ready for the day a
+shared key stops being good enough.
+
+### What was built instead
+
+`MCP_OPEN_KEY`, accepted as `/mcp?key=…` — but only on the open listener, only on
+`/mcp`, and only when the variable is set. Empty, and the server is byte-for-byte
+what it was.
+
+The important part is that it is a **second** key. A credential in a URL is
+stored in the client's config and written to every proxy access log, and the main
+key — the one that opens the vault on 8790 — must never be put in that position.
+The open listener cannot reach vault rows no matter what it is shown, so the
+worst this key can leak is open tier. `/mcp` also had `access_log off` added so
+the value is not written to disk on every call, and the server warns at boot if
+the two keys are ever set to the same value.
+
+`test-isolation.ps1` grew four checks around it, the one that matters being that
+the **full listener refuses the URL key**. A convenience that quietly worked on
+8790 too would have undone the whole tier split.
+
 ## 2026-08-04 — Mimers Brain built and deployed
 
 The whole system came together in a day. It inherits its name from its

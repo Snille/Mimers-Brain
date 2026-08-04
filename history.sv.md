@@ -6,6 +6,57 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-04 — En nyckel som får plats i en URL
+
+Två klienter hade legat inlagda i Claude Code ett tag, och minnet svarade där
+varje dag. Sedan gav ett försök att lägga in samma server på skrivbordsappens
+chattsida *"Couldn't register with Mimers Brain's sign-in service"*.
+
+Det första som måste redas ut var att Claude Code och Claude Desktop är **två
+olika klienter som råkar dela fönster**. Code läser `~/.claude.json`; chatten
+läser sin egen connector-lista. Ingen ser den andras, så att minnet fungerar i
+den ena säger ingenting om den andra, och den tomma connectors-listan var aldrig
+ett fel. Den distinktionen står nu i HowToUse — det är precis sådant som kostar
+en timme exakt en gång per person.
+
+Själva felet var att connector-dialogen inte har något fält för en header. Bara
+OAuth Client ID och Secret. Får den en URL den inte kan autentisera mot faller
+klienten tillbaka på OAuth-flödet, försöker registrera sig dynamiskt, och
+misslyckas — servern har ingen OAuth alls.
+
+### Vad som övervägdes
+
+Att göra det ordentligt betyder att bli en OAuth-resursserver: RFC 9728-metadata,
+en `WWW-Authenticate`-header som pekar på den, JWT-validering mot en providers
+JWKS, och en provider som ställer ut tokens. Den befintliga autentiseraren hade
+kunnat vara den providern — men dess OIDC-sida visade sig inte vara påslagen alls,
+så det arbetet hade börjat från noll.
+
+Det var mycket maskineri för en enda klients dialog, och det lades på hyllan
+snarare än kastades: hela designen ligger i
+[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md), redo för den dag en
+delad nyckel inte räcker längre.
+
+### Vad som byggdes istället
+
+`MCP_OPEN_KEY`, som tas emot som `/mcp?key=…` — men bara på den öppna lyssnaren,
+bara på `/mcp`, och bara när variabeln är satt. Är den tom är servern bit för bit
+densamma som förut.
+
+Det viktiga är att det är en **andra** nyckel. En hemlighet i en URL sparas i
+klientens config och skrivs till varje accesslogg i proxyn, och huvudnyckeln — den
+som öppnar valvet på 8790 — får aldrig hamna i den positionen. Den öppna lyssnaren
+kan inte nå valv-rader oavsett vad den visas, så det värsta den här nyckeln kan
+läcka är öppen nivå. `/mcp` fick också `access_log off` så värdet inte skrivs till
+disk vid varje anrop, och servern varnar vid uppstart om de två nycklarna någonsin
+sätts till samma värde.
+
+`test-isolation.ps1` växte med fyra kontroller runt det, där den som betyder mest
+är att **den fulla lyssnaren vägrar URL-nyckeln**. En bekvämlighet som tyst hade
+fungerat även på 8790 hade upphävt hela tudelningen.
+
+---
+
 ## 2026-08-04 — Mimers Brain byggt och driftsatt
 
 Hela systemet kom till på en dag. Det ärver namnet från sin föregångare: en
