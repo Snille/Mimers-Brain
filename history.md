@@ -92,3 +92,26 @@ sköter Authelia det.
 - Registrerad i Claude Code som `mimers-brain` (LAN, full) och `mimers-brain-remote`
 - Ikon från Eriks sticker-PNG: frilagd med flood fill från hörnen, tre storlekar
 - Supabase-projektet frånkopplat men vilande som fallback
+
+### Versionshantering
+
+Fram till nu hade servern fått sina filer styckvis med `scp`, i fyra omgångar, och
+hade hunnit driva isär från laptopen: tio filer saknades och en dubblett låg och
+skräpade i fel katalog. Ingen kunde säga vad som faktiskt körde.
+
+Repot ligger nu på `Snille/Mimers-Brain`, och servern är en riktig klon som
+används för driftsättning. Uppdatering är ett kommando:
+
+```bash
+ssh valv 'cd ~/mimers-brain && git pull && docker compose up -d --build'
+```
+
+Vid namnbytet dök en fälla upp som hade kunnat kosta hela databasen: Compose
+härleder projektnamnet ur katalognamnet, och volymen heter
+`mimers-valv_valv-data`. En omdöpt katalog hade tyst skapat en ny, tom databas.
+Löst med `name: mimers-valv` hårdlåst i compose-filen — därav att containrar,
+volym och SSH-alias fortfarande bär det gamla namnet.
+
+Åtta minnen pekade dessutom på `/home/mimer/mimers-valv/`, en sökväg som inte
+längre finns. De är omskrivna och omembeddade. **Ett minne som pekar fel är värre
+än inget minne** — nästa session hade följt sökvägen rakt in i väggen.
