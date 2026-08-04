@@ -138,6 +138,33 @@ re-embedding.
 The suite also grew a twelfth check: it now verifies that it cleaned up its own
 test rows. An earlier aborted run had left two behind.
 
+### Commit identity
+
+The initial commits were authored under an unintended Git identity. The cause
+was not configuration — the global `.gitconfig` had the right address all along.
+Every commit was made with an explicit
+`-c user.email="…"` override taken from the session's own environment, which says
+which account the tool was started under and nothing about who should be recorded
+as the author. Before public release the history was rewritten; the identity is
+now pinned in the repo and the rule recorded: let git resolve the author itself.
+
+### Editable tags
+
+Topics and people could only be set at creation. Correcting a typo or merging two
+spellings meant an API call by hand, so the edit form now carries type, topics and
+people alongside the content.
+
+Building it exposed a real gap: normalisation lived inside `captureThought`, so
+anything written through `PATCH` bypassed it entirely and could reintroduce the
+case-collision described above. It now lives in `normaliseMeta()` and runs on
+every write. The form also leaves `content` out of the request when it has not
+changed — the server re-embeds whenever it sees that field, and that is a paid
+call.
+
+The same defect had already split the person facet: the extractor produced both
+`Erik` and `Erik Pettersson` for one person, so filtering on either missed rows.
+Merged in place; embeddings come from content, so nothing needed recomputing.
+
 ### Documentation language
 
 The docs were written in Swedish throughout, against the project's own rule that

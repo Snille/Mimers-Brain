@@ -135,6 +135,32 @@ embeddas om.
 Sviten fick också en tolfte kontroll: den verifierar nu att den städat bort sina
 egna testrader. En tidigare avbruten körning hade lämnat två kvar.
 
+### Commit-identitet
+
+De första commitarna skapades med en oavsiktlig Git-identitet. Orsaken var inte
+konfigurationen — den globala `.gitconfig` pekade rätt hela tiden. Varje commit
+kördes med en uttrycklig `-c user.email="…"` hämtad ur sessionens egen miljö, som
+bara säger vilket konto verktyget startades under och ingenting om vem som ska
+stå som författare. Inför offentlig publicering skrevs historiken om; identiteten är nu
+låst i repot och regeln nedtecknad: låt git avgöra författaren själv.
+
+### Redigerbara taggar
+
+Ämnen och personer gick bara att sätta när ett minne skapades. Att rätta en
+felstavning eller slå ihop två stavningar krävde ett API-anrop för hand, så
+redigeringsformuläret bär nu typ, ämnen och personer vid sidan av innehållet.
+
+Bygget avslöjade en verklig lucka: normaliseringen låg inne i `captureThought`, så
+allt som skrevs via `PATCH` gick förbi den helt och kunde återinföra
+skiftlägeskrocken ovan. Den bor nu i `normaliseMeta()` och körs vid varje
+skrivning. Formuläret utelämnar dessutom `content` ur anropet när det inte ändrats
+— servern embeddar om så fort den ser fältet, och det är ett betalt anrop.
+
+Samma defekt hade redan delat personfasetten: extraktorn producerade både `Erik`
+och `Erik Pettersson` för en och samma person, så filtrering på endera missade
+rader. Sammanslaget på plats; embeddings räknas på innehållet, så inget behövde
+räknas om.
+
 ### Dokumentationsspråk
 
 Dokumentationen var skriven på svenska rakt igenom, tvärtemot projektets egen
