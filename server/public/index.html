@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mimers Brain</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel-2: #1c2330; --line: #2a3441;
+    --ink: #e6edf3; --muted: #8b98a9; --accent: #4aa3c7; --accent-dim: #2d6c87;
+    --warn: #d98b4a; --danger: #cf5b5b; --ok: #5bbf8a;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6f8; --panel: #ffffff; --panel-2: #eef2f6; --line: #d8e0e8;
+      --ink: #17212b; --muted: #5f6f80; --accent: #1f6f92; --accent-dim: #a8cbdb;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .logo {
+    width: 36px; height: 36px; flex: none; display: block;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .35));
+  }
+  .logo-lg { width: 62px; height: 62px; }
+  h1 { margin: 0; font-size: 19px; letter-spacing: .3px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; }
+  .grow { flex: 1; }
+  main { display: grid; grid-template-columns: 250px 1fr; gap: 0; min-height: calc(100vh - 62px); }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } aside { border-right: none !important; } }
+
+  aside { border-right: 1px solid var(--line); padding: 18px; background: var(--panel); }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 20px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 3px 9px; border-radius: 999px; font-size: 12.5px; margin: 0 5px 5px 0;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip b { color: var(--muted); font-weight: 500; }
+  .chip.on b { color: #dbeef7; }
+
+  section.content { padding: 18px 22px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  input[type=search], input[type=text], textarea, select {
+    background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+    border-radius: var(--radius); padding: 9px 12px; font: inherit; outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  input[type=search] { flex: 1; min-width: 220px; }
+  textarea { width: 100%; resize: vertical; line-height: 1.5; }
+  button {
+    background: var(--accent); color: #fff; border: 1px solid transparent;
+    border-radius: var(--radius); padding: 9px 15px; font: inherit; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+  button.ghost:hover { border-color: var(--accent); filter: none; }
+  button.danger { background: var(--danger); }
+  button:disabled { opacity: .5; cursor: default; filter: none; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 12px;
+  }
+  .card .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; font-size: 12.5px; color: var(--muted); }
+  .tag { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; }
+  .tag.type { color: var(--accent); border-color: var(--accent-dim); }
+  .tag.sim { color: var(--ok); border-color: var(--ok); }
+  .tag.vault { color: var(--warn); border-color: var(--warn); font-weight: 600; }
+  .card.vault { border-left: 3px solid var(--warn); }
+  .card .body { white-space: pre-wrap; word-break: break-word; }
+  .card .actions { margin-top: 10px; display: none; gap: 8px; }
+  .card:hover .actions, .card.editing .actions { display: flex; }
+  .empty { color: var(--muted); text-align: center; padding: 50px 0; }
+  .err { background: #40201f; border: 1px solid var(--danger); color: #ffd9d7; padding: 10px 14px; border-radius: var(--radius); margin-bottom: 14px; }
+  @media (prefers-color-scheme: light) { .err { background: #fdecec; color: #7a2320; } }
+  .stat { font-size: 12.5px; color: var(--muted); }
+  dialog {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 12px; padding: 20px; width: min(680px, 92vw);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin: 12px 0 5px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/icon-180.png" alt="" class="logo" />
+  <h1>Mimers <span>Brain</span></h1>
+  <div class="sub" id="hostinfo"></div>
+  <div class="grow"></div>
+  <div class="sub stat" id="headstat"></div>
+  <button id="new">+ Ny tanke</button>
+</header>
+
+<main>
+  <aside>
+    <h2>Typ</h2><div id="f-types"></div>
+    <h2>Ämnen</h2><div id="f-topics"></div>
+    <h2>Personer</h2><div id="f-people"></div>
+  </aside>
+
+  <section class="content">
+    <div class="bar">
+      <input type="search" id="q" placeholder="Sök ..." autocomplete="off" />
+      <select id="mode">
+        <option value="text">Textsökning</option>
+        <option value="semantic">Semantisk</option>
+      </select>
+      <button class="ghost" id="clear">Rensa</button>
+    </div>
+    <div id="error"></div>
+    <div id="list"></div>
+  </section>
+</main>
+
+<dialog id="login">
+  <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px">
+    <img src="/icon-180.png" alt="" class="logo logo-lg" />
+    <div>
+      <h3 style="margin:0 0 3px">Lås upp Mimers Brain</h3>
+      <div class="sub">Klistra in åtkomstnyckeln. Den byts mot en cookie som ligger kvar i den här webbläsaren — du gör det en gång.</div>
+    </div>
+  </div>
+  <label for="login-key">Åtkomstnyckel</label>
+  <input type="password" id="login-key" style="width:100%" autocomplete="current-password" />
+  <div id="login-err" class="sub" style="color:var(--danger); min-height:18px"></div>
+  <div style="display:flex; justify-content:flex-end; margin-top:14px">
+    <button id="login-go">Lås upp</button>
+  </div>
+</dialog>
+
+<dialog id="dlg">
+  <h3 style="margin:0 0 4px">Ny tanke</h3>
+  <div class="sub">Skriv den som ett fristående påstående — den ska gå att förstå av vilken AI som helst, långt senare, utan sammanhang.</div>
+  <label for="dlg-text">Innehåll</label>
+  <textarea id="dlg-text" rows="8"></textarea>
+  <label for="dlg-type">Typ</label>
+  <select id="dlg-type">
+    <option value="observation">observation</option>
+    <option value="reference">reference</option>
+    <option value="project">project</option>
+    <option value="task">task</option>
+    <option value="idea">idea</option>
+    <option value="person_note">person_note</option>
+  </select>
+  <label for="dlg-tier">Nivå</label>
+  <select id="dlg-tier">
+    <option value="open">Öppen — nås även utifrån via brain.example.net</option>
+    <option value="vault">🔒 Valv — nycklar och lösenord, lämnar aldrig hemnätet</option>
+  </select>
+  <label for="dlg-topics">Ämnen (kommaseparerade)</label>
+  <input type="text" id="dlg-topics" placeholder="nätverk, proxmox" />
+  <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px">
+    <button class="ghost" id="dlg-cancel">Avbryt</button>
+    <button id="dlg-save">Spara</button>
+  </div>
+</dialog>
+
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const state = { filters: {}, mode: "text", q: "", semantic: false };
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (d) => (d ? new Date(d).toLocaleDateString("sv-SE") : "");
+
+function showError(msg) {
+  $("#error").innerHTML = msg ? `<div class="err">${esc(msg)}</div>` : "";
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+  return d;
+}
+
+function chips(container, entries, key) {
+  const el = $(container);
+  el.innerHTML = "";
+  for (const [name, count] of entries) {
+    const b = document.createElement("button");
+    b.className = "chip" + (state.filters[key] === name ? " on" : "");
+    b.innerHTML = `${esc(name)} <b>${count}</b>`;
+    b.onclick = () => {
+      state.filters[key] = state.filters[key] === name ? undefined : name;
+      refresh();
+    };
+    el.appendChild(b);
+  }
+  if (!entries.length) el.innerHTML = '<span class="sub">–</span>';
+}
+
+function card(t) {
+  const m = t.metadata || {};
+  const el = document.createElement("div");
+  el.className = "card";
+  if (t.tier === "vault") el.classList.add("vault");
+  const tags = [
+    t.tier === "vault" ? '<span class="tag vault">🔒 valv</span>' : "",
+    m.type ? `<span class="tag type">${esc(m.type)}</span>` : "",
+    ...(m.topics || []).map((x) => `<span class="tag">${esc(x)}</span>`),
+    ...(m.people || []).map((x) => `<span class="tag">👤 ${esc(x)}</span>`),
+    t.similarity != null ? `<span class="tag sim">${(t.similarity * 100).toFixed(0)}%</span>` : "",
+  ].join("");
+
+  el.innerHTML = `
+    <div class="meta">${tags}<span class="grow"></span><span>${fmt(t.created_at)}</span></div>
+    <div class="body">${esc(t.content)}</div>
+    <div class="actions">
+      <button class="ghost edit">Redigera</button>
+      <button class="ghost danger del">Ta bort</button>
+    </div>`;
+
+  el.querySelector(".edit").onclick = () => {
+    if (el.classList.contains("editing")) return;
+    el.classList.add("editing");
+    const body = el.querySelector(".body");
+    const ta = document.createElement("textarea");
+    ta.rows = Math.max(4, Math.ceil(t.content.length / 90) + 1);
+    ta.value = t.content;
+    body.replaceWith(ta);
+    const acts = el.querySelector(".actions");
+    acts.innerHTML = "";
+    const save = document.createElement("button");
+    save.textContent = "Spara";
+    const cancel = document.createElement("button");
+    cancel.className = "ghost";
+    cancel.textContent = "Avbryt";
+    acts.append(save, cancel);
+    cancel.onclick = refresh;
+    save.onclick = async () => {
+      save.disabled = true;
+      save.textContent = "Sparar ...";
+      try {
+        await api(`/api/thoughts/${t.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: ta.value }),
+        });
+        refresh();
+      } catch (e) { showError(e.message); save.disabled = false; save.textContent = "Spara"; }
+    };
+  };
+
+  el.querySelector(".del").onclick = async () => {
+    if (!confirm("Ta bort den här tanken permanent?")) return;
+    try {
+      await api(`/api/thoughts/${t.id}`, { method: "DELETE" });
+      refresh();
+    } catch (e) { showError(e.message); }
+  };
+
+  return el;
+}
+
+async function refresh() {
+  showError("");
+  const list = $("#list");
+  try {
+    let rows;
+    if (state.mode === "semantic" && state.q) {
+      rows = await api("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: state.q, limit: 40 }),
+      });
+    } else {
+      const p = new URLSearchParams();
+      if (state.q) p.set("q", state.q);
+      for (const [k, v] of Object.entries(state.filters)) if (v) p.set(k, v);
+      rows = await api(`/api/thoughts?${p}`);
+    }
+
+    list.innerHTML = "";
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty">Inga tankar matchar.</div>';
+    } else {
+      for (const t of rows) list.appendChild(card(t));
+    }
+    $("#headstat").textContent = `${rows.length} visas`;
+
+    const s = await api("/api/stats");
+    const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+    chips("#f-types", top(s.types, 12), "type");
+    chips("#f-topics", top(s.topics, 25), "topic");
+    chips("#f-people", top(s.people, 15), "person");
+    const tierBits = Object.entries(s.byTier || {}).map(([k, v]) => `${k} ${v}`).join(" · ");
+    $("#headstat").textContent = `${rows.length} av ${s.total}${tierBits ? ` (${tierBits})` : ""}`;
+  } catch (e) {
+    showError(e.message);
+    list.innerHTML = "";
+  }
+}
+
+// wiring
+let timer;
+$("#q").oninput = (e) => {
+  state.q = e.target.value.trim();
+  clearTimeout(timer);
+  timer = setTimeout(refresh, state.mode === "semantic" ? 550 : 220);
+};
+$("#mode").onchange = (e) => { state.mode = e.target.value; if (state.q) refresh(); };
+$("#clear").onclick = () => { state.q = ""; state.filters = {}; $("#q").value = ""; refresh(); };
+
+$("#new").onclick = () => { $("#dlg-text").value = ""; $("#dlg-topics").value = ""; $("#dlg").showModal(); $("#dlg-text").focus(); };
+$("#dlg-cancel").onclick = () => $("#dlg").close();
+$("#dlg-save").onclick = async () => {
+  const content = $("#dlg-text").value.trim();
+  if (!content) return;
+  const btn = $("#dlg-save");
+  btn.disabled = true; btn.textContent = "Sparar ...";
+  try {
+    const topics = $("#dlg-topics").value.split(",").map((s) => s.trim()).filter(Boolean);
+    await api("/api/thoughts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content,
+        tier: $("#dlg-tier").value,
+        metadata: { type: $("#dlg-type").value, topics },
+      }),
+    });
+    $("#dlg").close();
+    refresh();
+  } catch (e) { showError(e.message); }
+  finally { btn.disabled = false; btn.textContent = "Spara"; }
+};
+
+async function unlock() {
+  const btn = $("#login-go");
+  btn.disabled = true;
+  try {
+    await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: $("#login-key").value.trim() }),
+    });
+    $("#login").close();
+    refresh();
+  } catch (e) {
+    $("#login-err").textContent = e.message;
+  } finally { btn.disabled = false; }
+}
+$("#login-go").onclick = unlock;
+$("#login-key").onkeydown = (e) => { if (e.key === "Enter") unlock(); };
+
+const cfg = await api("/api/config").catch(() => ({}));
+$("#hostinfo").textContent = cfg.vault ? "full åtkomst (LAN)" : "endast öppen nivå";
+if (!cfg.vault) $("#dlg-tier").querySelector('[value=vault]').disabled = true;
+
+if (cfg.authed === false) {
+  $("#login").showModal();
+  $("#login-key").focus();
+} else {
+  refresh();
+}
+</script>
+</body>
+</html>

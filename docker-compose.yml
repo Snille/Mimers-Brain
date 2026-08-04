@@ -1,0 +1,53 @@
+# Pinned so the project name - and therefore the volume name
+# mimers-valv_valv-data holding every thought - stays put no matter what the
+# checkout directory is called. Compose otherwise derives it from the folder,
+# and a rename would silently create a fresh, empty database.
+name: mimers-valv
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: valv-db
+    restart: unless-stopped
+    # Required inside an unprivileged Proxmox LXC: the container cannot apply an
+    # AppArmor profile. Harmless elsewhere. See README "Docker i LXC".
+    security_opt:
+      - apparmor=unconfined
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mimer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?sätt POSTGRES_PASSWORD i .env}
+      POSTGRES_DB: ${POSTGRES_DB:-valv}
+    volumes:
+      - valv-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mimer} -d ${POSTGRES_DB:-valv}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: ./server
+    image: mimers-valv:latest
+    container_name: valv-app
+    restart: unless-stopped
+    security_opt:
+      - apparmor=unconfined
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-mimer}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-valv}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      MCP_ACCESS_KEY: ${MCP_ACCESS_KEY:-}
+      CITATION_BASE_URL: ${CITATION_BASE_URL:-http://localhost:8790/thoughts}
+      PORT_FULL: 8790
+      PORT_OPEN: 8791
+    ports:
+      # FULL - open + vault + dashboard. Keep this on the LAN only.
+      - "8790:8790"
+      # OPEN - the only port Nginx Proxy Manager should ever forward to.
+      - "8791:8791"
+
+volumes:
+  valv-data:
