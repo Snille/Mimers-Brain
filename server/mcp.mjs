@@ -34,7 +34,10 @@ export function buildServer(tiers) {
     description: `Search the memory by meaning. Reach for this first whenever you need to know how a system is accessed or how something works. ${scope}`,
     inputSchema: {
       query: z.string().describe("What you are looking for"),
-      limit: z.number().default(10),
+      // 5, not 10: a search returns whole memories, so every extra hit costs a
+      // few hundred tokens of the caller's context. In practice the answer is in
+      // the first result or two. Raise it explicitly when casting a wide net.
+      limit: z.number().default(5).describe("Raise this when searching broadly"),
       threshold: z.number().default(0.3),
     },
   }, async ({ query, limit, threshold }) => {
