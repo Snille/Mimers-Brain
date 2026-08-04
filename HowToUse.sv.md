@@ -89,6 +89,34 @@ med bara öppen nivå, men det är bättre än inget. Så är det redan uppsatt 
 
 Ändringen slår igenom vid nästa session.
 
+### VS Code (Codex)
+
+Editorn öppnar anslutningen själv, från din maskin — så LAN-adressen fungerar och
+du får **hela** valvet, `delete_thought` inkluderat. Vilken modell som svarar
+spelar ingen roll för räckvidden; en molnmodell flyttar inte var MCP-klienten
+körs.
+
+Den påverkar däremot vart *innehållet* tar vägen. Varje valvrad ett verktyg
+returnerar läggs i kontexten och skickas till modelleverantören vid nästa tur.
+Tudelningen finns för att hålla nycklar borta från tredjepartsmoln, och att peka
+en editor på 8790 skickar dem dit i samma stund som en sökning råkar träffa en
+valvrad. Värt att avgöra medvetet snarare än att upptäcka i efterhand. Pekar du
+den på det publika värdnamnet uppstår aldrig frågan.
+
+```bash
+codex mcp add mimers-brain --url http://192.0.2.41:8790/mcp --bearer-token-env-var MIMERS_VALV_KEY
+```
+
+Det skriver `[mcp_servers.mimers-brain]` i `~/.codex/config.toml`. Själva nyckeln
+hamnar inte i filen — Codex läser den ur den namngivna miljövariabeln vid start,
+så sätt den som User-variabel och starta om editorn så att extension-värden ärver
+den.
+
+Binären `codex` följer med VS Code-tillägget istället för att ligga i `PATH`; på
+Windows finns den under
+`~/.vscode/extensions/openai.chatgpt-*/bin/windows-x86_64/codex.exe`. Kontrollera
+med `codex mcp list`.
+
 ### Claude Desktop (chattsidan)
 
 Fjärranslutna MCP-servrar läggs in under *Inställningar → Connectors*, som en egen

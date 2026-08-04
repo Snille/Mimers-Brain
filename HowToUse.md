@@ -90,6 +90,34 @@ home network — open tier only, but better than nothing.
 
 The change takes effect in the next session.
 
+### VS Code (Codex)
+
+The editor opens the connection itself, from your machine — so the LAN address
+works and you get the **whole** vault, `delete_thought` included. Which model
+answers is irrelevant to reachability; a cloud model does not change where the
+MCP client runs.
+
+It does change where the *contents* go. Every vault row a tool returns is placed
+in the context and sent to the model provider on the next turn. The tier split
+exists to keep keys off third-party clouds, and pointing an editor at 8790 sends
+them there the moment a search happens to match a vault row. Worth deciding
+deliberately rather than discovering later. Point it at the public hostname
+instead and the question does not arise.
+
+```bash
+codex mcp add mimers-brain --url http://192.0.2.41:8790/mcp --bearer-token-env-var MIMERS_VALV_KEY
+```
+
+That writes `[mcp_servers.mimers-brain]` into `~/.codex/config.toml`. The key
+itself stays out of the file — Codex reads it from the named environment
+variable at launch, so set that as a user-level variable and restart the editor
+so the extension host inherits it.
+
+The `codex` binary ships inside the VS Code extension rather than on `PATH`; on
+Windows it is under
+`~/.vscode/extensions/openai.chatgpt-*/bin/windows-x86_64/codex.exe`. Verify with
+`codex mcp list`.
+
 ### Claude Desktop (the chat side)
 
 Remote MCP servers go in under *Settings → Connectors*, as a custom connector.
