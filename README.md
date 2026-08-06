@@ -184,6 +184,13 @@ behalf. Without one, a dead brain looks exactly like a healthy one with nothing
 new to say. A planned stop says `offline` deliberately, so a restart reads as a
 short blip rather than a stuck `online`.
 
+`sensor.mimers_brain_problem` is read on an ESPHome wall display whose fonts carry
+a fixed glyph list, so the text is sanitised against that vocabulary before it is
+published — a character outside the list draws as *nothing*, with no fallback box,
+and silently eats part of the sentence. That is why faults are separated by `/`
+and not `|`. The list is a copy of the `glyphs:` line in the device YAML; if that
+changes, `DISPLAY_GLYPHS` in `server/mqtt.mjs` follows.
+
 Counters only. No memory content and no search queries go on the broker — the
 broker is on the LAN, but that is not a reason to publish something that did not
 need publishing. The vault *count* does go out, which is worth knowing if the

@@ -182,6 +182,13 @@ en död hjärna exakt ut som en frisk som inte har något nytt att säga. Ett pl
 stopp säger `offline` medvetet, så en omstart läses som en kort blink i stället
 för ett fastnat `online`.
 
+`sensor.mimers_brain_problem` läses på en ESPHome-display vars fonter har en fast
+glyph-lista, så texten saneras mot den vokabulären före publicering — ett tecken
+utanför listan ritas som *ingenting*, utan fallback-ruta, och äter tyst upp en del
+av meningen. Det är därför fel separeras med `/` och inte `|`. Listan är en kopia
+av `glyphs:`-raden i enhetens YAML; ändras den följer `DISPLAY_GLYPHS` i
+`server/mqtt.mjs` med.
+
 Bara räknare. Inget minnesinnehåll och inga sökfrågor går ut på brokern — brokern
 står på hemnätet, men det är inget skäl att publicera något som inte behövde
 publiceras. Antalet valvrader går däremot ut, vilket är värt att veta om brokern
