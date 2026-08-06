@@ -6,6 +6,19 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-07 — en installation, tre sorters värdar
+
+Den korta Compose-snuttan växte till en komplett installationsguide för Proxmox
+LXC, Docker Desktop och en befintlig Ubuntu Server. Den tar med felen som först
+syntes i riktig drift: AppArmor-fel maskerade som misslyckade byggsteg,
+Docker-portar som passerar enklare brandväggsantaganden, det låsta
+Compose-namnet som skyddar datavolymen och skillnaden mellan att stoppa en stack
+och att radera den med `-v`. Backupskriptet accepterar nu också värdsidans
+överskrivningar för katalog, retention och databasidentitet, så ett tjänstekonto
+som inte heter `mimer` slipper hålla en lokalt redigerad variant av skriptet.
+
+---
+
 ## 2026-08-06 — 0.5.0: gränssnittet lär sig språk
 
 Dokumentationen hade alltid funnits på engelska och svenska, men det levande

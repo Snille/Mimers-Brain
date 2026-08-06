@@ -6,6 +6,19 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-07 — one installation, three kinds of host
+
+The short Compose snippet grew into a complete installation guide for Proxmox
+LXC, Docker Desktop and an existing Ubuntu Server. It includes the failure modes
+that only showed up in real operation: AppArmor errors disguised as failed build
+steps, Docker ports bypassing simple firewall assumptions, the pinned Compose
+name that protects the data volume, and the difference between stopping a stack
+and deleting it with `-v`. The backup script also accepts host-side overrides
+for its directory, retention and database identity, so a non-`mimer` service
+account no longer needs to keep a locally edited script.
+
+---
+
 ## 2026-08-06 — 0.5.0: the interface learns languages
 
 The documentation had always existed in English and Swedish, but the live web
