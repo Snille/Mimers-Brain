@@ -24,6 +24,12 @@ Hemligheter serveras bara på LAN; allt annat går att nå varifrån som helst.
 > som kör en installation kan hålla sina riktiga värden i
 > `docs/deployment.local.md`, som är gitignorerad.
 
+## Skärmbilder
+
+![Mimers Brains tankelista med metadatafilter och en LAN-skyddad valvpost](assets/screenshots/mimers-brain-thoughts.png)
+
+![Mimers Brains användningsstatistik med aktivitetsdiagram per dag och månad](assets/screenshots/mimers-brain-statistics.png)
+
 ## Varför två portar
 
 Nivåuppdelningen bygger **inte** på att inspektera `X-Forwarded-For`. Den kan

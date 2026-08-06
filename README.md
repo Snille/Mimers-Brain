@@ -24,6 +24,12 @@ from anywhere.
 > documentation and resolve to nothing. Substitute your own. Keep the real values
 > for a deployment in `docs/deployment.local.md`, which is gitignored.
 
+## Screenshots
+
+![Mimers Brain thought list with metadata filters and a LAN-only vault entry](assets/screenshots/mimers-brain-thoughts.png)
+
+![Mimers Brain usage statistics with daily and monthly activity charts](assets/screenshots/mimers-brain-statistics.png)
+
 ## Why two ports
 
 The tier split does **not** work by inspecting `X-Forwarded-For`. Anyone can set
