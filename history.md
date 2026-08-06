@@ -71,6 +71,30 @@ One detail that cost a restart: the variables have to be listed in
 `docker-compose.yml` under `environment:`. A line in `.env` only reaches
 Compose's own interpolation — it never lands in the container by itself.
 
+**0.4.2 — the sidebar, not the list.** Erik asked whether the interface would get
+slow once there were thousands of memories. Measuring beat guessing: a local
+instance loaded with 20 000 memories and 150 000 usage rows put `/api/thoughts`
+at **7 ms** — it is capped at 100 rows, so pagination would have solved nothing —
+and `/api/stats` at **550 ms** for an 819-byte answer. That one is worse than it
+looks, because the interface refreshes it on every search keystroke.
+
+The interesting part was *where* the time went, because it was not where either
+of us assumed. Postgres was innocent: fetching every row's metadata takes 43 ms,
+and aggregating the same thing in SQL takes 53 ms — no win in the database at
+all. The remaining ~540 ms was the driver decoding 20 000 JSONB values into JS
+objects and the loop over them. So `stats()` now counts in SQL, and the win is
+not that SQL counts faster: it is that the answer is one row instead of twenty
+thousand. Measured after: **60 ms**, and the tier isolation suite still passes
+all 22 checks.
+
+Two details worth keeping. The `jsonb_typeof` guards are the old
+`Array.isArray()` checks — metadata is free-form, and one hand-edited row whose
+`topics` is a string must not fail the whole call; that case is now covered by a
+test row. And `first`/`last` were quietly wrong before: the old code sorted Date
+objects with the default comparator, which compares them as strings and
+therefore ordered by weekday name. Nothing reads those fields yet, which is why
+nobody noticed.
+
 A trap walked straight into on the way out, and caught only because the same one
 had been documented before: the `problem` text ends up on an ESPHome display
 whose fonts carry a fixed glyph list, and `|` is not in it. A character outside

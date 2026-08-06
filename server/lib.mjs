@@ -472,18 +472,59 @@ export async function liveCounters(tiers = ALL) {
   };
 }
 
+// Counted in SQL rather than by reading the table into Node. This used to fetch
+// every row's metadata and tally it in a loop, which is fine at a few dozen
+// memories and not at a few thousand: the sidebar is refreshed on every search
+// keystroke, so its cost is paid constantly.
+//
+// Measured at 20 000 memories: the old shape spent ~43 ms in Postgres and ~590 ms
+// end to end. Almost all of the difference was the driver decoding 20 000 JSONB
+// values into JS objects. Postgres does the same counting in ~53 ms, so the win
+// is not that SQL counts faster - it is that the answer is one row instead of
+// twenty thousand.
+//
+// The jsonb_typeof guards are the old Array.isArray() checks: metadata is
+// free-form, and one hand-edited row whose topics is not an array must not be
+// able to fail the whole call.
 export async function stats(tiers) {
   const { rows } = await pool.query(
-    `SELECT metadata, tier, created_at FROM thoughts WHERE tier = ANY($1)`, [tiers]);
-  const types = {}, topics = {}, people = {}, byTier = {};
-  for (const r of rows) {
-    const m = r.metadata || {};
-    byTier[r.tier] = (byTier[r.tier] || 0) + 1;
-    if (m.type) types[m.type] = (types[m.type] || 0) + 1;
-    for (const t of Array.isArray(m.topics) ? m.topics : []) topics[t] = (topics[t] || 0) + 1;
-    for (const p of Array.isArray(m.people) ? m.people : []) people[p] = (people[p] || 0) + 1;
-  }
-  const dates = rows.map((r) => r.created_at).filter(Boolean).sort();
-  return { total: rows.length, byTier, types, topics, people,
-           first: dates[0] || null, last: dates.at(-1) || null };
+    `WITH base AS (SELECT metadata, tier, created_at FROM thoughts WHERE tier = ANY($1))
+     SELECT
+       (SELECT count(*)        FROM base) AS total,
+       (SELECT min(created_at) FROM base) AS first,
+       (SELECT max(created_at) FROM base) AS last,
+       (SELECT jsonb_object_agg(tier, c)
+          FROM (SELECT tier, count(*) AS c FROM base GROUP BY tier) x) AS by_tier,
+       (SELECT jsonb_object_agg(type, c)
+          FROM (SELECT metadata->>'type' AS type, count(*) AS c FROM base
+                 WHERE coalesce(metadata->>'type', '') <> ''
+                 GROUP BY 1) x) AS types,
+       (SELECT jsonb_object_agg(topic, c)
+          FROM (SELECT topic, count(*) AS c
+                  FROM (SELECT metadata->'topics' AS arr FROM base
+                         WHERE jsonb_typeof(metadata->'topics') = 'array') s,
+                       jsonb_array_elements_text(s.arr) AS topic
+                 GROUP BY 1) x) AS topics,
+       (SELECT jsonb_object_agg(person, c)
+          FROM (SELECT person, count(*) AS c
+                  FROM (SELECT metadata->'people' AS arr FROM base
+                         WHERE jsonb_typeof(metadata->'people') = 'array') s,
+                       jsonb_array_elements_text(s.arr) AS person
+                 GROUP BY 1) x) AS people`,
+    [tiers],
+  );
+  const r = rows[0];
+  return {
+    total: Number(r.total),
+    byTier: r.by_tier || {},
+    types: r.types || {},
+    topics: r.topics || {},
+    people: r.people || {},
+    // min/max, not a sort. The old code sorted Date objects with the default
+    // comparator, which compares them as strings - so it ordered by weekday name
+    // and these two came out wrong. Nothing reads them yet, which is why it was
+    // never noticed.
+    first: r.first || null,
+    last: r.last || null,
+  };
 }

@@ -71,6 +71,30 @@ En detalj som kostade en omstart: variablerna måste räknas upp i
 `docker-compose.yml` under `environment:`. En rad i `.env` når bara Composes egen
 interpolering — den hamnar aldrig i containern av sig själv.
 
+**0.4.2 — sidopanelen, inte listan.** Erik frågade om gränssnittet skulle bli
+segt vid tusentals minnen. Att mäta slog att gissa: en lokal instans med 20 000
+minnen och 150 000 användningsrader gav `/api/thoughts` på **7 ms** — den är
+takad till 100 rader, så paginering hade inte löst något — och `/api/stats` på
+**550 ms** för ett svar på 819 byte. Den senare är värre än den ser ut, eftersom
+gränssnittet uppdaterar den vid varje tangentpaus i sökrutan.
+
+Det intressanta var *var* tiden gick, för det var inte där någon av oss antog.
+Postgres var oskyldig: att hämta hela tabellens metadata tar 43 ms, och att
+aggregera samma sak i SQL tar 53 ms — alltså ingen vinst alls i databasen. De
+återstående ~540 ms var drivrutinen som avkodade 20 000 JSONB-värden till
+JS-objekt, plus loopen över dem. Så `stats()` räknar nu i SQL, och vinsten är
+inte att SQL räknar snabbare: den är att svaret blir en rad i stället för
+tjugotusen. Uppmätt efteråt: **60 ms**, och isolationssviten går fortfarande
+igenom alla 22 kontroller.
+
+Två detaljer värda att behålla. `jsonb_typeof`-vakterna är de gamla
+`Array.isArray()`-kontrollerna — metadata är fritt formad, och en handredigerad
+rad vars `topics` är en sträng får inte fälla hela anropet; det fallet täcks nu
+av en testrad. Och `first`/`last` var tyst fel innan: den gamla koden sorterade
+Date-objekt med standardjämföraren, som jämför dem som strängar och därmed
+sorterade på veckodagens namn. Ingenting läser de fälten än, vilket är därför
+ingen märkt det.
+
 En fälla som gicks rakt in i på slutet, och som fångades bara för att samma sak
 dokumenterats en gång förut: `problem`-texten hamnar på en ESPHome-display vars
 fonter har en fast glyph-lista, och `|` finns inte i den. Ett tecken utanför
