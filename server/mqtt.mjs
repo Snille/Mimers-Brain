@@ -69,6 +69,23 @@ const SENSORS = [
 
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
+// The problem text ends up on an ESPHome display whose fonts carry a fixed glyph
+// list. A character outside it draws as nothing at all and silently eats part of
+// the sentence, so anything unexpected is turned into a dot here rather than
+// discovered later as a message with a hole in it. Note what is absent: "|" is
+// not in that list, which is why the separator below is a slash.
+//
+// The list mirrors the glyphs supported by the companion display configuration.
+// If that changes, this follows.
+const DISPLAY_GLYPHS =
+  "!%()+,-_.:/0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö$€ ";
+
+function displaySafe(text) {
+  let out = "";
+  for (const ch of String(text)) out += DISPLAY_GLYPHS.includes(ch) ? ch : ".";
+  return out.replace(/\.{2,}/g, ".").trim();
+}
+
 const state = {
   configured: Boolean(URL_),
   connected: false,
@@ -147,13 +164,15 @@ export async function publishNow() {
       status: problems.length ? "degraded" : "ok",
       // Names the action where it can, same as the Tokentracker sensors: a
       // problem line that only states the symptom gets read once and ignored.
-      problem: problems.join(" | ").slice(0, 255) || "OK",
+      // Never the empty string when healthy - empty becomes "unknown" in HA,
+      // which looks exactly like a publisher that has never run.
+      problem: displaySafe(problems.join(" / ")).slice(0, 255) || "OK",
       uptime_s: Math.round((Date.now() - startedAt) / 1000),
     };
   } catch (e) {
     payload = {
       status: "error",
-      problem: `Database unreachable: ${String(e.message).slice(0, 200)}`,
+      problem: displaySafe(`Database unreachable: ${String(e.message)}`).slice(0, 255),
       uptime_s: Math.round((Date.now() - startedAt) / 1000),
     };
     state.lastError = e.message;

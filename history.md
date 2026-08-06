@@ -71,6 +71,14 @@ One detail that cost a restart: the variables have to be listed in
 `docker-compose.yml` under `environment:`. A line in `.env` only reaches
 Compose's own interpolation — it never lands in the container by itself.
 
+A trap walked straight into on the way out, and caught only because the same one
+had been documented before: the `problem` text ends up on an ESPHome display
+whose fonts carry a fixed glyph list, and `|` is not in it. A character outside
+that list draws as *nothing* — it does not fall back to a box, it silently eats
+part of the sentence. The separator is a slash now, and the whole string is run
+through the same glyph vocabulary before publishing, so a database error full of
+punctuation degrades to dots rather than to a message with holes in it.
+
 The connection guide first had a `LAN_URL` to fill in by hand, and Erik objected
 straight away to typing in an IP that can go stale. He was right. The obvious fix
 does not work, though: `os.networkInterfaces()` inside the container returns

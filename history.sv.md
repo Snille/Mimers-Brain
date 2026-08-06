@@ -71,6 +71,14 @@ En detalj som kostade en omstart: variablerna måste räknas upp i
 `docker-compose.yml` under `environment:`. En rad i `.env` når bara Composes egen
 interpolering — den hamnar aldrig i containern av sig själv.
 
+En fälla som gicks rakt in i på slutet, och som fångades bara för att samma sak
+dokumenterats en gång förut: `problem`-texten hamnar på en ESPHome-display vars
+fonter har en fast glyph-lista, och `|` finns inte i den. Ett tecken utanför
+listan ritas som *ingenting* — det blir ingen ruta, det äter tyst upp en del av
+meningen. Separatorn är ett snedstreck nu, och hela strängen körs genom samma
+glyph-vokabulär före publicering, så ett databasfel fullt av skiljetecken
+degraderas till punkter i stället för till ett meddelande med hål i.
+
 Anslutningsguiden hade först en `LAN_URL` att fylla i för hand, och Erik
 invände direkt mot att skriva in en IP som kan bli fel. Han hade rätt. Den
 självklara lösningen fungerar dock inte: `os.networkInterfaces()` inne i
