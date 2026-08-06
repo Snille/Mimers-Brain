@@ -7,14 +7,17 @@
 # which a full container image cannot do.
 set -euo pipefail
 
-DIR=/home/mimer/valv-backups
-KEEP=10
+DIR="${BACKUP_DIR:-/home/mimer/valv-backups}"
+KEEP="${BACKUP_KEEP:-10}"
+DB_CONTAINER="${DB_CONTAINER:-valv-db}"
+DB_USER="${DB_USER:-mimer}"
+DB_NAME="${DB_NAME:-valv}"
 
 mkdir -p "$DIR"
 FILE="$DIR/valv-$(date +%Y%m%d-%H%M).sql.gz"
 
 # --clean so the dump can be replayed into a database that already has objects.
-docker exec valv-db pg_dump -U mimer -d valv --clean --if-exists | gzip -9 > "$FILE"
+docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" -d "$DB_NAME" --clean --if-exists | gzip -9 > "$FILE"
 
 # A zero-length or truncated dump is worse than none: it would quietly rotate a
 # good backup out. Verify the gzip stream and that the table is actually in it.

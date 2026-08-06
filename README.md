@@ -13,6 +13,7 @@ from anywhere.
 
 | | |
 | --- | --- |
+| **[install.md](install.md)** | Complete installation guide for Proxmox LXC, Docker Desktop and Ubuntu Server |
 | **[HowToUse.md](HowToUse.md)** | Connecting a model, and rebuilding after a reinstall |
 | **[history.md](history.md)** | What was built, why, and what went wrong |
 | **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Ready-made reverse proxy config |
@@ -63,6 +64,9 @@ guide withholds the vault key from the proxied listener, the usage log never
 carries content, and a wrong key returns 401.
 
 ## Running it
+
+See **[install.md](install.md)** for complete first-time instructions for
+Proxmox LXC, Docker Desktop and Ubuntu Server. The short Docker Desktop path is:
 
 ```powershell
 Copy-Item .env.example .env    # fill in POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY

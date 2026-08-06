@@ -12,6 +12,7 @@ Hemligheter serveras bara på LAN; allt annat går att nå varifrån som helst.
 
 | | |
 | --- | --- |
+| **[install.md](install.md)** | Komplett installationsguide för Proxmox LXC, Docker Desktop och Ubuntu Server |
 | **[HowToUse.md](HowToUse.md)** | Koppla in en modell, och sätta upp allt igen efter en ominstallation |
 | **[history.md](history.md)** | Vad som byggts, varför, och vad som gick fel |
 | **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Färdig reverse-proxy-config |
@@ -63,6 +64,9 @@ lämnar inte ut valvnyckeln på den proxade lyssnaren, användningsloggen bär a
 innehåll, och fel nyckel ger 401.
 
 ## Kom igång lokalt
+
+Se **[install.md](install.md)** för en fullständig förstagångsinstallation i
+Proxmox LXC, Docker Desktop eller Ubuntu Server. Kortversionen för Docker Desktop:
 
 ```powershell
 Copy-Item .env.example .env    # fyll i POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
@@ -247,8 +251,7 @@ up -d --build` direkt på servern och hela skeppandet ovan försvinner.
    bearer-nyckeln. `/.well-known/oauth-*` behöver också en, som svarar **404**:
    bakom forward-auth omdirigerar den till en inloggningssida som svarar 200, och
    en klient som letar efter OAuth läser det som en auktoriseringsserver den måste
-   registrera sig hos. Gränssnittet ligger ändå bara på 8790 och exponeras inte
-   alls.
+   registrera sig hos. Gränssnittet på 8791 visar enbart den öppna nivån.
 
 ## Migrera från Mimers Brain
 
