@@ -22,7 +22,8 @@ The question that took longest to answer was which keys the page may show.
 Everything is on a private network and the interface always sits behind Authelia,
 so "someone signed out could see it" does not hold. But that is the wrong
 question. The right one is *where the key travels*: showing `MCP_ACCESS_KEY` on
-the proxied listener sends the vault key outside the trusted network through the proxy,
+the proxied listener sends the vault key outside the trusted network through the
+proxy,
 across the internet and into a browser cache every time the page opens — and it
 is the only credential that unlocks the vault on the LAN. So the rule became that
 the vault key is served by the LAN listener alone. `MCP_OPEN_KEY` appears on
@@ -265,8 +266,8 @@ Until now the server had received its files piecemeal over `scp`, in four rounds
 and had drifted from the laptop: ten files missing and a duplicate sitting in the
 wrong directory. Nobody could say what was actually running.
 
-The repo now lives on GitHub, and the server is a real clone
-used for deployment. Updating is one command:
+The repo now lives on GitHub, and the server is a real clone. Updating is one
+command:
 
 ```bash
 ssh <server> 'cd ~/mimers-brain && git pull && docker compose up -d --build'
@@ -301,13 +302,10 @@ test rows. An earlier aborted run had left two behind.
 
 ### Commit identity
 
-The initial commits were authored under an unintended Git identity. The cause
-was not configuration — the global `.gitconfig` had the right address all along.
-Every commit was made with an explicit
-`-c user.email="…"` override taken from the session's own environment, which says
-which account the tool was started under and nothing about who should be recorded
-as the author. Before public release the history was rewritten; the identity is
-now pinned in the repo and the rule recorded: let git resolve the author itself.
+The initial commits were authored under an unintended Git identity. Before public
+release the history was rewritten to use the maintainer's chosen public identity.
+The identity is now pinned in the repo and the rule recorded: let Git resolve the
+author itself instead of inheriting an account from the surrounding session.
 
 ### Editable tags
 

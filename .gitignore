@@ -1,5 +1,7 @@
 # Secrets
 .env
+.env.*
+!.env.example
 
 # Real addresses for this particular deployment. The committed docs use RFC 5737
 # placeholders so the repo can be made public without publishing a network map.

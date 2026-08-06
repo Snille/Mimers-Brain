@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Daily logical backup of Mimers Brain.
 #
-# Complements infrastructure-level backups kept outside this repository.
-# A logical dump
+# Complements infrastructure-level backups kept outside this repository. A
+# logical dump
 # restores selectively - a single thought, or the table into a fresh database -
 # which a full container image cannot do.
 set -euo pipefail

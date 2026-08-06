@@ -19,7 +19,8 @@ kopieringsknappar. Dokumentet finns kvar för det en sida inte kan förklara:
 varför en inställning ser ut som den gör, och hur servern byggs om.
 
 Frågan som tog längst tid att svara på var vilka nycklar sidan får visa. Allt
-ligger på ett privat nätverk och webbgränssnittet ligger alltid bakom Authelia, så
+ligger ju på ett privat nätverk och webbgränssnittet ligger alltid bakom
+Authelia, så
 resonemanget "någon oinloggad kan se den" håller inte. Men det är fel fråga. Rätt
 fråga är *vart nyckeln tar vägen*: visas `MCP_ACCESS_KEY` på den proxade
 lyssnaren lämnar valvnyckeln huset genom NPM, ut över internet och in i
@@ -187,8 +188,8 @@ och MCP-endpointen är en publik URL bakom en enda nyckel. Behörighetsfiltret i
 Claude Code sa i praktiken samma sak — tre av de första inläggen med
 credential-liknande innehåll nekades rakt av.
 
-Slutsatsen blev en självhostad databas på Proxmox, med en nivå som
-aldrig lämnar det privata nätverket.
+Slutsatsen blev en självhostad databas på Proxmox, med en nivå som aldrig lämnar
+det privata nätverket.
 
 ### Arkitekturvalet som betyder mest
 
@@ -264,8 +265,8 @@ Fram till nu hade servern fått sina filer styckvis med `scp`, i fyra omgångar,
 hade hunnit driva isär från laptopen: tio filer saknades och en dubblett låg och
 skräpade i fel katalog. Ingen kunde säga vad som faktiskt körde.
 
-Repot ligger nu på `Snille/Mimers-Brain`, och servern är en riktig klon som
-används för driftsättning. Uppdatering är ett kommando:
+Repot ligger nu på `Snille/Mimers-Brain`, och servern är en riktig klon.
+Uppdatering är ett kommando:
 
 ```bash
 ssh valv 'cd ~/mimers-brain && git pull && docker compose up -d --build'
@@ -300,12 +301,10 @@ egna testrader. En tidigare avbruten körning hade lämnat två kvar.
 
 ### Commit-identitet
 
-De första commitarna skapades med en oavsiktlig Git-identitet. Orsaken var inte
-konfigurationen — den globala `.gitconfig` pekade rätt hela tiden. Varje commit
-kördes med en uttrycklig `-c user.email="…"` hämtad ur sessionens egen miljö, som
-bara säger vilket konto verktyget startades under och ingenting om vem som ska
-stå som författare. Inför offentlig publicering skrevs historiken om; identiteten är nu
-låst i repot och regeln nedtecknad: låt git avgöra författaren själv.
+De första commitarna skapades med en oavsiktlig Git-identitet. Inför offentlig
+publicering skrevs historiken om till underhållarens valda publika identitet.
+Identiteten är nu fastlåst i repot och regeln dokumenterad: låt Git själv avgöra
+författaren i stället för att ärva ett konto från den omgivande sessionen.
 
 ### Redigerbara taggar
 
