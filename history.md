@@ -6,6 +6,16 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-06 — 0.5.0: the interface learns languages
+
+The documentation had always existed in English and Swedish, but the live web
+interface was Swedish-only. It now loads every visible label, message and guide
+from JSON catalogs, chooses the browser language on first visit and remembers a
+manual choice. English is the complete fallback. Adding another language means
+copying one catalog and adding one entry to the manifest — no view code changes.
+
+---
+
 ## 2026-08-06 — Three things the memory could not say about itself
 
 The brain had answered faithfully for months without being able to say anything

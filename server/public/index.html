@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sv">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -101,6 +101,7 @@
   }
   nav button:hover { color: var(--ink); filter: none; }
   nav button.on { background: var(--panel-2); border-color: var(--line); color: var(--ink); }
+  #language { padding: 6px 10px; border-radius: 999px; font-size: 13px; }
   .page { display: none; }
   .page.on { display: block; }
   /* main is display:grid above, which would beat a plain [hidden], so it needs
@@ -156,30 +157,31 @@
   <h1>Mimers <span>Brain</span></h1>
   <div class="sub" id="hostinfo"></div>
   <nav>
-    <button data-view="thoughts" class="on">Tankar</button>
-    <button data-view="stats">Statistik</button>
-    <button data-view="connect">Anslut</button>
+    <button data-view="thoughts" class="on" data-i18n="nav.thoughts">Thoughts</button>
+    <button data-view="stats" data-i18n="nav.statistics">Statistics</button>
+    <button data-view="connect" data-i18n="nav.connect">Connect</button>
   </nav>
   <div class="grow"></div>
+  <select id="language" data-i18n-aria-label="app.language" aria-label="Language"></select>
   <div class="sub stat" id="headstat"></div>
-  <button id="new">+ Ny tanke</button>
+  <button id="new" data-i18n="header.newThought">+ New thought</button>
 </header>
 
 <main class="on" id="view-thoughts">
   <aside>
-    <h2>Typ</h2><div id="f-types"></div>
-    <h2>Ämnen</h2><div id="f-topics"></div>
-    <h2>Personer</h2><div id="f-people"></div>
+    <h2 data-i18n="filters.type">Type</h2><div id="f-types"></div>
+    <h2 data-i18n="filters.topics">Topics</h2><div id="f-topics"></div>
+    <h2 data-i18n="filters.people">People</h2><div id="f-people"></div>
   </aside>
 
   <section class="content">
     <div class="bar">
-      <input type="search" id="q" placeholder="Sök ..." autocomplete="off" />
+      <input type="search" id="q" placeholder="Search …" data-i18n-placeholder="search.placeholder" autocomplete="off" />
       <select id="mode">
-        <option value="text">Textsökning</option>
-        <option value="semantic">Semantisk</option>
+        <option value="text" data-i18n="search.text">Text search</option>
+        <option value="semantic" data-i18n="search.semantic">Semantic</option>
       </select>
-      <button class="ghost" id="clear">Rensa</button>
+      <button class="ghost" id="clear" data-i18n="search.clear">Clear</button>
     </div>
     <div id="error"></div>
     <div id="list"></div>
@@ -193,24 +195,24 @@
   <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px">
     <img src="/icon-180.png" alt="" class="logo logo-lg" />
     <div>
-      <h3 style="margin:0 0 3px">Lås upp Mimers Brain</h3>
-      <div class="sub">Klistra in åtkomstnyckeln. Den byts mot en cookie som ligger kvar i den här webbläsaren — du gör det en gång.</div>
+      <h3 style="margin:0 0 3px" data-i18n="login.title">Unlock Mimers Brain</h3>
+      <div class="sub" data-i18n="login.description">Paste the access key. It is exchanged for a cookie that remains in this browser, so you only do this once.</div>
     </div>
   </div>
-  <label for="login-key">Åtkomstnyckel</label>
+  <label for="login-key" data-i18n="login.key">Access key</label>
   <input type="password" id="login-key" style="width:100%" autocomplete="current-password" />
   <div id="login-err" class="sub" style="color:var(--danger); min-height:18px"></div>
   <div style="display:flex; justify-content:flex-end; margin-top:14px">
-    <button id="login-go">Lås upp</button>
+    <button id="login-go" data-i18n="login.unlock">Unlock</button>
   </div>
 </dialog>
 
 <dialog id="dlg">
-  <h3 style="margin:0 0 4px">Ny tanke</h3>
-  <div class="sub">Skriv den som ett fristående påstående — den ska gå att förstå av vilken AI som helst, långt senare, utan sammanhang.</div>
-  <label for="dlg-text">Innehåll</label>
+  <h3 style="margin:0 0 4px" data-i18n="editor.newTitle">New thought</h3>
+  <div class="sub" data-i18n="editor.description">Write it as a standalone statement that any AI can understand much later without the original context.</div>
+  <label for="dlg-text" data-i18n="editor.content">Content</label>
   <textarea id="dlg-text" rows="8"></textarea>
-  <label for="dlg-type">Typ</label>
+  <label for="dlg-type" data-i18n="editor.type">Type</label>
   <select id="dlg-type">
     <option value="observation">observation</option>
     <option value="reference">reference</option>
@@ -219,26 +221,41 @@
     <option value="idea">idea</option>
     <option value="person_note">person_note</option>
   </select>
-  <label for="dlg-tier">Nivå</label>
+  <label for="dlg-tier" data-i18n="editor.tier">Tier</label>
   <select id="dlg-tier">
-    <option value="open">Öppen — nås även utifrån</option>
-    <option value="vault">🔒 Valv — nycklar och lösenord, lämnar aldrig hemnätet</option>
+    <option value="open" data-i18n="tiers.openOption">Open — also available remotely</option>
+    <option value="vault" data-i18n="tiers.vaultOption">🔒 Vault — keys and passwords never leave the LAN</option>
   </select>
-  <label for="dlg-topics">Ämnen (kommaseparerade)</label>
-  <input type="text" id="dlg-topics" placeholder="nätverk, proxmox" />
+  <label for="dlg-topics" data-i18n="editor.topics">Topics (comma-separated)</label>
+  <input type="text" id="dlg-topics" placeholder="network, proxmox" data-i18n-placeholder="editor.topicsPlaceholder" />
   <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px">
-    <button class="ghost" id="dlg-cancel">Avbryt</button>
-    <button id="dlg-save">Spara</button>
+    <button class="ghost" id="dlg-cancel" data-i18n="editor.cancel">Cancel</button>
+    <button id="dlg-save" data-i18n="editor.save">Save</button>
   </div>
 </dialog>
 
 <script type="module">
+import {
+  availableLanguages, chooseLanguage, currentLanguage, formatDate, initI18n, t as tr,
+} from "./i18n.mjs";
+
+await initI18n();
+
 const $ = (s) => document.querySelector(s);
 const state = { filters: {}, mode: "text", q: "", semantic: false };
 const TYPES = ["observation", "reference", "project", "task", "idea", "person_note"];
 
+for (const item of availableLanguages()) {
+  const option = document.createElement("option");
+  option.value = item.code;
+  option.textContent = item.name;
+  option.selected = item.code === currentLanguage();
+  $("#language").appendChild(option);
+}
+$("#language").onchange = (event) => chooseLanguage(event.target.value);
+
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const fmt = (d) => (d ? new Date(d).toLocaleDateString("sv-SE") : "");
+const fmt = (d) => formatDate(d);
 
 function showError(msg) {
   $("#error").innerHTML = msg ? `<div class="err">${esc(msg)}</div>` : "";
@@ -273,7 +290,7 @@ function card(t) {
   el.className = "card";
   if (t.tier === "vault") el.classList.add("vault");
   const tags = [
-    t.tier === "vault" ? '<span class="tag vault">🔒 valv</span>' : "",
+    t.tier === "vault" ? `<span class="tag vault">🔒 ${esc(tr("tiers.vault"))}</span>` : "",
     m.type ? `<span class="tag type">${esc(m.type)}</span>` : "",
     ...(m.topics || []).map((x) => `<span class="tag">${esc(x)}</span>`),
     ...(m.people || []).map((x) => `<span class="tag">👤 ${esc(x)}</span>`),
@@ -284,8 +301,8 @@ function card(t) {
     <div class="meta">${tags}<span class="grow"></span><span>${fmt(t.created_at)}</span></div>
     <div class="body">${esc(t.content)}</div>
     <div class="actions">
-      <button class="ghost edit">Redigera</button>
-      <button class="ghost danger del">Ta bort</button>
+      <button class="ghost edit">${esc(tr("thought.edit"))}</button>
+      <button class="ghost danger del">${esc(tr("thought.delete"))}</button>
     </div>`;
 
   el.querySelector(".edit").onclick = () => {
@@ -304,24 +321,24 @@ function card(t) {
     const fields = document.createElement("div");
     fields.className = "editfields";
     fields.innerHTML = `
-      <label>Typ<select class="e-type">${types
+      <label>${esc(tr("editor.type"))}<select class="e-type">${types
         .map((x) => `<option${x === m.type ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
-      <label>Ämnen (kommaseparerade)<input class="e-topics" value="${esc((m.topics || []).join(", "))}" /></label>
-      <label>Personer (kommaseparerade)<input class="e-people" value="${esc((m.people || []).join(", "))}" /></label>`;
+      <label>${esc(tr("editor.topics"))}<input class="e-topics" value="${esc((m.topics || []).join(", "))}" /></label>
+      <label>${esc(tr("editor.people"))}<input class="e-people" value="${esc((m.people || []).join(", "))}" /></label>`;
     ta.after(fields);
 
     const acts = el.querySelector(".actions");
     acts.innerHTML = "";
     const save = document.createElement("button");
-    save.textContent = "Spara";
+    save.textContent = tr("editor.save");
     const cancel = document.createElement("button");
     cancel.className = "ghost";
-    cancel.textContent = "Avbryt";
+    cancel.textContent = tr("editor.cancel");
     acts.append(save, cancel);
     cancel.onclick = refresh;
     save.onclick = async () => {
       save.disabled = true;
-      save.textContent = "Sparar ...";
+      save.textContent = tr("editor.saving");
       try {
         const list = (sel) =>
           fields.querySelector(sel).value.split(",").map((s) => s.trim()).filter(Boolean);
@@ -344,12 +361,12 @@ function card(t) {
           body: JSON.stringify(payload),
         });
         refresh();
-      } catch (e) { showError(e.message); save.disabled = false; save.textContent = "Spara"; }
+      } catch (e) { showError(e.message); save.disabled = false; save.textContent = tr("editor.save"); }
     };
   };
 
   el.querySelector(".del").onclick = async () => {
-    if (!confirm("Ta bort den här tanken permanent?")) return;
+    if (!confirm(tr("thought.confirmDelete"))) return;
     try {
       await api(`/api/thoughts/${t.id}`, { method: "DELETE" });
       refresh();
@@ -379,19 +396,19 @@ async function refresh() {
 
     list.innerHTML = "";
     if (!rows.length) {
-      list.innerHTML = '<div class="empty">Inga tankar matchar.</div>';
+      list.innerHTML = `<div class="empty">${esc(tr("search.noMatches"))}</div>`;
     } else {
       for (const t of rows) list.appendChild(card(t));
     }
-    $("#headstat").textContent = `${rows.length} visas`;
+    $("#headstat").textContent = tr("header.shown", { shown: rows.length });
 
     const s = await api("/api/stats");
     const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
     chips("#f-types", top(s.types, 12), "type");
     chips("#f-topics", top(s.topics, 25), "topic");
     chips("#f-people", top(s.people, 15), "person");
-    const tierBits = Object.entries(s.byTier || {}).map(([k, v]) => `${k} ${v}`).join(" · ");
-    $("#headstat").textContent = `${rows.length} av ${s.total}${tierBits ? ` (${tierBits})` : ""}`;
+    const tierBits = Object.entries(s.byTier || {}).map(([k, v]) => `${tr(`tiers.${k}`)} ${v}`).join(" · ");
+    $("#headstat").textContent = `${tr("header.shownOf", { shown: rows.length, total: s.total })}${tierBits ? ` (${tierBits})` : ""}`;
   } catch (e) {
     showError(e.message);
     list.innerHTML = "";
@@ -414,7 +431,7 @@ $("#dlg-save").onclick = async () => {
   const content = $("#dlg-text").value.trim();
   if (!content) return;
   const btn = $("#dlg-save");
-  btn.disabled = true; btn.textContent = "Sparar ...";
+  btn.disabled = true; btn.textContent = tr("editor.saving");
   try {
     const topics = $("#dlg-topics").value.split(",").map((s) => s.trim()).filter(Boolean);
     await api("/api/thoughts", {
@@ -429,7 +446,7 @@ $("#dlg-save").onclick = async () => {
     $("#dlg").close();
     refresh();
   } catch (e) { showError(e.message); }
-  finally { btn.disabled = false; btn.textContent = "Spara"; }
+  finally { btn.disabled = false; btn.textContent = tr("editor.save"); }
 };
 
 async function unlock() {
@@ -486,7 +503,7 @@ for (const b of document.querySelectorAll("nav button"))
 
 const cfg = await api("/api/config").catch(() => ({}));
 $("#hostinfo").textContent =
-  (cfg.vault ? "full åtkomst (LAN)" : "endast öppen nivå") + (cfg.version ? ` · ${cfg.version}` : "");
+  tr(cfg.vault ? "header.fullAccess" : "header.openOnly") + (cfg.version ? ` · ${cfg.version}` : "");
 if (!cfg.vault) $("#dlg-tier").querySelector('[value=vault]').disabled = true;
 
 if (cfg.authed === false) {

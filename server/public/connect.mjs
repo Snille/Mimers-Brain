@@ -4,6 +4,8 @@
 // Keys are masked until asked for, and the vault key is simply not sent here
 // when the page is served through the proxy - see connectInfo() in index.mjs.
 
+import { t } from "./i18n.mjs";
+
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -35,7 +37,7 @@ function block(title, snippet, { lang = "", note = "" } = {}) {
     <div class="snip">
       <div class="snip-head">
         <span>${esc(title)}</span>
-        <button class="ghost small copy" data-copy="${esc(real)}">Kopiera</button>
+        <button class="ghost small copy" data-copy="${esc(real)}">${esc(t("common.copy"))}</button>
       </div>
       <pre class="${esc(lang)}"><code>${esc(shown)}</code></pre>
       ${note ? `<div class="sub snip-note">${note}</div>` : ""}
@@ -45,30 +47,29 @@ function block(title, snippet, { lang = "", note = "" } = {}) {
 function addresses() {
   const lan = cfg.lanUrl;
   const pub = cfg.publicUrl;
+  const listener = t(cfg.listener === "full"
+    ? "connect.addresses.fullListener"
+    : "connect.addresses.openListener");
   return `
     <div class="card">
-      <h3>De två adresserna</h3>
-      <p class="sub">Det här är det enda som egentligen spelar roll. Valvet — nycklar,
-      lösenord, tokens — serveras bara av den första. Det är inte en inställning
-      som går att slå på för den andra: MCP-servern på den öppna porten är byggd
-      helt utan förmågan att nå de raderna.</p>
+      <h3>${esc(t("connect.addresses.title"))}</h3>
+      <p class="sub">${t("connect.addresses.description")}</p>
       <table class="grid">
-        <tr><th>Adress</th><th>Innehåll</th><th>När</th></tr>
+        <tr><th>${esc(t("connect.addresses.address"))}</th><th>${esc(t("connect.addresses.content"))}</th><th>${esc(t("connect.addresses.when"))}</th></tr>
         <tr>
           <td>${lan
             ? `<code>${esc(lan)}/mcp</code>`
-            : '<span class="sub">inte känd än — öppna den här sidan en gång på hemnätet, så lär sig servern sin egen adress</span>'}</td>
-          <td><span class="tag vault">öppen + valv</span></td>
-          <td>på hemnätet eller via VPN</td>
+            : `<span class="sub">${esc(t("connect.addresses.unknownLan"))}</span>`}</td>
+          <td><span class="tag vault">${esc(t("connect.addresses.openAndVault"))}</span></td>
+          <td>${esc(t("connect.addresses.lanWhen"))}</td>
         </tr>
         <tr>
-          <td>${pub ? `<code>${esc(pub)}/mcp</code>` : '<span class="sub">ingen publik adress konfigurerad</span>'}</td>
-          <td><span class="tag">endast öppen</span></td>
-          <td>allt annat, och alla andra modeller</td>
+          <td>${pub ? `<code>${esc(pub)}/mcp</code>` : `<span class="sub">${esc(t("connect.addresses.noPublic"))}</span>`}</td>
+          <td><span class="tag">${esc(t("connect.addresses.openOnly"))}</span></td>
+          <td>${esc(t("connect.addresses.publicWhen"))}</td>
         </tr>
       </table>
-      <p class="sub">Du tittar just nu på <b>${cfg.listener === "full" ? "LAN-lyssnaren" : "den öppna lyssnaren"}</b>
-      (Mimers Brain ${esc(cfg.version)}).</p>
+      <p class="sub">${t("connect.addresses.viewing", { listener: esc(listener), version: esc(cfg.version) })}</p>
     </div>`;
 }
 
@@ -78,51 +79,47 @@ function keyCard() {
   return `
     <div class="card">
       <div class="snip-head" style="margin-bottom:10px">
-        <h3 style="margin:0">Nycklar</h3>
-        <button class="ghost small" id="reveal">${reveal ? "Dölj" : "Visa"} nycklar</button>
+        <h3 style="margin:0">${esc(t("connect.keyCard.title"))}</h3>
+        <button class="ghost small" id="reveal">${esc(t(reveal ? "common.hide" : "common.show"))} ${esc(t("common.keys"))}</button>
       </div>
       <table class="grid">
-        <tr><th>Nyckel</th><th>Värde</th><th>Vad den öppnar</th></tr>
+        <tr><th>${esc(t("connect.keyCard.key"))}</th><th>${esc(t("connect.keyCard.value"))}</th><th>${esc(t("connect.keyCard.opens"))}</th></tr>
         <tr>
           <td><code>MCP_ACCESS_KEY</code></td>
           <td>${vaultKeyHere
-            ? `<code class="keyval">${esc(k.access)}</code> <button class="ghost small copy" data-copy="${esc(k.accessReal)}">Kopiera</button>`
-            : '<span class="sub">visas inte här</span>'}</td>
-          <td>allt, inklusive valvet</td>
+            ? `<code class="keyval">${esc(k.access)}</code> <button class="ghost small copy" data-copy="${esc(k.accessReal)}">${esc(t("common.copy"))}</button>`
+            : `<span class="sub">${esc(t("connect.keyCard.notShown"))}</span>`}</td>
+          <td>${esc(t("connect.keyCard.everything"))}</td>
         </tr>
         <tr>
           <td><code>MCP_OPEN_KEY</code></td>
           <td>${cfg.hasOpenKey
-            ? `<code class="keyval">${esc(k.open)}</code> <button class="ghost small copy" data-copy="${esc(k.openReal)}">Kopiera</button>`
-            : '<span class="sub">inte satt — <code>/mcp?key=</code> är avstängt</span>'}</td>
-          <td>endast öppen nivå, och bara som <code>?key=</code></td>
+            ? `<code class="keyval">${esc(k.open)}</code> <button class="ghost small copy" data-copy="${esc(k.openReal)}">${esc(t("common.copy"))}</button>`
+            : `<span class="sub">${t("connect.keyCard.notSet")}</span>`}</td>
+          <td>${t("connect.keyCard.openUrlOnly")}</td>
         </tr>
       </table>
       ${vaultKeyHere ? "" : `
-        <p class="sub">Valvnyckeln visas bara på LAN-adressen. Att skicka ut den
-        genom proxyn hade lagt den enda credential som låser upp valvet i
-        webbläsarens cache varje gång sidan öppnas. Hämta den på servern:</p>
-        ${block("Hämta valvnyckeln", () =>
+        <p class="sub">${t("connect.keyCard.remoteWarning")}</p>
+        ${block(t("connect.keyCard.retrieve"), () =>
           `ssh valv 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'`)}`}
     </div>`;
 }
 
 function clientCards() {
   const lan = cfg.lanUrl || "http://<LAN-IP>:8790";
-  const pub = cfg.publicUrl || "https://<publik-adress>";
+  const pub = cfg.publicUrl || t("connect.addresses.publicPlaceholder");
   const cards = [];
 
   cards.push(`
     <div class="card">
-      <h3>Claude Code</h3>
-      <p class="sub">Registrera gärna <b>båda</b> adresserna som två poster. Minnet
-      fungerar då även när laptopen är utanför hemnätet — bara öppen nivå, men
-      bättre än ingenting. Ändringen slår igenom i nästa session.</p>
-      ${block("Valvet, på hemnätet", (a) =>
+      <h3>${esc(t("connect.claudeCode.title"))}</h3>
+      <p class="sub">${t("connect.claudeCode.description")}</p>
+      ${block(t("connect.claudeCode.vault"), (a) =>
         `claude mcp add --transport http mimers-brain ${lan}/mcp --header "Authorization: Bearer ${a}"`)}
-      ${block("Öppen nivå, överallt", (a) =>
+      ${block(t("connect.claudeCode.open"), (a) =>
         `claude mcp add --transport http mimers-brain-remote ${pub}/mcp --header "Authorization: Bearer ${a}"`)}
-      ${block("Eller direkt i ~/.claude.json, under mcpServers", (a) => JSON.stringify({
+      ${block(t("connect.claudeCode.json"), (a) => JSON.stringify({
         "mimers-brain": { type: "http", url: `${lan}/mcp`, headers: { Authorization: `Bearer ${a}` } },
         "mimers-brain-remote": { type: "http", url: `${pub}/mcp`, headers: { Authorization: `Bearer ${a}` } },
       }, null, 2), { lang: "json" })}
@@ -130,39 +127,29 @@ function clientCards() {
 
   cards.push(`
     <div class="card">
-      <h3>VS Code (Codex)</h3>
-      <p class="sub">Editorn öppnar anslutningen från din egen maskin, så LAN-adressen
-      fungerar och du får hela valvet. Vilken modell som svarar spelar ingen roll
-      för <i>åtkomsten</i> — men det spelar roll för <i>innehållet</i>: varje
-      valvrad ett verktyg returnerar hamnar i kontexten och skickas vidare till
-      modelleverantören i nästa tur. Peka på den publika adressen i stället så
-      uppstår aldrig frågan.</p>
-      ${block("Nyckeln stannar utanför configfilen", () =>
+      <h3>${esc(t("connect.codex.title"))}</h3>
+      <p class="sub">${t("connect.codex.description")}</p>
+      ${block(t("connect.codex.environment"), () =>
         `codex mcp add mimers-brain --url ${lan}/mcp --bearer-token-env-var MIMERS_VALV_KEY`,
-        { note: "Sätt <code>MIMERS_VALV_KEY</code> som användarvariabel och starta om editorn, annars ärver inte extension-värden den. <code>codex</code>-binären ligger inne i tillägget, inte på PATH." })}
+        { note: t("connect.codex.note") })}
     </div>`);
 
   if (cfg.hasOpenKey) cards.push(`
     <div class="card">
-      <h3>Claude Desktop — chattsidan (connector)</h3>
-      <p class="sub">Dialogen tar bara en URL, inget headerfält. Därför rider nyckeln
-      i URL:en, och därför är det en <b>annan</b> nyckel: en credential i en URL
-      sparas i klientens config och skrivs till proxyns loggar. Den här når bara
-      öppen nivå och kan bytas utan att röra någon annan klient.</p>
-      ${block("Settings → Connectors → lägg till egen", (a, o) => `${pub}/mcp?key=${o}`,
-        { note: "Ligger det en autentiserare framför måste <code>/.well-known/oauth-*</code> svara <b>404</b>, inte 302 till inloggningssidan — annars tror klienten att det finns en OAuth-server och misslyckas med <i>couldn't register with the sign-in service</i> innan URL-nyckeln ens hinner användas." })}
-      ${block("Kontrollera att proxyn svarar rätt", () =>
+      <h3>${esc(t("connect.claudeDesktop.title"))}</h3>
+      <p class="sub">${t("connect.claudeDesktop.description")}</p>
+      ${block(t("connect.claudeDesktop.settings"), (a, o) => `${pub}/mcp?key=${o}`,
+        { note: t("connect.claudeDesktop.oauthNote") })}
+      ${block(t("connect.claudeDesktop.checkProxy"), () =>
         `curl -s -o /dev/null -w '%{http_code}\\n' ${pub}/.well-known/oauth-authorization-server`,
-        { note: "404 är rätt svar." })}
+        { note: t("connect.claudeDesktop.responseNote") })}
     </div>`);
 
   cards.push(`
     <div class="card">
-      <h3>Open WebUI</h3>
-      <p class="sub">Open WebUI pratar OpenAPI-verktygsservrar. Den beprövade vägen är
-      <code>mcpo</code>, som lägger en OpenAPI-fasad framför MCP-servern. Kör den
-      på maskinen där Open WebUI står och peka gränssnittet dit.</p>
-      ${block("config.json till mcpo", (a) => JSON.stringify({
+      <h3>${esc(t("connect.openWebui.title"))}</h3>
+      <p class="sub">${t("connect.openWebui.description")}</p>
+      ${block(t("connect.openWebui.config"), (a) => JSON.stringify({
         mcpServers: {
           "mimers-brain": {
             type: "streamable-http",
@@ -171,30 +158,23 @@ function clientCards() {
           },
         },
       }, null, 2), { lang: "json" })}
-      ${block("Starta fasaden", () => `uvx mcpo --port 8000 --config config.json`,
-        { note: "Lägg sedan till <code>http://&lt;host&gt;:8000/mimers-brain</code> under <i>Settings → Tools</i> i Open WebUI. Nyare versioner kan ta MCP-servrar direkt — kolla din version innan du sätter upp mcpo i onödan." })}
+      ${block(t("connect.openWebui.start"), () => `uvx mcpo --port 8000 --config config.json`,
+        { note: t("connect.openWebui.note") })}
     </div>`);
 
   cards.push(`
     <div class="card">
-      <h3>ChatGPT, Gemini och andra</h3>
-      <p class="sub">Samma princip överallt: en MCP-server över HTTP med bearer-token.
-      Verktygen <code>search</code> och <code>fetch</code> finns just för klienter
-      som förväntar sig den enklare sök-och-hämta-modellen i stället för de
-      namngivna verktygen. Använd <b>aldrig</b> LAN-adressen här — den är inte
-      nåbar utifrån, och om den någonsin blev det vore valvet exponerat för
-      tredjepart.</p>
-      ${block("Adress att ange", () => `${pub}/mcp`)}
-      ${block("Header", (a) => `Authorization: Bearer ${a}`)}
+      <h3>${esc(t("connect.otherClients.title"))}</h3>
+      <p class="sub">${t("connect.otherClients.description")}</p>
+      ${block(t("connect.otherClients.address"), () => `${pub}/mcp`)}
+      ${block(t("connect.otherClients.header"), (a) => `Authorization: Bearer ${a}`)}
     </div>`);
 
   cards.push(`
     <div class="card">
-      <h3>Vill du ha valvet i en klient som bara når https?</h3>
-      <p class="sub">Öppna inte porten. <code>mcp-remote</code> kör som stdio-server på
-      din egen maskin, når därför LAN-adressen över vanlig http, och sätter
-      headern själv.</p>
-      ${block("claude_desktop_config.json", (a) => JSON.stringify({
+      <h3>${esc(t("connect.remoteVault.title"))}</h3>
+      <p class="sub">${t("connect.remoteVault.description")}</p>
+      ${block(t("connect.remoteVault.config"), (a) => JSON.stringify({
         mcpServers: {
           "mimers-brain": {
             command: "npx",
@@ -206,13 +186,17 @@ function clientCards() {
 
   cards.push(`
     <div class="card">
-      <h3>Kontrollera att det gick vägen</h3>
-      ${block("Lista verktygen", (a) =>
+      <h3>${esc(t("connect.verify.title"))}</h3>
+      ${block(t("connect.verify.listTools"), (a) =>
         `curl -s -X POST ${pub}/mcp -H "Authorization: Bearer ${a}" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'`,
-        { note: `${cfg.tools.length} verktyg i svaret betyder att allt fungerar. <b>401</b> betyder fel nyckel. <b>302</b> mot autentiseraren betyder att proxyn skickar <code>/mcp</code> genom forward auth, vilket den inte får.` })}
+        { note: t("connect.verify.note", { count: cfg.tools.length }) })}
       <table class="grid" style="margin-top:12px">
-        <tr><th>Verktyg</th><th>Vad det gör</th></tr>
-        ${cfg.tools.map((t) => `<tr><td><code>${esc(t.name)}</code></td><td class="sub">${esc(t.what)}</td></tr>`).join("")}
+        <tr><th>${esc(t("connect.verify.tool"))}</th><th>${esc(t("connect.verify.purpose"))}</th></tr>
+        ${cfg.tools.map((tool) => {
+          const key = `connect.toolDescriptions.${tool.name}`;
+          const description = t(key);
+          return `<tr><td><code>${esc(tool.name)}</code></td><td class="sub">${esc(description === key ? tool.what : description)}</td></tr>`;
+        }).join("")}
       </table>
     </div>`);
 
@@ -227,7 +211,7 @@ function draw() {
   for (const b of root.querySelectorAll(".copy")) {
     b.onclick = async () => {
       const was = b.textContent;
-      b.textContent = (await copy(b.dataset.copy)) ? "Kopierat" : "Markera och kopiera";
+      b.textContent = (await copy(b.dataset.copy)) ? t("common.copied") : t("common.copyManual");
       setTimeout(() => { b.textContent = was; }, 1400);
     };
   }
@@ -260,10 +244,10 @@ async function copy(value) {
 
 export async function render(el) {
   root = el;
-  root.innerHTML = '<div class="empty">Hämtar …</div>';
+  root.innerHTML = `<div class="empty">${esc(t("connect.loading"))}</div>`;
   const r = await fetch("/api/connect");
   if (!r.ok) {
-    root.innerHTML = '<div class="err">Kunde inte hämta anslutningsuppgifterna.</div>';
+    root.innerHTML = `<div class="err">${esc(t("connect.fetchError"))}</div>`;
     return;
   }
   cfg = await r.json();

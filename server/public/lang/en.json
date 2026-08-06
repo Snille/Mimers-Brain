@@ -1,0 +1,226 @@
+{
+  "app": {
+    "title": "Mimers Brain",
+    "language": "Language"
+  },
+  "common": {
+    "none": "–",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyManual": "Select and copy",
+    "show": "Show",
+    "hide": "Hide",
+    "keys": "keys",
+    "loading": "Loading …"
+  },
+  "nav": {
+    "thoughts": "Thoughts",
+    "statistics": "Statistics",
+    "connect": "Connect"
+  },
+  "header": {
+    "fullAccess": "full access (LAN)",
+    "openOnly": "open tier only",
+    "newThought": "+ New thought",
+    "shown": "{shown} shown",
+    "shownOf": "{shown} of {total}"
+  },
+  "filters": {
+    "type": "Type",
+    "topics": "Topics",
+    "people": "People"
+  },
+  "search": {
+    "placeholder": "Search …",
+    "text": "Text search",
+    "semantic": "Semantic",
+    "clear": "Clear",
+    "noMatches": "No thoughts match."
+  },
+  "login": {
+    "title": "Unlock Mimers Brain",
+    "description": "Paste the access key. It is exchanged for a cookie that remains in this browser, so you only do this once.",
+    "key": "Access key",
+    "unlock": "Unlock"
+  },
+  "editor": {
+    "newTitle": "New thought",
+    "description": "Write it as a standalone statement that any AI can understand much later without the original context.",
+    "content": "Content",
+    "type": "Type",
+    "tier": "Tier",
+    "topics": "Topics (comma-separated)",
+    "people": "People (comma-separated)",
+    "topicsPlaceholder": "network, proxmox",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving …"
+  },
+  "thought": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Permanently delete this thought?"
+  },
+  "tiers": {
+    "open": "open",
+    "vault": "vault",
+    "openOption": "Open — also available remotely",
+    "vaultOption": "🔒 Vault — keys and passwords never leave the LAN"
+  },
+  "stats": {
+    "counting": "Counting …",
+    "kpi": {
+      "memoriesTotal": "memories total",
+      "newThisYear": "new this year",
+      "newToday": "new today",
+      "callsToday": "calls today",
+      "callsThisYear": "calls this year",
+      "busiestClient": "busiest client",
+      "thisMonth": "{count} this month",
+      "thisWeek": "{count} this week",
+      "callsTotal": "{count} total",
+      "calls": "{count} calls"
+    },
+    "chart": {
+      "noActivity": "No activity during this period.",
+      "max": "max {count}",
+      "callsPerDay": "Calls per day",
+      "newMemoriesPerDay": "New memories per day",
+      "perMonth": "Per month",
+      "lastDays": "last {count} days",
+      "lastMonths": "last {count} months",
+      "calls": "Calls",
+      "newMemories": "New memories",
+      "reads": "reads",
+      "writes": "writes",
+      "deletes": "deletes",
+      "memories": "memories"
+    },
+    "clients": {
+      "title": "Which clients read and write",
+      "description": "MCP reports the <i>client application</i>, never the model answering inside it — that information simply is not on the wire. If a client has no name in its handshake, its user agent is used instead.",
+      "empty": "No traffic has been logged yet.",
+      "client": "Client",
+      "calls": "Calls",
+      "reads": "Reads",
+      "writes": "Writes",
+      "deletes": "Deletes",
+      "errors": "Errors",
+      "last": "Last"
+    },
+    "tools": {
+      "title": "By tool",
+      "tool": "Tool",
+      "calls": "Calls",
+      "average": "Average"
+    },
+    "mqtt": {
+      "title": "MQTT to Home Assistant",
+      "notConfigured": "Not configured. Set <code>MQTT_URL</code> (and, when needed, <code>MQTT_USERNAME</code> / <code>MQTT_PASSWORD</code>) in <code>.env</code> on the server and restart it. The brain will then publish its vital signs and counters. See the README for the entities created in Home Assistant.",
+      "publishNow": "Publish now",
+      "status": "Status",
+      "connected": "connected",
+      "disconnected": "not connected",
+      "broker": "Broker",
+      "topicPrefix": "Topic prefix",
+      "interval": "Interval",
+      "seconds": "{count} s",
+      "lastPublish": "Last publish",
+      "discoverySent": "Discovery sent",
+      "yes": "yes",
+      "no": "no",
+      "lastError": "Last error",
+      "published": "Published {when}.",
+      "publishFailed": "Could not publish — the broker is not connected."
+    },
+    "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events are retained for {days} days and never contain queries or memory content — only who called which tool and whether it succeeded."
+  },
+  "connect": {
+    "loading": "Loading …",
+    "fetchError": "Could not load the connection details.",
+    "addresses": {
+      "title": "The two addresses",
+      "description": "This is the part that matters. The vault — keys, passwords and tokens — is served only by the first address. It is not a setting that can be enabled on the second: the MCP server on the open port is built without the ability to reach those rows.",
+      "address": "Address",
+      "content": "Contents",
+      "when": "When",
+      "unknownLan": "not known yet — open this page once on the LAN and the server will learn its address",
+      "openAndVault": "open + vault",
+      "lanWhen": "on the LAN or over VPN",
+      "noPublic": "no public address configured",
+      "publicPlaceholder": "https://<public-address>",
+      "openOnly": "open only",
+      "publicWhen": "everywhere else, and for every other model",
+      "viewing": "You are currently viewing the <b>{listener}</b> (Mimers Brain {version}).",
+      "fullListener": "LAN listener",
+      "openListener": "open listener"
+    },
+    "keyCard": {
+      "title": "Keys",
+      "key": "Key",
+      "value": "Value",
+      "opens": "What it opens",
+      "everything": "everything, including the vault",
+      "openUrlOnly": "open tier only, and only as <code>?key=</code>",
+      "notShown": "not shown here",
+      "notSet": "not set — <code>/mcp?key=</code> is disabled",
+      "remoteWarning": "The vault key is shown only on the LAN address. Sending it through the proxy would put the one credential that unlocks the vault in the browser cache whenever the page opens. Retrieve it on the server:",
+      "retrieve": "Retrieve the vault key"
+    },
+    "claudeCode": {
+      "title": "Claude Code",
+      "description": "Register <b>both</b> addresses as separate entries. The memory then works even when the laptop is away from the LAN — open tier only, but better than nothing. The change takes effect in the next session.",
+      "vault": "Vault, on the LAN",
+      "open": "Open tier, everywhere",
+      "json": "Or directly in ~/.claude.json under mcpServers"
+    },
+    "codex": {
+      "title": "VS Code (Codex)",
+      "description": "The editor opens the connection from your own machine, so the LAN address works and gives access to the full vault. The model answering does not affect <i>access</i>, but it does affect <i>content</i>: every vault row returned by a tool enters the context and is sent to the model provider on the next turn. Use the public address instead if that is not appropriate.",
+      "environment": "Keep the key out of the config file",
+      "note": "Set <code>MIMERS_VALV_KEY</code> as a user environment variable and restart the editor so the extension inherits it. The <code>codex</code> binary lives inside the extension and is not normally on PATH."
+    },
+    "claudeDesktop": {
+      "title": "Claude Desktop — chat connector",
+      "description": "The dialog accepts only a URL and has no header field. The key therefore travels in the URL, which is why it must be a <b>different</b> key: URL credentials are saved in client configuration and proxy logs. This key reaches only the open tier and can be rotated independently.",
+      "settings": "Settings → Connectors → add custom connector",
+      "oauthNote": "If an authenticator is in front, <code>/.well-known/oauth-*</code> must answer <b>404</b>, not redirect to a login page. Otherwise the client assumes an OAuth server exists and fails before the URL key is used.",
+      "checkProxy": "Verify the proxy response",
+      "responseNote": "404 is the correct response."
+    },
+    "openWebui": {
+      "title": "Open WebUI",
+      "description": "Open WebUI speaks to OpenAPI tool servers. The established path is <code>mcpo</code>, which places an OpenAPI facade in front of the MCP server. Run it on the Open WebUI host and point the UI at it.",
+      "config": "config.json for mcpo",
+      "start": "Start the facade",
+      "note": "Then add <code>http://&lt;host&gt;:8000/mimers-brain</code> under <i>Settings → Tools</i> in Open WebUI. Newer versions may support MCP servers directly, so check your version before setting up mcpo."
+    },
+    "otherClients": {
+      "title": "ChatGPT, Gemini and others",
+      "description": "The same principle applies everywhere: an MCP server over HTTP with a bearer token. The <code>search</code> and <code>fetch</code> tools exist for clients that expect the simpler search-and-fetch shape. Never use the LAN address here — it is not remotely reachable, and making it so would expose the vault to a third party.",
+      "address": "Address",
+      "header": "Header"
+    },
+    "remoteVault": {
+      "title": "Need the vault in an HTTPS-only client?",
+      "description": "Do not open the port. <code>mcp-remote</code> runs as a local stdio server, reaches the LAN address over ordinary HTTP and adds the header itself.",
+      "config": "claude_desktop_config.json"
+    },
+    "verify": {
+      "title": "Verify the connection",
+      "listTools": "List the tools",
+      "note": "{count} tools in the response means everything works. <b>401</b> means the key is wrong. A <b>302</b> to the authenticator means the proxy is incorrectly sending <code>/mcp</code> through forward auth.",
+      "tool": "Tool",
+      "purpose": "Purpose"
+    },
+    "toolDescriptions": {
+      "search_thoughts": "Search by meaning. The important one.",
+      "list_thoughts": "Recent memories filtered by type, topic, person and time",
+      "capture_thought": "Save a new memory",
+      "thought_stats": "Totals, types, topics and people",
+      "search": "Search in the shape ChatGPT and Gemini expect",
+      "fetch": "Fetch one memory by id",
+      "delete_thought": "LAN listener only"
+    }
+  }
+}

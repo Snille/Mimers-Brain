@@ -1,0 +1,226 @@
+{
+  "app": {
+    "title": "Mimers Brain",
+    "language": "Språk"
+  },
+  "common": {
+    "none": "–",
+    "copy": "Kopiera",
+    "copied": "Kopierat",
+    "copyManual": "Markera och kopiera",
+    "show": "Visa",
+    "hide": "Dölj",
+    "keys": "nycklar",
+    "loading": "Hämtar …"
+  },
+  "nav": {
+    "thoughts": "Tankar",
+    "statistics": "Statistik",
+    "connect": "Anslut"
+  },
+  "header": {
+    "fullAccess": "full åtkomst (LAN)",
+    "openOnly": "endast öppen nivå",
+    "newThought": "+ Ny tanke",
+    "shown": "{shown} visas",
+    "shownOf": "{shown} av {total}"
+  },
+  "filters": {
+    "type": "Typ",
+    "topics": "Ämnen",
+    "people": "Personer"
+  },
+  "search": {
+    "placeholder": "Sök …",
+    "text": "Textsökning",
+    "semantic": "Semantisk",
+    "clear": "Rensa",
+    "noMatches": "Inga tankar matchar."
+  },
+  "login": {
+    "title": "Lås upp Mimers Brain",
+    "description": "Klistra in åtkomstnyckeln. Den byts mot en cookie som ligger kvar i den här webbläsaren — du gör det en gång.",
+    "key": "Åtkomstnyckel",
+    "unlock": "Lås upp"
+  },
+  "editor": {
+    "newTitle": "Ny tanke",
+    "description": "Skriv den som ett fristående påstående — den ska gå att förstå av vilken AI som helst, långt senare, utan sammanhang.",
+    "content": "Innehåll",
+    "type": "Typ",
+    "tier": "Nivå",
+    "topics": "Ämnen (kommaseparerade)",
+    "people": "Personer (kommaseparerade)",
+    "topicsPlaceholder": "nätverk, proxmox",
+    "cancel": "Avbryt",
+    "save": "Spara",
+    "saving": "Sparar …"
+  },
+  "thought": {
+    "edit": "Redigera",
+    "delete": "Ta bort",
+    "confirmDelete": "Ta bort den här tanken permanent?"
+  },
+  "tiers": {
+    "open": "öppen",
+    "vault": "valv",
+    "openOption": "Öppen — nås även utifrån",
+    "vaultOption": "🔒 Valv — nycklar och lösenord lämnar aldrig hemnätet"
+  },
+  "stats": {
+    "counting": "Räknar …",
+    "kpi": {
+      "memoriesTotal": "minnen totalt",
+      "newThisYear": "nya i år",
+      "newToday": "nya i dag",
+      "callsToday": "anrop i dag",
+      "callsThisYear": "anrop i år",
+      "busiestClient": "flitigaste klienten",
+      "thisMonth": "{count} den här månaden",
+      "thisWeek": "{count} den här veckan",
+      "callsTotal": "{count} totalt",
+      "calls": "{count} anrop"
+    },
+    "chart": {
+      "noActivity": "Ingen aktivitet i perioden.",
+      "max": "max {count}",
+      "callsPerDay": "Anrop per dag",
+      "newMemoriesPerDay": "Nya minnen per dag",
+      "perMonth": "Per månad",
+      "lastDays": "senaste {count} dagarna",
+      "lastMonths": "senaste {count} månaderna",
+      "calls": "Anrop",
+      "newMemories": "Nya minnen",
+      "reads": "läsningar",
+      "writes": "skrivningar",
+      "deletes": "raderingar",
+      "memories": "minnen"
+    },
+    "clients": {
+      "title": "Vilka klienter läser och skriver",
+      "description": "MCP uppger <i>klientappen</i>, aldrig vilken modell som svarar inuti den — den uppgiften finns helt enkelt inte på tråden. Saknar en klient namn i handskakningen används dess user agent i stället.",
+      "empty": "Ingen trafik loggad än.",
+      "client": "Klient",
+      "calls": "Anrop",
+      "reads": "Läser",
+      "writes": "Skriver",
+      "deletes": "Raderar",
+      "errors": "Fel",
+      "last": "Senast"
+    },
+    "tools": {
+      "title": "Per verktyg",
+      "tool": "Verktyg",
+      "calls": "Anrop",
+      "average": "Snitt"
+    },
+    "mqtt": {
+      "title": "MQTT till Home Assistant",
+      "notConfigured": "Inte konfigurerat. Sätt <code>MQTT_URL</code> (och vid behov <code>MQTT_USERNAME</code> / <code>MQTT_PASSWORD</code>) i <code>.env</code> på servern och starta om, så börjar hjärnan publicera sina livstecken och räknare. Se README för vilka sensorer som dyker upp i Home Assistant.",
+      "publishNow": "Publicera nu",
+      "status": "Status",
+      "connected": "ansluten",
+      "disconnected": "inte ansluten",
+      "broker": "Broker",
+      "topicPrefix": "Topic-prefix",
+      "interval": "Intervall",
+      "seconds": "{count} s",
+      "lastPublish": "Senaste publicering",
+      "discoverySent": "Discovery skickad",
+      "yes": "ja",
+      "no": "nej",
+      "lastError": "Senaste fel",
+      "published": "Publicerat {when}.",
+      "publishFailed": "Kunde inte publicera — brokern är inte ansluten."
+    },
+    "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningsloggen sparas i {days} dagar och innehåller aldrig sökfrågor eller minnesinnehåll — bara vem som anropade vad, och hur det gick."
+  },
+  "connect": {
+    "loading": "Hämtar …",
+    "fetchError": "Kunde inte hämta anslutningsuppgifterna.",
+    "addresses": {
+      "title": "De två adresserna",
+      "description": "Det här är det enda som egentligen spelar roll. Valvet — nycklar, lösenord och tokens — serveras bara av den första adressen. Det är inte en inställning som går att slå på för den andra: MCP-servern på den öppna porten är byggd helt utan förmågan att nå de raderna.",
+      "address": "Adress",
+      "content": "Innehåll",
+      "when": "När",
+      "unknownLan": "inte känd än — öppna den här sidan en gång på hemnätet, så lär sig servern sin egen adress",
+      "openAndVault": "öppen + valv",
+      "lanWhen": "på hemnätet eller via VPN",
+      "noPublic": "ingen publik adress konfigurerad",
+      "publicPlaceholder": "https://<publik-adress>",
+      "openOnly": "endast öppen",
+      "publicWhen": "allt annat, och alla andra modeller",
+      "viewing": "Du tittar just nu på <b>{listener}</b> (Mimers Brain {version}).",
+      "fullListener": "LAN-lyssnaren",
+      "openListener": "den öppna lyssnaren"
+    },
+    "keyCard": {
+      "title": "Nycklar",
+      "key": "Nyckel",
+      "value": "Värde",
+      "opens": "Vad den öppnar",
+      "everything": "allt, inklusive valvet",
+      "openUrlOnly": "endast öppen nivå, och bara som <code>?key=</code>",
+      "notShown": "visas inte här",
+      "notSet": "inte satt — <code>/mcp?key=</code> är avstängt",
+      "remoteWarning": "Valvnyckeln visas bara på LAN-adressen. Att skicka ut den genom proxyn hade lagt den enda credential som låser upp valvet i webbläsarens cache varje gång sidan öppnas. Hämta den på servern:",
+      "retrieve": "Hämta valvnyckeln"
+    },
+    "claudeCode": {
+      "title": "Claude Code",
+      "description": "Registrera gärna <b>båda</b> adresserna som två poster. Minnet fungerar då även när laptopen är utanför hemnätet — bara öppen nivå, men bättre än ingenting. Ändringen slår igenom i nästa session.",
+      "vault": "Valvet, på hemnätet",
+      "open": "Öppen nivå, överallt",
+      "json": "Eller direkt i ~/.claude.json, under mcpServers"
+    },
+    "codex": {
+      "title": "VS Code (Codex)",
+      "description": "Editorn öppnar anslutningen från din egen maskin, så LAN-adressen fungerar och du får hela valvet. Vilken modell som svarar spelar ingen roll för <i>åtkomsten</i> — men det spelar roll för <i>innehållet</i>: varje valvrad ett verktyg returnerar hamnar i kontexten och skickas vidare till modelleverantören i nästa tur. Peka på den publika adressen i stället om det inte är lämpligt.",
+      "environment": "Nyckeln stannar utanför configfilen",
+      "note": "Sätt <code>MIMERS_VALV_KEY</code> som användarvariabel och starta om editorn, annars ärver inte extension-värden den. <code>codex</code>-binären ligger inne i tillägget, inte på PATH."
+    },
+    "claudeDesktop": {
+      "title": "Claude Desktop — chattsidan (connector)",
+      "description": "Dialogen tar bara en URL, inget headerfält. Därför rider nyckeln i URL:en, och därför är det en <b>annan</b> nyckel: en credential i en URL sparas i klientens config och skrivs till proxyns loggar. Den här når bara öppen nivå och kan bytas utan att röra någon annan klient.",
+      "settings": "Settings → Connectors → lägg till egen",
+      "oauthNote": "Ligger det en autentiserare framför måste <code>/.well-known/oauth-*</code> svara <b>404</b>, inte 302 till inloggningssidan — annars tror klienten att det finns en OAuth-server och misslyckas innan URL-nyckeln hinner användas.",
+      "checkProxy": "Kontrollera att proxyn svarar rätt",
+      "responseNote": "404 är rätt svar."
+    },
+    "openWebui": {
+      "title": "Open WebUI",
+      "description": "Open WebUI pratar OpenAPI-verktygsservrar. Den beprövade vägen är <code>mcpo</code>, som lägger en OpenAPI-fasad framför MCP-servern. Kör den på maskinen där Open WebUI står och peka gränssnittet dit.",
+      "config": "config.json till mcpo",
+      "start": "Starta fasaden",
+      "note": "Lägg sedan till <code>http://&lt;host&gt;:8000/mimers-brain</code> under <i>Settings → Tools</i> i Open WebUI. Nyare versioner kan ta MCP-servrar direkt — kolla din version innan du sätter upp mcpo i onödan."
+    },
+    "otherClients": {
+      "title": "ChatGPT, Gemini och andra",
+      "description": "Samma princip överallt: en MCP-server över HTTP med bearer-token. Verktygen <code>search</code> och <code>fetch</code> finns just för klienter som förväntar sig den enklare sök-och-hämta-modellen. Använd aldrig LAN-adressen här — den är inte nåbar utifrån, och om den någonsin blev det vore valvet exponerat för tredjepart.",
+      "address": "Adress att ange",
+      "header": "Header"
+    },
+    "remoteVault": {
+      "title": "Vill du ha valvet i en klient som bara når https?",
+      "description": "Öppna inte porten. <code>mcp-remote</code> kör som stdio-server på din egen maskin, når därför LAN-adressen över vanlig http, och sätter headern själv.",
+      "config": "claude_desktop_config.json"
+    },
+    "verify": {
+      "title": "Kontrollera att det gick vägen",
+      "listTools": "Lista verktygen",
+      "note": "{count} verktyg i svaret betyder att allt fungerar. <b>401</b> betyder fel nyckel. <b>302</b> mot autentiseraren betyder att proxyn skickar <code>/mcp</code> genom forward auth, vilket den inte får.",
+      "tool": "Verktyg",
+      "purpose": "Vad det gör"
+    },
+    "toolDescriptions": {
+      "search_thoughts": "Sök efter betydelse. Det viktigaste verktyget.",
+      "list_thoughts": "Senaste minnen filtrerade på typ, ämne, person och tid",
+      "capture_thought": "Spara ett nytt minne",
+      "thought_stats": "Summor, typer, ämnen och personer",
+      "search": "Sökning i formen som ChatGPT och Gemini förväntar sig",
+      "fetch": "Hämta ett minne med id",
+      "delete_thought": "Endast LAN-lyssnaren"
+    }
+  }
+}

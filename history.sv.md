@@ -6,6 +6,16 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-06 — 0.5.0: gränssnittet lär sig språk
+
+Dokumentationen hade alltid funnits på engelska och svenska, men det levande
+webbgränssnittet var enbart svenskt. Nu hämtas varje synlig etikett, text och
+guide ur JSON-kataloger, webbläsarens språk väljs vid första besöket och ett
+manuellt val sparas. Engelska är komplett fallback. Ett nytt språk kräver bara
+en kopierad katalog och en rad i manifestet — ingen ändring i vyernas kod.
+
+---
+
 ## 2026-08-06 — Tre saker minnet inte kunde berätta om sig självt
 
 Hjärnan hade svarat troget i månader utan att kunna säga något om sin egen

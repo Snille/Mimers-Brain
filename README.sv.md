@@ -30,6 +30,10 @@ Hemligheter serveras bara på LAN; allt annat går att nå varifrån som helst.
 
 ![Mimers Brains användningsstatistik med aktivitetsdiagram per dag och månad](assets/screenshots/mimers-brain-statistics.png)
 
+Webbgränssnittet finns på engelska och svenska, väljer webbläsarens språk vid
+första besöket och minns ett manuellt val. Nya översättningar är vanliga
+JSON-kataloger; se [docs/translations.md](docs/translations.md).
+
 ## Varför två portar
 
 Nivåuppdelningen bygger **inte** på att inspektera `X-Forwarded-For`. Den kan

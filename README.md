@@ -30,6 +30,10 @@ from anywhere.
 
 ![Mimers Brain usage statistics with daily and monthly activity charts](assets/screenshots/mimers-brain-statistics.png)
 
+The web interface ships in English and Swedish, selects the browser language on
+first visit, and remembers a manual choice. New translations are ordinary JSON
+catalogs; see [docs/translations.md](docs/translations.md).
+
 ## Why two ports
 
 The tier split does **not** work by inspecting `X-Forwarded-For`. Anyone can set
