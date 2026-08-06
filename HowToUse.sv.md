@@ -5,6 +5,13 @@
 Hur du kopplar en AI-modell till minnet, och hur du sätter upp allt igen om en
 maskin behöver installeras om.
 
+> **Webbgränssnittet gör det här åt dig.** Öppna minnet i en webbläsare och gå
+> till **Anslut**: samma anvisningar som nedan, fast återgivna med den körande
+> instansens egna adresser, nycklar och verktygslista, med kopieringsknappar. Det
+> här dokumentet förklarar *varför* varje inställning ser ut som den gör, och
+> täcker det en sida inte kan — att bygga om servern, reverse proxyn, en
+> ominstallerad laptop. Börja med sidan; kom hit när något inte beter sig.
+
 ---
 
 ## Vad det är, kort
@@ -236,6 +243,13 @@ behåller sitt skiftläge eftersom de är egennamn.
 
 Att redigera taggar kostar ingenting. Embeddingen räknas på innehållet och räknas
 alltså bara om när innehållet självt ändras.
+
+Utöver listan finns **Anslut** och **Statistik** i huvudmenyn. Anslut är
+uppkopplingsanvisningarna på den här sidan, fast ifyllda med instansens riktiga
+värden. Statistik visar användningen över tid och per klient — men lägg märke
+till vad den ärligt kan säga: MCP uppger klientappen, inte vilken modell som
+svarar inuti den, och användningsloggen sparar aldrig sökfrågor eller innehåll.
+Se README för hur MQTT-sensorerna i Home Assistant hänger ihop med samma siffror.
 
 ---
 

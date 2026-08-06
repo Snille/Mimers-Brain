@@ -40,7 +40,7 @@ tools are constructed with `tiers = ['open']` and `delete_thought` is not
 registered at all. No parameter, header or path changes that. An attacker who
 gets past the proxy still only reaches open knowledge.
 
-Guarded by `test-isolation.ps1` (11 checks, all green):
+Guarded by `test-isolation.ps1` (22 checks, all green):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
@@ -48,8 +48,9 @@ powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
 
 The tests cover: vault rows are invisible on the open port, secret content never
 leaks, looking a vault row up by id is refused, writing to the vault from outside
-is refused, statistics do not even reveal that the vault exists, and a wrong key
-returns 401.
+is refused, statistics do not even reveal that the vault exists, the connection
+guide withholds the vault key from the proxied listener, the usage log never
+carries content, and a wrong key returns 401.
 
 ## Running it
 
@@ -109,6 +110,89 @@ of client is OAuth, sketched but not built in
 The UI is served on **both** ports. On 8790 you see the vault and sign in with
 the key; through the proxy you see the open tier and the authenticator handles
 sign-in.
+
+## The web interface
+
+Three views, and the sign-in described above covers all of them.
+
+**Memories** is the list, the search and the tag editing.
+
+**Connect** is the setup instructions for every client — Claude Code, Codex in VS
+Code, the Claude Desktop connector, Open WebUI, ChatGPT, a generic MCP client —
+rendered with *this* instance's addresses, keys and tool list rather than
+placeholders. Copy buttons hand over ready-made commands and JSON.
+
+Keys are masked until you ask for them, and one rule decides which are on the
+page at all: `MCP_ACCESS_KEY` is served **only by the LAN listener**. Reaching
+the UI through the proxy means the authenticator let you in, but sending the
+vault key that way would push the one credential that unlocks the vault out of
+the house and into a browser cache on every visit. `MCP_OPEN_KEY` is shown on
+both, since it is designed to travel in URLs and can only ever reach open
+knowledge.
+
+The LAN address on that page is **learned, not configured**. Asking the OS for it
+from inside a container returns Docker's bridge address, and so does the socket,
+since the port is NAT'd — both would confidently print an address that works for
+nobody. The `Host` header on the LAN listener cannot be wrong in the way that
+matters, though: it is an address a browser just reached us on. So it is taken
+from real visits and stored, which is why the page can still name the LAN address
+when you are reading it through the proxy. `LAN_URL` overrides it if you would
+rather see a hostname; until the LAN listener has been opened once, the page says
+so rather than guessing.
+
+**Statistics** answers who uses the memory and how much: calls per day, month and
+year, new memories over the same spans, and a breakdown per client and per tool.
+
+Two things worth knowing about those numbers. MCP identifies the **client
+application** — Claude Code, Codex, a ChatGPT connector — and never the model
+answering inside it; a model name is not on the wire, so the page does not
+pretend to know one. And the usage log holds no content: not the search query,
+not the memory, not the result. A traffic log that quoted vault searches back
+would undo the tier split it sits behind. Through the proxy the page counts only
+traffic that arrived on the open listener, so it cannot reveal that vault traffic
+exists either.
+
+## Home Assistant over MQTT
+
+Set `MQTT_URL` in `.env` and the brain announces itself through HA discovery as
+the device **Mimers Brain**, then publishes its counters every `MQTT_INTERVAL_S`
+seconds and immediately after every write.
+
+Entity ids follow from the device name plus each sensor name — not from
+`object_id`, whatever the docs suggest — so they are a contract worth treating as
+one:
+
+| Entity | What |
+| --- | --- |
+| `binary_sensor.mimers_brain_online` | connectivity, driven by the last will |
+| `sensor.mimers_brain_memories_total` / `_open` / `_vault` | size of the memory |
+| `sensor.mimers_brain_memories_today` / `_week` / `_month` / `_year` | growth |
+| `sensor.mimers_brain_calls_today` / `_week` / `_month` / `_year` / `_total` | traffic |
+| `sensor.mimers_brain_reads_today`, `_writes_today` | traffic split |
+| `sensor.mimers_brain_clients_week`, `_top_client` | who is using it |
+| `sensor.mimers_brain_last_memory`, `_last_call` | timestamps |
+| `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, and why |
+| `sensor.mimers_brain_uptime` | seconds since start |
+
+Every sensor reads from one retained JSON payload on `<prefix>/state`, so Home
+Assistant repopulates all of them from a single message after a restart instead
+of showing `unknown` until the next tick.
+
+The availability topic carries a **last will**, which is the part that makes
+"is it alive" honest: if the process dies, the broker publishes `offline` on its
+behalf. Without one, a dead brain looks exactly like a healthy one with nothing
+new to say. A planned stop says `offline` deliberately, so a restart reads as a
+short blip rather than a stuck `online`.
+
+Counters only. No memory content and no search queries go on the broker — the
+broker is on the LAN, but that is not a reason to publish something that did not
+need publishing. The vault *count* does go out, which is worth knowing if the
+broker is shared.
+
+The broker password lives in `.env` next to the other secrets rather than in a
+settings table, deliberately: the database is dumped nightly, and a credential
+that can be changed with one `docker compose up -d` does not need to be in
+backups too.
 
 ## Docker inside an LXC
 

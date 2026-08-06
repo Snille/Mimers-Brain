@@ -210,6 +210,268 @@ export async function deleteThought(tiers, id) {
   return { deleted: id };
 }
 
+// --- usage log ---------------------------------------------------------------
+//
+// db/init.sql only ever runs on an empty volume, so a running instance would
+// never see a table added later. Every statement here is therefore idempotent
+// and runs on each boot - that is what upgrades an existing brain in place.
+export async function ensureSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS usage_events (
+        id             bigserial PRIMARY KEY,
+        at             timestamptz NOT NULL DEFAULT now(),
+        tool           text NOT NULL,
+        action         text NOT NULL,
+        listener       text NOT NULL CHECK (listener IN ('full', 'open')),
+        client         text NOT NULL,
+        client_version text,
+        auth           text,
+        tier           text,
+        results        integer,
+        ok             boolean NOT NULL DEFAULT true,
+        ms             integer
+    );
+    CREATE INDEX IF NOT EXISTS usage_events_at_idx     ON usage_events (at DESC);
+    CREATE INDEX IF NOT EXISTS usage_events_client_idx ON usage_events (client, at DESC);
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+        key        text PRIMARY KEY,
+        value      text NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+    );
+  `);
+}
+
+export async function getSetting(key) {
+  const { rows } = await pool.query(`SELECT value FROM app_settings WHERE key = $1`, [key]);
+  return rows[0]?.value ?? null;
+}
+
+export async function setSetting(key, value) {
+  await pool.query(
+    `INSERT INTO app_settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+    [key, value],
+  );
+}
+
+// Buckets are cut in local time, not UTC. Left alone, "today" would roll over at
+// 01:00 or 02:00 Swedish time and a late-evening memory would land on tomorrow -
+// which looks like a bug in the chart long before anyone suspects the timezone.
+const TZ = process.env.STATS_TZ || "Europe/Stockholm";
+const RETENTION_DAYS = Number(process.env.USAGE_RETENTION_DAYS || 730);
+
+// Fire-and-forget: a statistics row must never be able to fail a real call, and
+// must never delay one either. Note what is *not* passed in - no query text, no
+// content, no results. See the table comment in db/init.sql.
+export function logUsage(ev = {}) {
+  if (!ev.tool || !ev.listener) return;
+  pool
+    .query(
+      `INSERT INTO usage_events
+         (tool, action, listener, client, client_version, auth, tier, results, ok, ms)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        ev.tool,
+        ev.action || "read",
+        ev.listener,
+        ev.client || "unknown",
+        ev.clientVersion || null,
+        ev.auth || null,
+        ev.tier || null,
+        ev.results ?? null,
+        ev.ok !== false,
+        ev.ms ?? null,
+      ],
+    )
+    .catch((e) => console.error("usage log:", e.message));
+}
+
+export async function pruneUsage() {
+  const { rowCount } = await pool.query(
+    `DELETE FROM usage_events WHERE at < now() - ($1 || ' days')::interval`,
+    [String(RETENTION_DAYS)],
+  );
+  return rowCount;
+}
+
+// The open listener passes ['open'] and therefore sees only what happened on the
+// open listener. Same reasoning as everywhere else in here: no caller-supplied
+// value decides scope, and the public dashboard cannot show that vault traffic
+// exists - which would leak the split that the whole design rests on.
+export function listenersFor(tiers) {
+  return tiers.includes("vault") ? ["full", "open"] : ["open"];
+}
+
+const BUCKET = { day: "day", month: "month", year: "year" };
+
+async function usageSeries(listeners, unit, span) {
+  const { rows } = await pool.query(
+    `SELECT date_trunc($2, at AT TIME ZONE $4)::date AS bucket,
+            count(*)                                        AS calls,
+            count(*) FILTER (WHERE action = 'read')         AS reads,
+            count(*) FILTER (WHERE action = 'write')         AS writes,
+            count(*) FILTER (WHERE action = 'delete')        AS deletes
+       FROM usage_events
+      WHERE listener = ANY($1)
+        AND at > now() - ($3 || ' days')::interval
+      GROUP BY 1 ORDER BY 1`,
+    [listeners, BUCKET[unit], String(span), TZ],
+  );
+  return rows.map((r) => ({
+    bucket: r.bucket,
+    calls: Number(r.calls),
+    reads: Number(r.reads),
+    writes: Number(r.writes),
+    deletes: Number(r.deletes),
+  }));
+}
+
+async function memorySeries(tiers, unit, span) {
+  const { rows } = await pool.query(
+    `SELECT date_trunc($2, created_at AT TIME ZONE $4)::date AS bucket, count(*) AS count
+       FROM thoughts
+      WHERE tier = ANY($1)
+        AND created_at > now() - ($3 || ' days')::interval
+      GROUP BY 1 ORDER BY 1`,
+    [tiers, BUCKET[unit], String(span), TZ],
+  );
+  return rows.map((r) => ({ bucket: r.bucket, count: Number(r.count) }));
+}
+
+// Counts since the start of the current local day / week / month / year, plus
+// all time. date_trunc on the local wall clock and back again, so "this month"
+// means what the calendar on the wall says.
+async function windowCounts(sql, args, column) {
+  const { rows } = await pool.query(
+    `SELECT
+       count(*) FILTER (WHERE ${column} >= date_trunc('day',   now() AT TIME ZONE $${args.length + 1}) AT TIME ZONE $${args.length + 1}) AS today,
+       count(*) FILTER (WHERE ${column} >= date_trunc('week',  now() AT TIME ZONE $${args.length + 1}) AT TIME ZONE $${args.length + 1}) AS week,
+       count(*) FILTER (WHERE ${column} >= date_trunc('month', now() AT TIME ZONE $${args.length + 1}) AT TIME ZONE $${args.length + 1}) AS month,
+       count(*) FILTER (WHERE ${column} >= date_trunc('year',  now() AT TIME ZONE $${args.length + 1}) AT TIME ZONE $${args.length + 1}) AS year,
+       count(*) AS total
+     FROM ${sql}`,
+    [...args, TZ],
+  );
+  const r = rows[0];
+  return {
+    today: Number(r.today), week: Number(r.week), month: Number(r.month),
+    year: Number(r.year), total: Number(r.total),
+  };
+}
+
+export async function usageStats(tiers, { days = 60, months = 24 } = {}) {
+  const listeners = listenersFor(tiers);
+
+  const [daily, monthly, yearly, memDaily, memMonthly, calls, memories, byClient, byTool, byAction] =
+    await Promise.all([
+      usageSeries(listeners, "day", days),
+      usageSeries(listeners, "month", months * 31),
+      usageSeries(listeners, "year", 3650),
+      memorySeries(tiers, "day", days),
+      memorySeries(tiers, "month", months * 31),
+      windowCounts("usage_events WHERE listener = ANY($1)", [listeners], "at"),
+      windowCounts("thoughts WHERE tier = ANY($1)", [tiers], "created_at"),
+      pool.query(
+        `SELECT client,
+                max(client_version)                       AS version,
+                count(*)                                  AS calls,
+                count(*) FILTER (WHERE action = 'read')   AS reads,
+                count(*) FILTER (WHERE action = 'write')  AS writes,
+                count(*) FILTER (WHERE action = 'delete') AS deletes,
+                count(*) FILTER (WHERE NOT ok)            AS errors,
+                min(at) AS first, max(at) AS last
+           FROM usage_events WHERE listener = ANY($1)
+          GROUP BY client ORDER BY calls DESC LIMIT 25`,
+        [listeners],
+      ),
+      pool.query(
+        `SELECT tool, count(*) AS calls, round(avg(ms)) AS avg_ms
+           FROM usage_events WHERE listener = ANY($1)
+          GROUP BY tool ORDER BY calls DESC`,
+        [listeners],
+      ),
+      pool.query(
+        `SELECT action, count(*) AS calls FROM usage_events
+          WHERE listener = ANY($1) GROUP BY action`,
+        [listeners],
+      ),
+    ]);
+
+  const num = (rows, ...keys) =>
+    rows.map((r) => { for (const k of keys) r[k] = r[k] == null ? null : Number(r[k]); return r; });
+
+  return {
+    tz: TZ,
+    retentionDays: RETENTION_DAYS,
+    calls,
+    memories,
+    daily, monthly, yearly,
+    memoryDaily: memDaily,
+    memoryMonthly: memMonthly,
+    byClient: num(byClient.rows, "calls", "reads", "writes", "deletes", "errors"),
+    byTool: num(byTool.rows, "calls", "avg_ms"),
+    byAction: Object.fromEntries(byAction.rows.map((r) => [r.action, Number(r.calls)])),
+  };
+}
+
+// The compact set that goes to MQTT every minute. Kept to a single round trip -
+// this runs on a timer forever, so it has no business being the expensive query.
+export async function liveCounters(tiers = ALL) {
+  const listeners = listenersFor(tiers);
+  const { rows } = await pool.query(
+    `WITH d AS (SELECT date_trunc('day',   now() AT TIME ZONE $3) AT TIME ZONE $3 AS v),
+          w AS (SELECT date_trunc('week',  now() AT TIME ZONE $3) AT TIME ZONE $3 AS v),
+          m AS (SELECT date_trunc('month', now() AT TIME ZONE $3) AT TIME ZONE $3 AS v),
+          y AS (SELECT date_trunc('year',  now() AT TIME ZONE $3) AT TIME ZONE $3 AS v)
+     SELECT
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1))                        AS mem_total,
+       (SELECT count(*) FROM thoughts WHERE tier = 'open')                         AS mem_open,
+       (SELECT count(*) FROM thoughts WHERE tier = 'vault')                        AS mem_vault,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND embedding IS NULL)  AS mem_unembedded,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM d)) AS mem_today,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM w)) AS mem_week,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM m)) AS mem_month,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM y)) AS mem_year,
+       (SELECT max(created_at) FROM thoughts WHERE tier = ANY($1))                 AS mem_last,
+       (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM d)) AS calls_today,
+       (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM w)) AS calls_week,
+       (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM m)) AS calls_month,
+       (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM y)) AS calls_year,
+       (SELECT count(*) FROM usage_events WHERE listener = ANY($2)) AS calls_total,
+       (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND action = 'read'  AND at >= (SELECT v FROM d)) AS reads_today,
+       (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND action = 'write' AND at >= (SELECT v FROM d)) AS writes_today,
+       (SELECT count(DISTINCT client) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM w)) AS clients_week,
+       (SELECT client FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM w)
+         GROUP BY client ORDER BY count(*) DESC LIMIT 1) AS top_client,
+       (SELECT max(at) FROM usage_events WHERE listener = ANY($2)) AS last_call`,
+    [tiers, listeners, TZ],
+  );
+  const r = rows[0];
+  const n = (v) => Number(v || 0);
+  return {
+    memories_total: n(r.mem_total),
+    memories_open: n(r.mem_open),
+    memories_vault: n(r.mem_vault),
+    memories_unembedded: n(r.mem_unembedded),
+    memories_today: n(r.mem_today),
+    memories_week: n(r.mem_week),
+    memories_month: n(r.mem_month),
+    memories_year: n(r.mem_year),
+    last_memory: r.mem_last ? new Date(r.mem_last).toISOString() : null,
+    calls_today: n(r.calls_today),
+    calls_week: n(r.calls_week),
+    calls_month: n(r.calls_month),
+    calls_year: n(r.calls_year),
+    calls_total: n(r.calls_total),
+    reads_today: n(r.reads_today),
+    writes_today: n(r.writes_today),
+    clients_week: n(r.clients_week),
+    top_client: r.top_client || "none",
+    last_call: r.last_call ? new Date(r.last_call).toISOString() : null,
+  };
+}
+
 export async function stats(tiers) {
   const { rows } = await pool.query(
     `SELECT metadata, tier, created_at FROM thoughts WHERE tier = ANY($1)`, [tiers]);

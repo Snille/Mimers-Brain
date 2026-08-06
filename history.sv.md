@@ -6,6 +6,86 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-06 — Tre saker minnet inte kunde berätta om sig självt
+
+Hjärnan hade svarat troget i månader utan att kunna säga något om sin egen
+tillvaro. Tre frågor hade inget svar: *hur kopplar jag in den här modellen?*
+(svaret låg i ett dokument med platshållaradresser), *används den?*, och *lever
+den?*
+
+**Anslutningsguiden** blev en tredje vy i webbgränssnittet. Samma innehåll som
+HowToUse, fast ifyllt av instansen själv — adresser, nycklar, verktygslista — med
+kopieringsknappar. Dokumentet finns kvar för det en sida inte kan förklara:
+varför en inställning ser ut som den gör, och hur servern byggs om.
+
+Frågan som tog längst tid att svara på var vilka nycklar sidan får visa. Allt
+ligger på ett privat nätverk och webbgränssnittet ligger alltid bakom Authelia, så
+resonemanget "någon oinloggad kan se den" håller inte. Men det är fel fråga. Rätt
+fråga är *vart nyckeln tar vägen*: visas `MCP_ACCESS_KEY` på den proxade
+lyssnaren lämnar valvnyckeln huset genom NPM, ut över internet och in i
+webbläsarens cache varje gång sidan öppnas — och det är den enda credential som
+låser upp valvet på LAN. Regeln blev därför att valvnyckeln bara serveras av
+LAN-lyssnaren. `MCP_OPEN_KEY` visas på båda; den är gjord för att resa i URL:er
+och når ändå aldrig mer än öppen nivå. Två nya kontroller i `test-isolation.ps1`
+vaktar det.
+
+**Statistiken** kräver att man är ärlig om vad som går att veta. MCP lämnar över
+`clientInfo` i initialize-handskakningen och aldrig mer — och servern är
+stateless, en färsk transport per HTTP-anrop, så när ett `tools/call` kommer in
+är namnet borta. Lösningen blev en liten cache: kom ihåg vad initialize sa,
+nycklad på avsändaradress plus user agent. Det innebar också att kroppen måste
+läsas i servern i stället för av transporten, som tur nog tar emot en redan
+parsad kropp just för sådana här fall.
+
+Det som cachen ger är dock **klientappen** — Claude Code, Codex, en
+ChatGPT-connector — aldrig vilken modell som svarar inuti den. Modellnamnet finns
+helt enkelt inte på tråden. Gränssnittet säger det rakt ut i stället för att låta
+en kolumn heta något den inte kan leva upp till.
+
+Användningsloggen sparar medvetet **inget innehåll**: inte sökfrågan, inte
+minnet, inte svaret. En trafiklogg som citerade valvsökningar tillbaka hade
+upphävt hela nivådelningen den ligger bakom — och statistiken är läsbar från den
+öppna lyssnaren. Av samma skäl räknar den vyn bara trafik som kom in på den
+öppna lyssnaren, så den kan inte ens avslöja att valvtrafik existerar.
+
+Två fällor på vägen. Dygnsbrytet måste räknas i lokal tid: lämnat i UTC hade
+"i dag" rullat över vid ett- eller tvåtiden på natten och ett kvällsminne hamnat
+på morgondagen — vilket ser ut som en bugg i diagrammet långt innan någon
+misstänker tidszonen. Och API:t returnerar bara hinkar som haft aktivitet, vilket
+är rätt på tråden och fel i ett diagram: två staplar en månad isär hade hamnat
+sida vid sida, och en ensam lugn dag sträckte ut en stapel över hela kortet.
+Serien görs tät i webbläsaren i stället, så en lugn dag är en lucka man ser.
+
+**MQTT till Home Assistant** publicerar räknarna som HA-discovery under enheten
+Mimers Brain. Poängen med availability-topicen är dess *last will*: dör processen
+publicerar brokern `offline` åt den. Utan en sådan ser en död hjärna exakt ut som
+en frisk som inte har något nytt att säga — precis den förväxling
+Tokentracker-sensorerna en gång byggdes för att döda. Verifierat mot en
+engångsbroker i Docker, både vid planerat stopp och vid hård kill.
+
+Brokerlösenordet ligger i `.env`, inte i en inställningstabell i gränssnittet.
+Databasen dumpas varje natt, och en credential som ändras med ett
+`docker compose up -d` behöver inte ligga i backuperna också.
+
+En detalj som kostade en omstart: variablerna måste räknas upp i
+`docker-compose.yml` under `environment:`. En rad i `.env` når bara Composes egen
+interpolering — den hamnar aldrig i containern av sig själv.
+
+Anslutningsguiden hade först en `LAN_URL` att fylla i för hand, och Erik
+invände direkt mot att skriva in en IP som kan bli fel. Han hade rätt. Den
+självklara lösningen fungerar dock inte: `os.networkInterfaces()` inne i
+containern ger Dockers bryggadress, och `socket.localAddress` ger samma sak
+eftersom porten är NAT:ad — auto-detektering hade alltså skrivit ut en adress som
+inte fungerar för någon, vilket är sämre än ett tomt fält. Men det finns en källa
+som inte kan ha fel på det sätt som spelar roll: `Host`-headern på LAN-lyssnaren
+är per definition en adress en webbläsare precis kom fram på. Servern lär sig
+alltså sin egen adress av riktiga besök och sparar den i en liten
+`app_settings`-tabell så den överlever omstart. `localhost` och `127.*` sorteras
+bort — sant, men värdelöst att räcka vidare till en annan maskin. `LAN_URL` finns
+kvar som ren override.
+
+---
+
 ## 2026-08-04 — En nyckel som får plats i en URL
 
 Två klienter hade legat inlagda i Claude Code ett tag, och minnet svarade där

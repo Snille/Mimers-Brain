@@ -42,6 +42,22 @@ services:
       MCP_ACCESS_KEY: ${MCP_ACCESS_KEY:-}
       MCP_OPEN_KEY: ${MCP_OPEN_KEY:-}
       CITATION_BASE_URL: ${CITATION_BASE_URL:-http://localhost:8790/thoughts}
+      # Shown by the Connect page. PUBLIC_URL falls back to CITATION_BASE_URL
+      # without its path. LAN_URL is normally empty - the server learns its own
+      # LAN address from visits to the LAN listener - and only overrides it.
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      LAN_URL: ${LAN_URL:-}
+      # Statistics. The timezone decides where a day and a month break.
+      STATS_TZ: ${STATS_TZ:-Europe/Stockholm}
+      USAGE_RETENTION_DAYS: ${USAGE_RETENTION_DAYS:-730}
+      # MQTT to Home Assistant. Leave MQTT_URL empty to publish nothing.
+      MQTT_URL: ${MQTT_URL:-}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_PREFIX: ${MQTT_PREFIX:-mimersbrain}
+      MQTT_DISCOVERY_PREFIX: ${MQTT_DISCOVERY_PREFIX:-homeassistant}
+      MQTT_INTERVAL_S: ${MQTT_INTERVAL_S:-60}
+      MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-}
       PORT_FULL: 8790
       PORT_OPEN: 8791
     ports:

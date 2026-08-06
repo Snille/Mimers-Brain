@@ -92,6 +92,56 @@
   .err { background: #40201f; border: 1px solid var(--danger); color: #ffd9d7; padding: 10px 14px; border-radius: var(--radius); margin-bottom: 14px; }
   @media (prefers-color-scheme: light) { .err { background: #fdecec; color: #7a2320; } }
   .stat { font-size: 12.5px; color: var(--muted); }
+
+  /* --- navigation between the three views --- */
+  nav { display: flex; gap: 4px; }
+  nav button {
+    background: transparent; border: 1px solid transparent; color: var(--muted);
+    padding: 6px 12px; border-radius: 999px; font-size: 13.5px;
+  }
+  nav button:hover { color: var(--ink); filter: none; }
+  nav button.on { background: var(--panel-2); border-color: var(--line); color: var(--ink); }
+  .page { display: none; }
+  .page.on { display: block; }
+  /* main is display:grid above, which would beat a plain [hidden], so it needs
+     its own rule rather than sharing .page's. */
+  main:not(.on) { display: none; }
+
+  /* --- connect + stats --- */
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0 0 12px; }
+  code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+  pre {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; margin: 0; overflow-x: auto;
+  }
+  pre code { white-space: pre; }
+  .snip { margin-bottom: 12px; }
+  .snip:last-child { margin-bottom: 0; }
+  .snip-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; font-size: 12.5px; color: var(--muted); }
+  .snip-note { margin-top: 6px; }
+  button.small { padding: 3px 9px; font-size: 12px; border-radius: 7px; }
+  .keyval { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; }
+  table.grid { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  table.grid th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; }
+  table.grid th, table.grid td { border-bottom: 1px solid var(--line); padding: 7px 10px 7px 0; vertical-align: top; }
+  table.grid tr:last-child td { border-bottom: none; }
+  .bad { color: var(--danger); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; }
+  .dot.ok { background: var(--ok); }
+  .dot.danger { background: var(--danger); }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .kpi-v { font-size: 26px; font-weight: 600; line-height: 1.15; }
+  .kpi-l { font-size: 12.5px; color: var(--muted); }
+  .kpi-s { font-size: 12px; color: var(--muted); opacity: .8; margin-top: 3px; }
+  .chart { width: 100%; height: 130px; display: block; }
+  .chart-axis { display: flex; align-items: center; gap: 12px; margin-top: 5px; }
+  .chart-axis .legend { flex: 1; display: flex; align-items: center; gap: 10px; }
+  .chart-axis .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 4px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
   dialog {
     border: 1px solid var(--line); background: var(--panel); color: var(--ink);
     border-radius: 12px; padding: 20px; width: min(680px, 92vw);
@@ -105,12 +155,17 @@
   <img src="/icon-180.png" alt="" class="logo" />
   <h1>Mimers <span>Brain</span></h1>
   <div class="sub" id="hostinfo"></div>
+  <nav>
+    <button data-view="thoughts" class="on">Tankar</button>
+    <button data-view="stats">Statistik</button>
+    <button data-view="connect">Anslut</button>
+  </nav>
   <div class="grow"></div>
   <div class="sub stat" id="headstat"></div>
   <button id="new">+ Ny tanke</button>
 </header>
 
-<main>
+<main class="on" id="view-thoughts">
   <aside>
     <h2>Typ</h2><div id="f-types"></div>
     <h2>Ämnen</h2><div id="f-topics"></div>
@@ -130,6 +185,9 @@
     <div id="list"></div>
   </section>
 </main>
+
+<section class="content page" id="view-stats"></section>
+<section class="content page" id="view-connect"></section>
 
 <dialog id="login">
   <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px">
@@ -392,8 +450,43 @@ async function unlock() {
 $("#login-go").onclick = unlock;
 $("#login-key").onkeydown = (e) => { if (e.key === "Enter") unlock(); };
 
+// Views. Statistics and Connect are loaded the first time they are opened -
+// there is no reason to fetch either just because someone came to read a memory.
+const views = {
+  stats: { el: "#view-stats", mod: "./stats.mjs", loaded: false },
+  connect: { el: "#view-connect", mod: "./connect.mjs", loaded: false },
+};
+
+async function show(name) {
+  for (const b of document.querySelectorAll("nav button"))
+    b.classList.toggle("on", b.dataset.view === name);
+  $("#view-thoughts").classList.toggle("on", name === "thoughts");
+  $("#new").style.display = name === "thoughts" ? "" : "none";
+  $("#headstat").style.display = name === "thoughts" ? "" : "none";
+
+  for (const [key, v] of Object.entries(views)) {
+    const el = $(v.el);
+    el.classList.toggle("on", key === name);
+    if (key !== name) continue;
+    try {
+      // Re-rendered on every visit, so the numbers are never stale; the module
+      // itself is only fetched once.
+      const m = await import(v.mod);
+      v.loaded = true;
+      await m.render(el);
+    } catch (e) {
+      el.innerHTML = `<div class="err">${esc(e.message)}</div>`;
+    }
+  }
+  location.hash = name === "thoughts" ? "" : name;
+}
+
+for (const b of document.querySelectorAll("nav button"))
+  b.onclick = () => show(b.dataset.view);
+
 const cfg = await api("/api/config").catch(() => ({}));
-$("#hostinfo").textContent = cfg.vault ? "full åtkomst (LAN)" : "endast öppen nivå";
+$("#hostinfo").textContent =
+  (cfg.vault ? "full åtkomst (LAN)" : "endast öppen nivå") + (cfg.version ? ` · ${cfg.version}` : "");
 if (!cfg.vault) $("#dlg-tier").querySelector('[value=vault]').disabled = true;
 
 if (cfg.authed === false) {
@@ -401,6 +494,8 @@ if (cfg.authed === false) {
   $("#login-key").focus();
 } else {
   refresh();
+  const start = location.hash.slice(1);
+  if (views[start]) show(start);
 }
 </script>
 </body>

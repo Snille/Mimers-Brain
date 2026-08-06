@@ -5,6 +5,13 @@
 How to connect an AI model to the memory, and how to set everything up again if a
 machine has to be reinstalled.
 
+> **The web interface does this for you.** Open the memory in a browser and go to
+> **Connect**: the same instructions as below, but rendered with the running
+> instance's own addresses, keys and tool list, with copy buttons. This document
+> explains *why* each setting is what it is, and covers the parts a page cannot —
+> rebuilding the server, the reverse proxy, a reinstalled laptop. Start with the
+> page; come here when something does not behave.
+
 ---
 
 ## What it is, briefly
@@ -237,6 +244,13 @@ capitalisation, being proper nouns.
 
 Editing tags costs nothing. The embedding is computed from the content, so it is
 only recomputed when the content itself changes.
+
+Besides the list there are **Connect** and **Statistics** in the main menu.
+Connect is this page's setup instructions, filled in with the instance's real
+values. Statistics shows usage over time and per client — but note what it can
+honestly say: MCP reports the client application, not the model answering inside
+it, and the usage log never stores search queries or content. See the README for
+how the Home Assistant MQTT sensors carry the same numbers.
 
 ---
 

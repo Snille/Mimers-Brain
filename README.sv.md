@@ -40,7 +40,7 @@ MCP-servern på 8791 byggs utan förmågan att nå valvet — verktygen konstrue
 parameter, header eller sökväg som ändrar det. En angripare som tar sig förbi
 proxyn når fortfarande bara öppen kunskap.
 
-Verifierat av `test-isolation.ps1` (11 kontroller, alla gröna):
+Verifierat av `test-isolation.ps1` (22 kontroller, alla gröna):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
@@ -48,8 +48,9 @@ powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
 
 Testerna täcker: valv-rader syns inte via öppna porten, hemligt innehåll läcker
 aldrig ut, direkt id-uppslag av en valv-rad nekas, skrivförsök till valvet
-utifrån nekas, statistik avslöjar inte ens att valvet finns, och fel nyckel ger
-401.
+utifrån nekas, statistik avslöjar inte ens att valvet finns, anslutningsguiden
+lämnar inte ut valvnyckeln på den proxade lyssnaren, användningsloggen bär aldrig
+innehåll, och fel nyckel ger 401.
 
 ## Kom igång lokalt
 
@@ -109,6 +110,86 @@ sortens klienter är OAuth, skissad men inte byggd i
 Gränssnittet serveras på **båda** portarna. På 8790 (LAN) ser du valvet och loggar
 in med nyckeln; via `brain.example.net` ser du bara öppen nivå och Authelia
 sköter inloggningen.
+
+## Webbgränssnittet
+
+Tre vyer, och inloggningen ovan gäller alla tre.
+
+**Tankar** är listan, sökningen och taggredigeringen.
+
+**Anslut** är uppkopplingsanvisningarna för varje klient — Claude Code, Codex i
+VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient —
+återgivna med *den här* instansens adresser, nycklar och verktygslista i stället
+för platshållare. Kopieringsknappar ger färdiga kommandon och färdig JSON.
+
+Nycklarna är maskerade tills du ber om dem, och en regel avgör vilka som alls
+ligger på sidan: `MCP_ACCESS_KEY` serveras **bara av LAN-lyssnaren**. Att nå
+gränssnittet via proxyn betyder att autentiseraren släppte in dig, men att skicka
+valvnyckeln den vägen hade tryckt ut den enda credential som låser upp valvet ur
+huset och in i en webbläsarcache varje gång sidan öppnas. `MCP_OPEN_KEY` visas på
+båda, eftersom den är gjord för att resa i URL:er och aldrig kan nå mer än öppen
+nivå.
+
+LAN-adressen på den sidan är **inlärd, inte konfigurerad**. Att fråga OS:et om den
+inifrån en container ger Dockers bryggadress, och socketen ger samma sak eftersom
+porten är NAT:ad — båda hade självsäkert skrivit ut en adress som inte fungerar
+för någon. `Host`-headern på LAN-lyssnaren kan däremot inte vara fel på det sätt
+som spelar roll: det är en adress en webbläsare precis kom fram på. Den tas alltså
+från riktiga besök och sparas, vilket är varför sidan kan namnge LAN-adressen även
+när du läser den via proxyn. `LAN_URL` går före om du hellre vill se ett värdnamn;
+innan LAN-lyssnaren öppnats en gång säger sidan det i stället för att gissa.
+
+**Statistik** svarar på vem som använder minnet och hur mycket: anrop per dag,
+månad och år, nya minnen över samma spann, och en uppdelning per klient och per
+verktyg.
+
+Två saker är värda att veta om de siffrorna. MCP uppger **klientappen** — Claude
+Code, Codex, en ChatGPT-connector — aldrig vilken modell som svarar inuti den;
+modellnamnet finns inte på tråden, så sidan låtsas inte veta det. Och
+användningsloggen innehåller inget innehåll: inte sökfrågan, inte minnet, inte
+svaret. En trafiklogg som citerade valvsökningar tillbaka hade upphävt den
+nivådelning den ligger bakom. Via proxyn räknas dessutom bara trafik som kom in
+på den öppna lyssnaren, så sidan kan inte avslöja att valvtrafik existerar.
+
+## Home Assistant över MQTT
+
+Sätt `MQTT_URL` i `.env` så anmäler sig hjärnan via HA:s discovery som enheten
+**Mimers Brain**, och publicerar sedan sina räknare var `MQTT_INTERVAL_S` sekund
+och direkt efter varje skrivning.
+
+Entitets-ID:n följer av enhetsnamnet plus varje sensornamn — inte av `object_id`,
+vad dokumentationen än antyder — så de är ett kontrakt värt att behandla som ett:
+
+| Entitet | Vad |
+| --- | --- |
+| `binary_sensor.mimers_brain_online` | uppkoppling, driven av last will |
+| `sensor.mimers_brain_memories_total` / `_open` / `_vault` | minnets storlek |
+| `sensor.mimers_brain_memories_today` / `_week` / `_month` / `_year` | tillväxt |
+| `sensor.mimers_brain_calls_today` / `_week` / `_month` / `_year` / `_total` | trafik |
+| `sensor.mimers_brain_reads_today`, `_writes_today` | läs/skriv |
+| `sensor.mimers_brain_clients_week`, `_top_client` | vilka som använder det |
+| `sensor.mimers_brain_last_memory`, `_last_call` | tidpunkter |
+| `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, och varför |
+| `sensor.mimers_brain_uptime` | sekunder sedan start |
+
+Alla sensorer läser ur en enda retained JSON-payload på `<prefix>/state`, så Home
+Assistant fyller alla på nytt från ett meddelande efter en omstart i stället för
+att visa `unknown` fram till nästa tick.
+
+Availability-topicen bär en **last will**, och det är den delen som gör "lever
+den" ärlig: dör processen publicerar brokern `offline` åt den. Utan en sådan ser
+en död hjärna exakt ut som en frisk som inte har något nytt att säga. Ett planerat
+stopp säger `offline` medvetet, så en omstart läses som en kort blink i stället
+för ett fastnat `online`.
+
+Bara räknare. Inget minnesinnehåll och inga sökfrågor går ut på brokern — brokern
+står på hemnätet, men det är inget skäl att publicera något som inte behövde
+publiceras. Antalet valvrader går däremot ut, vilket är värt att veta om brokern
+delas.
+
+Brokerlösenordet bor i `.env` bredvid de andra hemligheterna i stället för i en
+inställningstabell, medvetet: databasen dumpas varje natt, och en credential som
+ändras med ett `docker compose up -d` behöver inte ligga i backuperna också.
 
 ## Docker i LXC
 

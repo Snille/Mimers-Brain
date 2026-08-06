@@ -6,6 +6,85 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-06 — Three things the memory could not say about itself
+
+The brain had answered faithfully for months without being able to say anything
+about its own existence. Three questions had no answer: *how do I connect this
+model?* (the answer lived in a document full of placeholder addresses), *is it
+being used?*, and *is it alive?*
+
+**The connection guide** became a third view in the web interface. The same
+content as HowToUse, but filled in by the instance itself — addresses, keys, tool
+list — with copy buttons. The document stays for what a page cannot explain: why
+a setting is what it is, and how to rebuild the server.
+
+The question that took longest to answer was which keys the page may show.
+Everything is on a private network and the interface always sits behind Authelia,
+so "someone signed out could see it" does not hold. But that is the wrong
+question. The right one is *where the key travels*: showing `MCP_ACCESS_KEY` on
+the proxied listener sends the vault key outside the trusted network through the proxy,
+across the internet and into a browser cache every time the page opens — and it
+is the only credential that unlocks the vault on the LAN. So the rule became that
+the vault key is served by the LAN listener alone. `MCP_OPEN_KEY` appears on
+both; it is designed to travel in URLs and can never reach more than open tier.
+Two new checks in `test-isolation.ps1` guard that.
+
+**The statistics** demand honesty about what can be known. MCP hands over
+`clientInfo` in the initialize handshake and never again — and the server is
+stateless, a fresh transport per HTTP request, so by the time a `tools/call`
+arrives the name is gone. The answer was a small cache: remember what initialize
+said, keyed by source address plus user agent. That also meant reading the body
+in the server rather than letting the transport do it, which it fortunately
+accommodates by accepting an already-parsed body for exactly this case.
+
+What the cache yields, though, is the **client application** — Claude Code,
+Codex, a ChatGPT connector — never the model answering inside it. A model name is
+simply not on the wire. The interface says so plainly instead of letting a column
+promise something it cannot deliver.
+
+The usage log deliberately stores **no content**: not the search query, not the
+memory, not the result. A traffic log that quoted vault searches back would undo
+the whole tier split it sits behind — and the statistics are readable from the
+open listener. For the same reason that view counts only traffic that arrived on
+the open listener, so it cannot even reveal that vault traffic exists.
+
+Two traps along the way. The day boundary has to be cut in local time: left as
+UTC, "today" would roll over at one or two in the morning and an evening memory
+would land on tomorrow — which looks like a bug in the chart long before anyone
+suspects the timezone. And the API returns only buckets that had activity, which
+is right on the wire and wrong in a chart: two bars a month apart would sit side
+by side, and a single quiet day stretched one bar across the whole card. The
+series is made dense in the browser instead, so a quiet day is a gap you can see.
+
+**MQTT to Home Assistant** publishes the counters as HA discovery under the
+device Mimers Brain. The point of the availability topic is its *last will*: if
+the process dies, the broker publishes `offline` on its behalf. Without one, a
+dead brain looks exactly like a healthy one with nothing new to say — precisely
+the confusion the Tokentracker sensors were once built to kill. Verified against
+a throwaway broker in Docker, on both a planned stop and a hard kill.
+
+The broker password lives in `.env`, not in a settings table in the interface.
+The database is dumped nightly, and a credential that changes with one
+`docker compose up -d` does not need to be in the backups too.
+
+One detail that cost a restart: the variables have to be listed in
+`docker-compose.yml` under `environment:`. A line in `.env` only reaches
+Compose's own interpolation — it never lands in the container by itself.
+
+The connection guide first had a `LAN_URL` to fill in by hand, and Erik objected
+straight away to typing in an IP that can go stale. He was right. The obvious fix
+does not work, though: `os.networkInterfaces()` inside the container returns
+Docker's bridge address, and `socket.localAddress` returns the same, since the
+port is NAT'd — auto-detection would have printed an address that works for
+nobody, which is worse than an empty field. But there is a source that cannot be
+wrong in the way that matters: the `Host` header on the LAN listener is by
+definition an address a browser just reached us on. So the server learns its own
+address from real visits and keeps it in a small `app_settings` table so it
+survives a restart. `localhost` and `127.*` are filtered out — true, but useless
+to hand to another machine. `LAN_URL` remains as a pure override.
+
+---
+
 ## 2026-08-04 — A key that fits in a URL
 
 Two clients had been registered in Claude Code for a while, and the memory

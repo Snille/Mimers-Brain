@@ -120,6 +120,33 @@ if (-not $openKey) {
     } catch { Check "a wrong URL key is refused" $true "" }
 }
 
+Write-Host "`nThe connection guide" -ForegroundColor Cyan
+$cFull = Invoke-RestMethod "$FULL/api/connect" -Headers $H
+$cOpen = Invoke-RestMethod "$OPEN/api/connect" -Headers $H
+
+# The vault key must never be served through the listener that faces the proxy.
+# Authelia gates that page, but the key would still travel out of the house and
+# into a browser cache on every visit - and it is the one credential that opens
+# the vault on the LAN.
+Check "OPEN /api/connect withholds the vault key" ([string]::IsNullOrEmpty($cOpen.accessKey)) "it was handed out"
+Check "FULL /api/connect provides the vault key" (-not [string]::IsNullOrEmpty($cFull.accessKey)) "nothing to copy"
+Check "OPEN /api/connect hides delete_thought" ($cOpen.tools.name -notcontains "delete_thought") "it was listed"
+
+Write-Host "`nUsage statistics" -ForegroundColor Cyan
+$uFull = Invoke-RestMethod "$FULL/api/usage" -Headers $H
+$uOpen = Invoke-RestMethod "$OPEN/api/usage" -Headers $H
+
+# Traffic on the vault listener must not be countable from outside either: a
+# call count that jumps while the public page shows nothing is still a signal
+# that something else exists.
+Check "OPEN usage counts only open-listener traffic" ($uOpen.calls.total -le $uFull.calls.total) "OPEN reported more than FULL"
+Check "OPEN usage counts only open-tier memories" ($uOpen.memories.total -lt $uFull.memories.total) "OPEN saw every memory"
+
+# The usage log is a traffic light, not a transcript. If a query string ever
+# reached it, a vault search would be readable from the open listener.
+$raw = (Invoke-WebRequest "$OPEN/api/usage" -Headers $H).Content
+Check "usage statistics contain no memory content" ($raw -notmatch "CANARY") "the secret appeared in the statistics"
+
 Write-Host "`nCleaning up test data" -ForegroundColor Cyan
 foreach ($id in @($v.id, $o.id)) {
     try { Invoke-RestMethod "$FULL/api/thoughts/$id" -Method Delete -Headers $H | Out-Null } catch {}

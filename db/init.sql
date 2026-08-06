@@ -38,6 +38,41 @@ DROP TRIGGER IF EXISTS thoughts_updated_at ON thoughts;
 CREATE TRIGGER thoughts_updated_at BEFORE UPDATE ON thoughts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+-- Usage log. One row per meaningful call, so the dashboard can answer "who reads
+-- and writes this, and how often". Deliberately holds no content: not the search
+-- query, not the memory text, not the result. A row is a fact about traffic, and
+-- a traffic log that quotes vault searches back would undo the tier split.
+--
+-- `listener` is the port the call arrived on, so the open listener can report on
+-- itself without revealing that the vault exists at all.
+CREATE TABLE IF NOT EXISTS usage_events (
+    id             bigserial PRIMARY KEY,
+    at             timestamptz NOT NULL DEFAULT now(),
+    tool           text NOT NULL,   -- search_thoughts, capture_thought, ui.edit, ...
+    action         text NOT NULL,   -- connect | read | write | delete
+    listener       text NOT NULL CHECK (listener IN ('full', 'open')),
+    client         text NOT NULL,   -- MCP clientInfo.name, else the user agent
+    client_version text,
+    auth           text,            -- bearer | cookie | url-key | authelia | none
+    tier           text,            -- which tier a write landed in
+    results        integer,
+    ok             boolean NOT NULL DEFAULT true,
+    ms             integer
+);
+
+CREATE INDEX IF NOT EXISTS usage_events_at_idx     ON usage_events (at DESC);
+CREATE INDEX IF NOT EXISTS usage_events_client_idx ON usage_events (client, at DESC);
+
+-- Small things the server works out for itself and should not forget on
+-- restart. Currently just lan_url: the LAN address, learned from the Host header
+-- of visits to the LAN listener, because asking the OS from inside a container
+-- returns Docker's bridge address instead.
+CREATE TABLE IF NOT EXISTS app_settings (
+    key        text PRIMARY KEY,
+    value      text NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- Semantic search. p_tiers is always supplied by the server from the port the
 -- request arrived on - never from anything the caller controls.
 CREATE OR REPLACE FUNCTION match_thoughts(
