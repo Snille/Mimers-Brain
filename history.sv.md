@@ -6,6 +6,44 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.6.0: en andra dörr, för klienter som aldrig lärt sig MCP
+
+Open WebUI kan anropa externa verktyg, men den läser ett OpenAPI-dokument och
+anropar vanlig REST; den har ingen aning om vad JSON-RPC över `/mcp` är, och
+ingen inställning får den att lära sig. Det vanliga svaret är en proxy framför —
+Open WebUI levererar en — men det är ännu en tjänst att köra, uppdatera och
+glömma bort, som lindas runt en server som redan mycket väl vet vilka verktyg den
+har. Så hjärnan beskriver sig själv istället: `GET /openapi.json` och en
+`POST /tools/<namn>` per verktyg, på båda lyssnarna, bakom samma nyckel.
+
+Tier-regeln behövde inte så mycket upprepas som bevisas om. Ingenting i den nya
+ytan når längre än den lyssnare den kör på: den öppna lyssnarens dokument nämner
+inte `delete_thought`, erbjuder inget `vault`-värde för `capture_thought`, och
+vägrar hämta en valvrad via id. `test-isolation.ps1` kontrollerar alla tre, plus
+att `MCP_OPEN_KEY` fortfarande stannar vid `/mcp` — en URL-nyckel finns för
+dialoger utan plats för en header, och en OpenAPI-verktygsserver har ett alldeles
+utmärkt fält för en.
+
+`/openapi.json` serveras utan nyckel med flit. Det är verktygsnamn och
+argumentscheman, vartenda ord redan publicerat i det här repot, och en klient som
+inte kan läsa dokumentet innan den fått en nyckel går inte att konfigurera alls.
+
+Den enda verkligt nya exponeringen är CORS, eftersom webbläsaren hämtar
+dokumentet från sidans egen origin. `CORS_ORIGINS` listar de origins som får
+fråga, och är tom som standard; en origin som inte står med får inga
+CORS-headers och webbläsaren vägrar svaret. Nginx får inte lägga på en andra
+uppsättning headers — en dubblerad `Access-Control-Allow-Origin` avvisas rakt av,
+vilket ser exakt ut som att servern saknar CORS helt.
+
+Vad det kostar: två beskrivningar av samma sex verktyg, en i `mcp.mjs` för en
+modell att läsa och en i `openapi.mjs` för ett program att tolka. Att slå ihop
+dem prövades på papper och övergavs — formerna skiljer sig på riktigt, och priset
+för att ena dem var en omskrivning av den fil varenda befintlig klient hänger på.
+Att lägga till ett verktyg innebär nu att lägga till det på båda ställena; båda
+filerna säger det.
+
+---
+
 ## 2026-08-08 — 0.5.1: ett minnesantal är en mätare, inte ett räkneverk
 
 De fyra fönsterräknarna för minnen — dag, vecka, månad, år — publicerades till

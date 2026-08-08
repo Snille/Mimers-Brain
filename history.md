@@ -6,6 +6,44 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.6.0: a second door, for clients that never learned MCP
+
+Open WebUI can call external tools, but it reads an OpenAPI document and calls
+plain REST; it has no idea what JSON-RPC over `/mcp` is, and no setting makes it
+learn. The usual answer is a proxy in front — Open WebUI ships one — but that is
+a second service to run, update and forget about, wrapping a server that already
+knows perfectly well what its own tools are. So the brain describes itself
+instead: `GET /openapi.json` and one `POST /tools/<name>` per tool, on both
+listeners, behind the same key.
+
+The tier rule did not need restating so much as re-proving. Nothing about the new
+surface can reach further than the listener it runs on: the open listener's
+document does not mention `delete_thought`, offers no `vault` value for
+`capture_thought`, and refuses to fetch a vault row by id. `test-isolation.ps1`
+now checks all three, along with the fact that `MCP_OPEN_KEY` still stops at
+`/mcp` — a URL key exists for dialogs with nowhere to put a header, and an
+OpenAPI tool server has a perfectly good field for one.
+
+`/openapi.json` is served without a key on purpose. It is tool names and argument
+schemas, every word of it already published in this repo, and a client that
+cannot read the document before it has been given a key cannot be configured at
+all.
+
+The one genuinely new exposure is CORS, since the browser fetches that document
+from the page's own origin. `CORS_ORIGINS` lists the origins allowed to ask, and
+is empty by default; an origin that is not on the list receives no CORS headers
+and the browser refuses the answer. Nginx must not add a second set of headers on
+top — a duplicated `Access-Control-Allow-Origin` is rejected outright, which
+looks exactly like the server having no CORS at all.
+
+What this costs: two descriptions of the same six tools, one in `mcp.mjs` for a
+model to read and one in `openapi.mjs` for a program to parse. Merging them was
+tried on paper and abandoned — the shapes are genuinely different, and the price
+of unifying them was a rewrite of the file every existing client depends on.
+Adding a tool now means adding it in both places; both files say so.
+
+---
+
 ## 2026-08-08 — 0.5.1: a memory count is a gauge, not a meter
 
 The four windowed memory counters — today, week, month, year — were published to

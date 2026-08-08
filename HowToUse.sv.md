@@ -211,6 +211,44 @@ Samma princip: en fjärransluten MCP-server över HTTP med en bearer-token. Allt
 följer specen fungerar. `search`/`fetch`-paret finns för klienter som förväntar sig
 den enklare sök-och-hämta-modellen istället för de namngivna verktygen.
 
+### Open WebUI, och annat som talar OpenAPI istället för MCP
+
+Open WebUI:s externa verktygsservrar talar inte MCP alls — de läser ett
+OpenAPI-dokument och anropar vanlig REST. Därför beskriver Mimers Brain även sig
+själv, på samma två lyssnare och bakom samma nyckel:
+
+| | |
+| --- | --- |
+| `GET /openapi.json` | dokumentet; ingen nyckel krävs |
+| `POST /tools/<namn>` | en endpoint per verktyg, kräver bearer-nyckel |
+
+Verktygen är samma minne som `/mcp` och samma tier-regel gäller — den öppna
+lyssnaren når fortfarande ingen valvrad. `search`/`fetch` upprepas inte här; de
+finns för MCP-klienter som förväntar sig det paret. OpenAPI-sidan har
+`fetch_thought` istället, och `delete_thought` bara på 8790.
+
+I Open WebUI, under **Inställningar → Verktyg**, lägg till en server med URL
+`http://192.0.2.41:8791` (`openapi.json` är sökvägen den letar efter som
+standard), välj bearer-autentisering och klistra in nyckeln. LAN-adressen är
+medvetet vald: Open WebUI står på samma nät, och den vägen slipper man både
+proxyn och Authelia.
+
+**CORS.** Varningen i dialogen är befogad — webbläsaren hämtar dokumentet från
+sidans egen origin, så servern måste tillåta den vid namn. Lägg Open WebUI:s
+origin i `CORS_ORIGINS` i `.env`, med protokoll och port, och starta om:
+
+```bash
+CORS_ORIGINS=http://192.0.2.19:8080,https://llm.example.net
+```
+
+Tomt är standard och betyder att ingen webbläsare på en annan origin släpps in,
+vilket är vad man vill ha överallt annars. En origin som inte står med får helt
+enkelt inga CORS-headers, och webbläsaren vägrar svaret.
+
+Att gå via proxyn istället för LAN-adressen fungerar också, men `/openapi.json`
+och `/tools/` måste undantas från forward auth på samma sätt som `/mcp` —
+konfigurationen i `docs/nginx-brain.conf` gör redan det.
+
 ### Testa att det gick fram
 
 ```bash
@@ -220,6 +258,13 @@ curl -s -X POST https://brain.example.net/mcp -H "Authorization: Bearer <NYCKEL>
 Sex verktyg i svaret betyder att allt fungerar. Får du `401` är nyckeln fel; får
 du `302` mot `auth.example.net` proxar Nginx `/mcp` genom Authelia, vilket den inte
 ska göra — se avsnittet om proxyn nedan.
+
+För OpenAPI-sidan:
+
+```bash
+curl -s http://192.0.2.41:8791/openapi.json | head -20
+curl -s -X POST http://192.0.2.41:8791/tools/thought_stats -H "Authorization: Bearer <NYCKEL>" -H "Content-Type: application/json" -d '{}'
+```
 
 ---
 

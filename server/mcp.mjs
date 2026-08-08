@@ -1,5 +1,10 @@
 // MCP surface. Built fresh per listener with a fixed tier set baked in, so the
 // tools on the public port simply have no way to reach vault rows.
+//
+// There is a second surface over the same memory in openapi.mjs, for clients
+// that read an OpenAPI document instead of speaking MCP. A tool added here needs
+// adding there too - the two are deliberately separate, since one returns prose
+// for a model to read and the other JSON for a program to parse.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";

@@ -189,6 +189,7 @@ At minimum, set these values:
 | `CITATION_BASE_URL` | yes for correct links | base used when a client receives a link to a memory |
 | `PUBLIC_URL` | when publicly proxied | address shown in the Connect page |
 | `MCP_OPEN_KEY` | optional | URL key for open-tier clients that cannot send headers |
+| `CORS_ORIGINS` | for OpenAPI tool servers | browser origins allowed to call `/openapi.json` and `/tools/*`, comma separated |
 
 Use long hexadecimal values for the database password and access keys. Hex is
 both strong and safe inside the PostgreSQL connection URL.
@@ -295,8 +296,15 @@ Public access is optional. If enabled:
 
 If forward authentication such as Authelia protects the web UI, `/mcp` must
 bypass the interactive login because MCP clients authenticate with bearer keys.
-The OAuth discovery paths in the supplied nginx configuration deliberately
-return `404`, allowing clients to fall back cleanly when no OAuth server exists.
+The same applies to `/openapi.json` and `/tools/`, used by OpenAPI tool servers
+such as Open WebUI: behind forward auth they would receive the login page's HTML
+instead of JSON. The OAuth discovery paths in the supplied nginx configuration
+deliberately return `404`, allowing clients to fall back cleanly when no OAuth
+server exists.
+
+Leave CORS to the application. It emits the headers itself for the origins in
+`CORS_ORIGINS`; an `add_header Access-Control-Allow-Origin` in the proxy on top
+of that produces a duplicate header, which browsers reject outright.
 
 Do not publish the open-tier web UI without deciding how it will be protected.
 The supplied nginx example puts the UI behind forward authentication. Without

@@ -212,6 +212,44 @@ Same principle: a remote MCP server over HTTP with a bearer token. Anything that
 follows the spec works. The `search`/`fetch` pair exists for clients that expect
 the simpler search-and-fetch model instead of the named tools.
 
+### Open WebUI, and anything else that speaks OpenAPI instead of MCP
+
+Open WebUI's external tool servers do not speak MCP at all — they read an
+OpenAPI document and call plain REST. Mimers Brain therefore describes itself as
+well, on the same two listeners and behind the same key:
+
+| | |
+| --- | --- |
+| `GET /openapi.json` | the document; no key required |
+| `POST /tools/<name>` | one endpoint per tool, bearer key required |
+
+The tools are the same memory as `/mcp` with the same tier rule — the open
+listener still cannot reach a vault row. `search`/`fetch` are not repeated here;
+they exist for MCP clients that expect that pair. The OpenAPI side has
+`fetch_thought` instead, and `delete_thought` only on 8790.
+
+In Open WebUI, under **Settings → Tools**, add a server with the URL
+`http://192.0.2.41:8791` (`openapi.json` is the default path it looks for), pick
+bearer auth and paste the key. The address given here is the LAN one on purpose:
+Open WebUI sits on the same network, and going straight there avoids both the
+proxy and the authenticator.
+
+**CORS.** The dialog's warning is real — the browser fetches the document from
+the page's own origin, so the server has to allow it by name. Put the Open WebUI
+origin in `CORS_ORIGINS` in `.env`, scheme and port included, and restart:
+
+```bash
+CORS_ORIGINS=http://192.0.2.19:8080,https://llm.example.net
+```
+
+Empty is the default and means no browser on another origin gets in, which is
+what you want everywhere else. An unlisted origin simply receives no CORS
+headers and the browser refuses the response.
+
+Going through the proxy instead of the LAN address works too, but `/openapi.json`
+and `/tools/` must be exempt from forward auth the same way `/mcp` is — the
+config in `docs/nginx-brain.conf` already does this.
+
 ### Checking that it worked
 
 ```bash
@@ -221,6 +259,13 @@ curl -s -X POST https://brain.example.net/mcp -H "Authorization: Bearer <KEY>" -
 Six tools in the response means everything works. A `401` means the key is wrong.
 A `302` towards your authenticator means the proxy is sending `/mcp` through
 forward auth, which it must not — see the proxy section below.
+
+For the OpenAPI side:
+
+```bash
+curl -s http://192.0.2.41:8791/openapi.json | head -20
+curl -s -X POST http://192.0.2.41:8791/tools/thought_stats -H "Authorization: Bearer <KEY>" -H "Content-Type: application/json" -d '{}'
+```
 
 ---
 

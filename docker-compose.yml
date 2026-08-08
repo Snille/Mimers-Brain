@@ -47,6 +47,11 @@ services:
       # LAN address from visits to the LAN listener - and only overrides it.
       PUBLIC_URL: ${PUBLIC_URL:-}
       LAN_URL: ${LAN_URL:-}
+      # Browser origins allowed to call /openapi.json and /tools/* - an OpenAPI
+      # tool server in Open WebUI needs the page's own origin listed here.
+      # Comma separated, scheme and port included. Empty means no browser on
+      # another origin may call it, which is the right default.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       # Statistics. The timezone decides where a day and a month break.
       STATS_TZ: ${STATS_TZ:-Europe/Stockholm}
       USAGE_RETENTION_DAYS: ${USAGE_RETENTION_DAYS:-730}

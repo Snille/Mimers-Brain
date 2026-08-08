@@ -82,6 +82,44 @@ try {
     Check "a wrong key is refused" $false "it was let through"
 } catch { Check "a wrong key is refused" $true "" }
 
+Write-Host "`nThe OpenAPI surface" -ForegroundColor Cyan
+# /openapi.json and /tools/* are a second door onto the same memory, so the tier
+# boundary has to hold there too - and the document itself must not advertise a
+# capability the listener does not have.
+$specOpen = Invoke-RestMethod "$OPEN/openapi.json"
+$specFull = Invoke-RestMethod "$FULL/openapi.json"
+$openPaths = $specOpen.paths.PSObject.Properties.Name
+$fullPaths = $specFull.paths.PSObject.Properties.Name
+Check "OPEN spec hides delete_thought" ($openPaths -notcontains "/tools/delete_thought") "it was listed"
+Check "FULL spec offers delete_thought" ($fullPaths -contains "/tools/delete_thought") "it was missing"
+
+$tierEnum = $specOpen.paths."/tools/capture_thought".post.requestBody.content."application/json".schema.properties.tier.enum
+Check "OPEN spec offers no vault tier" ($tierEnum -notcontains "vault") "vault was offered"
+
+try {
+    Invoke-RestMethod "$OPEN/tools/capture_thought" -Method Post -Headers $H -Body (@{
+        content = "Attempt to smuggle a secret in through OpenAPI."; tier = "vault" } | ConvertTo-Json) | Out-Null
+    Check "OPEN /tools refuses vault writes" $false "the write went through"
+} catch { Check "OPEN /tools refuses vault writes" $true "" }
+
+try {
+    Invoke-RestMethod "$OPEN/tools/fetch_thought" -Method Post -Headers $H -Body (@{ id = $v.id } | ConvertTo-Json) | Out-Null
+    Check "OPEN /tools cannot fetch a vault row" $false "the row came back"
+} catch { Check "OPEN /tools cannot fetch a vault row" $true "" }
+
+try {
+    Invoke-RestMethod "$OPEN/tools/thought_stats" -Method Post -Body '{}' -Headers @{
+        Authorization = "Bearer wrong-key"; "Content-Type" = "application/json" } | Out-Null
+    Check "/tools refuses a wrong key" $false "it was let through"
+} catch { Check "/tools refuses a wrong key" $true "" }
+
+# The document is public on purpose - names and argument schemas, nothing more -
+# so a client can be configured before it has a key. Nothing else may be.
+try {
+    Invoke-RestMethod "$OPEN/openapi.json" | Out-Null
+    Check "/openapi.json needs no key" $true ""
+} catch { Check "/openapi.json needs no key" $false $_.Exception.Message }
+
 Write-Host "`nURL key" -ForegroundColor Cyan
 # MCP_OPEN_KEY buys convenience for clients that cannot send a header, and the
 # price is that it travels somewhere visible. These checks are the fence around

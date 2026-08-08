@@ -18,6 +18,7 @@ import { timingSafeEqual, createHash } from "node:crypto";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildServer } from "./mcp.mjs";
+import { spec, callTool } from "./openapi.mjs";
 import * as db from "./lib.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
 
@@ -30,6 +31,13 @@ const PORT_OPEN = Number(process.env.PORT_OPEN || 8791);
 const ACCESS_KEY = process.env.MCP_ACCESS_KEY || "";
 const OPEN_KEY = process.env.MCP_OPEN_KEY || "";
 
+// Origins allowed to call the OpenAPI surface from a browser. Empty by default,
+// which is the same as "no browser on another origin may call this": a tool
+// server reached from a page needs it, curl and server-side callers never do.
+// Comma separated, scheme and port included - "https://llm.example.net:8080".
+const CORS_ORIGINS = (process.env.CORS_ORIGINS || "")
+  .split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean);
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
@@ -41,10 +49,28 @@ const MIME = {
   ".ico": "image/x-icon",
 };
 
-function json(res, code, payload) {
+function json(res, code, payload, extra) {
   const body = JSON.stringify(payload);
-  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", ...extra });
   res.end(body);
+}
+
+// Null unless this particular origin was allowed, so an unlisted one simply gets
+// no CORS headers and the browser refuses it - which is the point. The header is
+// echoed rather than wildcarded whenever a concrete origin was configured, and
+// Vary: Origin keeps a cache from serving one origin's answer to another.
+function corsHeaders(req) {
+  const origin = req.headers.origin;
+  if (!origin || !CORS_ORIGINS.length) return null;
+  const any = CORS_ORIGINS.includes("*");
+  if (!any && !CORS_ORIGINS.includes(origin)) return null;
+  return {
+    "Access-Control-Allow-Origin": any ? "*" : origin,
+    "Vary": "Origin",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Max-Age": "600",
+  };
 }
 
 function sameSecret(given, expected) {
@@ -321,6 +347,63 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
         res.on("close", () => { transport.close(); server.close(); });
         await server.connect(transport);
         return transport.handleRequest(req, res, parsed);
+      }
+
+      // --- OpenAPI (tool servers that cannot speak MCP) ----------------------
+      //
+      // Open WebUI and its kind take an OpenAPI document and call plain REST.
+      // Same tiers, same key, same usage log as /mcp - only the shape differs.
+      // The URL key is deliberately NOT accepted here: it exists for clients
+      // whose dialog has nothing but a URL field, and these have a proper one
+      // for a bearer token.
+      if (path === "/openapi.json" || path.startsWith("/tools/")) {
+        const cors = corsHeaders(req);
+
+        if (req.method === "OPTIONS") {
+          // No headers to send means the origin was not allowed; 403 says so
+          // rather than letting the browser report a vague network failure.
+          res.writeHead(cors ? 204 : 403, cors || {});
+          return res.end();
+        }
+
+        if (path === "/openapi.json") {
+          // Unauthenticated on purpose. The document is tool names and argument
+          // schemas - all of it already published in the repo - and a client
+          // that cannot read it before authenticating cannot be set up at all.
+          const proto = String(req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
+          const host = req.headers.host || `localhost:${PORT_FULL}`;
+          return json(res, 200, spec(tiers, {
+            baseUrl: `${proto}://${host}`,
+            version: VERSION,
+            listener: label,
+          }), cors);
+        }
+
+        if (!authOk(req, allowAuthelia)) return json(res, 401, { error: "Invalid key" }, cors);
+        if (req.method !== "POST") return json(res, 405, { error: "Use POST" }, cors);
+
+        let args;
+        try {
+          args = await body(req);
+        } catch {
+          return json(res, 400, { error: "Invalid JSON body" }, cors);
+        }
+
+        const name = path.slice("/tools/".length);
+        const t0 = Date.now();
+        try {
+          const { tool, out } = await callTool(tiers, name, args);
+          note(tool.name, tool.action, {
+            results: out?.count ?? null,
+            tier: out?.tier ?? null,
+            ms: Date.now() - t0,
+          });
+          return json(res, 200, out, cors);
+        } catch (err) {
+          if (!err.status) throw err;
+          note(name, "read", { ok: false, ms: Date.now() - t0 });
+          return json(res, err.status, { error: err.message }, cors);
+        }
       }
 
       // --- REST for the dashboard ------------------------------------------
