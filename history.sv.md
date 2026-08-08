@@ -6,6 +6,21 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-08 — 0.5.1: ett minnesantal är en mätare, inte ett räkneverk
+
+De fyra fönsterräknarna för minnen — dag, vecka, månad, år — publicerades till
+Home Assistant med `state_class: total_increasing`, vilket lovar att värdet bara
+kan stiga och att varje fall är en nollställd räknare. Raderade minnen bryter
+det löftet, och Home Assistant sa ifrån: *"has state class total_increasing, but
+its state is not strictly increasing"*, efter att en städrunda tagit bort tre
+överspelade minnen och årsantalet sjunkit. Varje sådant fall registrerades som
+början på en ny cykel och förstörde tyst långtidsstatistiken bakom sensorerna.
+Nu är de `measurement`, vilket är vad ett antal som kan röra sig åt båda hållen
+faktiskt är. Anropsräknarna behåller `total_increasing` med flit: ett anrop som
+redan gjorts kan inte ogöras, så de kan bara stiga inom sitt fönster.
+
+---
+
 ## 2026-08-07 — en installation, tre sorters värdar
 
 Den korta Compose-snuttan växte till en komplett installationsguide för Proxmox

@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-08 — 0.5.1: a memory count is a gauge, not a meter
+
+The four windowed memory counters — today, week, month, year — were published to
+Home Assistant with `state_class: total_increasing`, which promises the value
+only ever climbs and that any fall is a counter reset. Deleting memories breaks
+that promise, and Home Assistant said so out loud: *"has state class
+total_increasing, but its state is not strictly increasing"*, after a
+housekeeping pass removed three superseded memories and the yearly count dropped.
+Every such fall was being recorded as the start of a new cycle, quietly
+corrupting the long-term statistics behind those sensors. They are now
+`measurement`, which is what a count that can move in both directions actually
+is. The call counters keep `total_increasing` deliberately: a call already made
+cannot be un-made, so those only ever rise within their window.
+
+---
+
 ## 2026-08-07 — one installation, three kinds of host
 
 The short Compose snippet grew into a complete installation guide for Proxmox
