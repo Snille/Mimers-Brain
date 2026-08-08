@@ -188,6 +188,13 @@ one:
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, and why |
 | `sensor.mimers_brain_uptime` | seconds since start |
 
+The two counter groups carry different `state_class` values on purpose. The
+**growth** counters are `measurement`, because deleting a memory makes them fall
+and a counter that can fall is a gauge — telling Home Assistant otherwise makes
+it read every deletion as a counter reset and quietly corrupt the long-term
+statistics. The **traffic** counters stay `total_increasing`: a call already made
+cannot be un-made, so they only ever rise within their window.
+
 Every sensor reads from one retained JSON payload on `<prefix>/state`, so Home
 Assistant repopulates all of them from a single message after a restart instead
 of showing `unknown` until the next tick.

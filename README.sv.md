@@ -186,6 +186,13 @@ vad dokumentationen än antyder — så de är ett kontrakt värt att behandla s
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, och varför |
 | `sensor.mimers_brain_uptime` | sekunder sedan start |
 
+De två räknargrupperna har olika `state_class` med flit. **Tillväxt**-räknarna är
+`measurement`, eftersom ett raderat minne får dem att sjunka och en räknare som
+kan sjunka är en mätare — säger man något annat till Home Assistant tolkas varje
+radering som en nollställd räknare och långtidsstatistiken förstörs tyst.
+**Trafik**-räknarna är kvar som `total_increasing`: ett anrop som redan gjorts
+kan inte ogöras, så de kan bara stiga inom sitt fönster.
+
 Alla sensorer läser ur en enda retained JSON-payload på `<prefix>/state`, så Home
 Assistant fyller alla på nytt från ett meddelande efter en omstart i stället för
 att visa `unknown` fram till nästa tick.
