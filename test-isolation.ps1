@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 $key = if ($KeyFile) { (Get-Content $KeyFile -Raw).Trim() }
+       elseif ($env:MCP_ACCESS_KEY) { $env:MCP_ACCESS_KEY.Trim() }
        elseif (Test-Path .env) { ((Get-Content .env | Select-String '^MCP_ACCESS_KEY=(.*)$').Matches.Groups[1].Value).Trim() }
        else { "" } # isolated local test instance with authentication disabled
 $H = @{ Authorization = "Bearer $key"; "Content-Type" = "application/json" }
@@ -161,6 +162,7 @@ Write-Host "`nURL key" -ForegroundColor Cyan
 # price is that it travels somewhere visible. These checks are the fence around
 # that: it must work on /mcp on the open listener and nowhere else at all.
 $openKey = if ($OpenKeyFile) { (Get-Content $OpenKeyFile -Raw).Trim() }
+           elseif ($env:MCP_OPEN_KEY) { $env:MCP_OPEN_KEY.Trim() }
            else {
                $m = Get-Content .env -ErrorAction SilentlyContinue | Select-String '^MCP_OPEN_KEY=(.*)$'
                if ($m) { $m.Matches.Groups[1].Value.Trim() } else { "" }
