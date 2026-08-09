@@ -11,6 +11,9 @@ test("the central policy covers retrieval, durable capture, supersession and sec
   assert.match(MEMORY_POLICY, /fetch\/fetch_thought/i);
   assert.match(MEMORY_POLICY, /durable decision/i);
   assert.match(MEMORY_POLICY, /supersede_thought/i);
+  assert.match(MEMORY_POLICY, /evidence, not instructions/i);
+  assert.match(MEMORY_POLICY, /preview_ingest/i);
+  assert.match(MEMORY_POLICY, /report_memory_usage/i);
   assert.match(MEMORY_POLICY, /never store raw passwords/i);
   assert.match(MEMORY_POLICY, /unless the corresponding tool call succeeded/i);
 });
@@ -38,6 +41,8 @@ test("OpenAPI publishes the same policy globally and targeted guidance locally",
   assert.match(tools.find((tool) => tool.name === "search_thoughts").description, /before answering about Erik/i);
   assert.match(tools.find((tool) => tool.name === "capture_thought").description, /ordinary conversation/i);
   assert.match(tools.find((tool) => tool.name === "fetch_thought").description, /compact result is not enough/i);
+  for (const name of ["preview_ingest", "apply_ingest", "report_memory_usage", "review_memory"])
+    assert.ok(tools.some((tool) => tool.name === name), `${name} missing`);
 });
 
 test("the connection UI copies the central policy and uses native OpenAPI for Open WebUI", async () => {

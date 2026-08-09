@@ -6,6 +6,39 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.8.0: agent memory becomes governed memory
+
+Memories now record where they came from, how certain they are and what a model
+may do with them. Agent-authored inferences start as pending evidence rather than
+silently becoming user instructions. A trusted review can confirm, restrict,
+mark stale, keep as evidence, or reject them, and source and artifact references
+remain attached to the record.
+
+Long source text no longer has to become one transcript-shaped blob. Smart
+ingest first proposes standalone atomic memories, saves nothing before approval,
+then archives the verbatim source and links every accepted memory with
+`derived_from`. The new Review page also presents semantic near-duplicates with
+explicit keep, relate, supersede and merge actions; nothing is merged or removed
+automatically.
+
+Search now returns a privacy-preserving recall trace. Clients can report which
+returned UUIDs materially influenced their answer, without storing the query,
+answer or memory content. The central MCP/OpenAPI policy tells every model how
+to apply these trust and reporting rules.
+
+Home Assistant discovery now carries the review queue and aggregate recall
+receipt coverage as counters only. A receipt left open for more than ten minutes
+degrades service status, making clients that search but never report visible;
+the companion TokenTracker 1.8.0 displays pending reviews and today's receipt
+ratio without exposing queries or memory text.
+
+The smoke test is read-only by default, emits clean JSON on request and requires
+`-Write` for its 48 canary checks. Canary rows are cleaned in a `finally` block.
+Together with 20 Node tests, the new flows were exercised against a real
+temporary pgvector database before release.
+
+---
+
 ## 2026-08-09 — 0.7.0: memories become records instead of incident-shaped blobs
 
 The first 84 memories proved that good content is not enough. Free-form topic

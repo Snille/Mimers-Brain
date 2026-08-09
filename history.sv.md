@@ -6,6 +6,40 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.8.0: agentminnet blir ett styrt minne
+
+Minnen lagrar nu varifrån de kommer, hur säkra de är och vad en modell får göra
+med dem. Agentens egna slutsatser börjar som väntande evidens i stället för att
+tyst bli användarinstruktioner. En betrodd granskning kan bekräfta, begränsa,
+markera gammalt, behålla som evidens eller avvisa dem, medan käll- och
+artefaktreferenser följer med posten.
+
+Längre källtext behöver inte längre bli ett enda transkriptformat textblock.
+Smart import föreslår först fristående atomära minnen, sparar ingenting före
+godkännande, arkiverar sedan originalkällan och länkar varje accepterat minne
+med `derived_from`. Den nya sidan Granska visar även semantiska nästan-dubbletter
+med uttryckliga val för att behålla, relatera, ersätta eller slå ihop; ingenting
+slås ihop eller tas bort automatiskt.
+
+Sökningar returnerar nu ett integritetssäkert återkallningskvitto. Klienter kan
+rapportera vilka returnerade UUID:n som faktiskt påverkade svaret utan att
+lagra frågan, svaret eller minnesinnehållet. Den centrala MCP-/OpenAPI-policyn
+förklarar samma tillits- och rapporteringsregler för alla modeller.
+
+Home Assistant-discovery innehåller nu granskningskön och samlad täckning för
+återkallningskvitton, enbart som räknare. Ett kvitto som förblir öppet längre än
+tio minuter degraderar tjänstens status, så klienter som söker men aldrig
+rapporterar blir synliga. Den tillhörande TokenTracker 1.8.0 visar väntande
+granskningar och dagens kvot mellan kvitton och sökningar utan att exponera
+frågor eller minnestext.
+
+Smoke-testet är skrivskyddat som standard, kan lämna ren JSON och kräver
+`-Write` för sina 48 canary-kontroller. Canary-rader städas i ett `finally`-block.
+Tillsammans med 20 Node-tester kördes de nya flödena mot en riktig tillfällig
+pgvector-databas före releasen.
+
+---
+
 ## 2026-08-09 — 0.7.0: minnen blir poster i stället för incidentformade textblock
 
 De första 84 minnena visade att bra innehåll inte räcker. Fria ämnesetiketter

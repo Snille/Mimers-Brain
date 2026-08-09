@@ -9,9 +9,12 @@ import { createHash } from "node:crypto";
 import {
   CANONICAL_TOPICS,
   MEMORY_KINDS,
+  SMART_INGEST_THRESHOLD,
+  applyReview,
   embeddingText,
   normaliseMeta,
 } from "./memory-model.mjs";
+import { fallbackAtoms, normalisePreviewCandidates } from "./smart-ingest.mjs";
 
 export { normaliseMeta } from "./memory-model.mjs";
 
@@ -104,6 +107,34 @@ export async function extractMetadata(text) {
   }
 }
 
+async function extractAtoms(text) {
+  if (!EMBED_KEY) return fallbackAtoms(text).map((content) => ({ content }));
+  try {
+    const r = await fetch(META_URL, {
+      method: "POST",
+      headers: aiHeaders(),
+      body: JSON.stringify({
+        model: META_MODEL,
+        response_format: { type: "json_object" },
+        messages: [{
+          role: "user",
+          content:
+            `Split this source into durable, standalone, atomic long-term memories. ` +
+            `Return JSON {"memories":[{"content":"..."}]}. Keep decisions, facts, procedures, ` +
+            `preferences, lessons and concrete future tasks. Omit greetings, transcript noise, ` +
+            `tentative reasoning, repetitions, raw secrets and anything without lasting value. ` +
+            `Do not invent information. Maximum 30 memories, each below 1800 characters.\n\n${text}`,
+        }],
+      }),
+    });
+    if (!r.ok) throw new Error(String(r.status));
+    const parsed = JSON.parse((await r.json()).choices[0].message.content);
+    return normalisePreviewCandidates(parsed.memories);
+  } catch {
+    return fallbackAtoms(text).map((content) => ({ content }));
+  }
+}
+
 const COLS = "id, content, metadata, tier, created_at, updated_at";
 
 export async function listThoughts(tiers, {
@@ -145,7 +176,7 @@ export async function searchThoughts(tiers, query, {
   if (!vector) throw new Error("Semantic search needs OPENROUTER_API_KEY");
   const terms = searchTerms(query);
   const args = [JSON.stringify(vector), query, tiers, threshold, terms];
-  let filters = `tier = ANY($3)`;
+  let filters = `tier = ANY($3) AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected'`;
   if (lifecycle && lifecycle !== "all")
     filters += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
   if (kind) filters += ` AND metadata->>'kind' = $${args.push(kind)}`;
@@ -170,7 +201,11 @@ export async function searchThoughts(tiers, query, {
      )
      SELECT *, semantic_score AS similarity,
             semantic_score * 0.65 + least(title_score, 1) * 0.30 + least(lexical_score, 1) * 0.05 +
-            CASE WHEN coalesce(metadata->>'title', '') ILIKE '%' || $2 || '%' THEN 0.15 ELSE 0 END
+            CASE WHEN coalesce(metadata->>'title', '') ILIKE '%' || $2 || '%' THEN 0.15 ELSE 0 END +
+            CASE coalesce(metadata->>'review_status', 'confirmed')
+              WHEN 'confirmed' THEN 0.06 WHEN 'pending' THEN -0.02
+              WHEN 'evidence_only' THEN -0.03 WHEN 'stale' THEN -0.05 ELSE 0 END +
+            CASE WHEN coalesce(metadata->>'can_use_as_instruction', 'true') = 'true' THEN 0.02 ELSE 0 END
             AS rank_score
        FROM ranked
       WHERE semantic_score > $4 OR lexical_score > 0
@@ -276,14 +311,49 @@ export async function linkSupersession(tiers, replacementId, oldIds) {
   return { replacement_id: replacementId, superseded_ids: ids };
 }
 
-export async function captureThought(tiers, content, { tier = "open", metadata } = {}) {
+export async function linkRelations(tiers, fromId, toIds, relation = "related_to") {
+  const allowed = ["related_to", "derived_from", "conflicts_with", "merged_into", "source_of"];
+  if (!allowed.includes(relation)) throw new Error(`Unsupported relation "${relation}"`);
+  const from = await getThought(tiers, fromId);
+  if (!from) throw new Error("Source memory not found");
+  const ids = [...new Set((toIds || []).map(String))].filter((id) => id !== fromId);
+  if (!ids.length) return { from_id: fromId, to_ids: [], relation };
+  const { rows } = await pool.query(
+    `SELECT id FROM thoughts WHERE id = ANY($1::uuid[]) AND tier = ANY($2)`, [ids, tiers]);
+  if (rows.length !== ids.length) throw new Error("One or more related memories were not found");
+  await pool.query(
+    `INSERT INTO thought_relations (from_id, to_id, relation)
+     SELECT $1::uuid, x, $3 FROM unnest($2::uuid[]) x ON CONFLICT DO NOTHING`,
+    [fromId, ids, relation],
+  );
+  return { from_id: fromId, to_ids: ids, relation };
+}
+
+export async function captureThought(tiers, content, {
+  tier = "open", metadata, origin = "agent", userConfirmed = false,
+  sourceRefs = [], artifactRefs = [],
+} = {}) {
   if (!tiers.includes(tier))
     throw new Error(`This endpoint may not write to tier "${tier}"`);
 
   const auto = metadata ? null : await extractMetadata(content);
+  const proposed = {
+    ...(auto || {}), ...(metadata || {}),
+    lifecycle: metadata?.lifecycle || "current", source: "mimers-brain", origin,
+    source_refs: [...new Set([...(metadata?.source_refs || []), ...sourceRefs])],
+    artifact_refs: [...new Set([...(metadata?.artifact_refs || []), ...artifactRefs])],
+  };
+  // Trust is assigned by the authenticated route, never by model-extracted or
+  // caller-supplied metadata. Otherwise an extractor could accidentally promote
+  // its own inference to a user instruction by returning extra JSON keys.
+  for (const field of [
+    "provenance", "review_status", "can_use_as_instruction", "can_use_as_evidence",
+    "requires_user_confirmation", "reviewed_at", "reviewed_by",
+  ]) delete proposed[field];
   const meta = normaliseMeta(
-    { ...(auto || {}), ...(metadata || {}), lifecycle: metadata?.lifecycle || "current", source: "mimers-brain" },
+    proposed,
     content,
+    { origin, userConfirmed },
   );
   const vector = await embed(embeddingText(content, meta)).catch(() => null);
 
@@ -298,6 +368,203 @@ export async function captureThought(tiers, content, { tier = "open", metadata }
       [JSON.stringify(vector), id]);
 
   return { id, tier, metadata: meta, embedded: Boolean(vector) };
+}
+
+export async function reviewThought(tiers, id, action, { actor = "user", note = "" } = {}) {
+  const existing = await getThought(tiers, id);
+  if (!existing) throw new Error("Not found");
+  const metadata = applyReview(existing.metadata, action, { actor });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `UPDATE thoughts SET metadata = $2::jsonb WHERE id = $1 AND tier = ANY($3) RETURNING ${COLS}`,
+      [id, JSON.stringify(metadata), tiers],
+    );
+    await client.query(
+      `INSERT INTO memory_review_events (thought_id, action, actor, detail)
+       VALUES ($1, $2, $3, $4::jsonb)`,
+      [id, action, actor, JSON.stringify(note ? { note: String(note).slice(0, 500) } : {})],
+    );
+    await client.query("COMMIT");
+    return rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function reviewQueue(tiers, { limit = 100 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT ${COLS} FROM thoughts
+      WHERE tier = ANY($1)
+        AND (coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
+             OR (metadata->>'review_status' = 'evidence_only' AND NOT metadata ? 'reviewed_at'))
+        AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+      ORDER BY CASE metadata->>'review_status' WHEN 'pending' THEN 0 WHEN 'stale' THEN 1 ELSE 2 END,
+               created_at DESC LIMIT $2`,
+    [tiers, Math.min(Number(limit) || 100, 500)],
+  );
+  return rows;
+}
+
+export async function previewIngest(content, { metadata = {}, origin = "user" } = {}) {
+  const text = String(content || "").trim();
+  if (!text) throw new Error("Empty source text");
+  const extracted = text.length < SMART_INGEST_THRESHOLD
+    ? [{ content: text }]
+    : await extractAtoms(text);
+  const sharedMetadata = { ...metadata };
+  delete sharedMetadata.title;
+  delete sharedMetadata.summary;
+  const candidates = normalisePreviewCandidates(extracted).map((item) => ({
+    content: item.content,
+    metadata: normaliseMeta({ ...sharedMetadata, ...item.metadata }, item.content, {
+      origin, userConfirmed: origin === "user",
+    }),
+  }));
+  return { source_length: text.length, threshold: SMART_INGEST_THRESHOLD, candidates };
+}
+
+export async function applyIngest(tiers, {
+  source_content, candidates, tier = "open", origin = "user", user_confirmed = false,
+} = {}) {
+  if (!tiers.includes(tier)) throw new Error(`This endpoint may not write to tier "${tier}"`);
+  const source = String(source_content || "").trim();
+  if (!source) throw new Error("source_content is required");
+  const atoms = normalisePreviewCandidates(candidates);
+
+  // The verbatim source is navigable history, not a current memory and not
+  // embedded. A null fingerprint deliberately allows the same source to be
+  // imported again without mutating a current exact-match memory.
+  const sourceMeta = normaliseMeta({
+    title: `Ingest source ${new Date().toISOString().slice(0, 10)}`,
+    summary: `Archived source for ${atoms.length} reviewed atomic memories.`,
+    kind: "reference", lifecycle: "archived", source_refs: [],
+  }, source, { origin, userConfirmed: origin === "user" || user_confirmed });
+  const sourceRow = await pool.query(
+    `INSERT INTO thoughts (content, metadata, tier, content_fingerprint)
+     VALUES ($1, $2::jsonb, $3, NULL) RETURNING id`,
+    [source, JSON.stringify(sourceMeta), tier],
+  );
+  const sourceId = sourceRow.rows[0].id;
+  const saved = [];
+  for (const atom of atoms) {
+    const metadata = {
+      ...(atom.metadata || {}),
+      source_refs: [...new Set([...(atom.metadata?.source_refs || []), `memory:${sourceId}`])],
+    };
+    const row = await captureThought(tiers, atom.content, {
+      tier, metadata, origin, userConfirmed: origin === "user" || user_confirmed,
+    });
+    await linkRelations(tiers, row.id, [sourceId], "derived_from");
+    saved.push(row);
+  }
+  return { source_id: sourceId, count: saved.length, memories: saved };
+}
+
+export async function duplicateCandidates(tiers, { threshold = 0.86, limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    `WITH candidates AS (
+       SELECT ${COLS}, embedding FROM thoughts
+        WHERE tier = ANY($1) AND embedding IS NOT NULL
+          AND coalesce(metadata->>'lifecycle', 'current') = 'current'
+          AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected'
+        ORDER BY updated_at DESC LIMIT 750
+     )
+     SELECT a.id AS left_id, a.content AS left_content, a.metadata AS left_metadata, a.tier AS left_tier,
+            b.id AS right_id, b.content AS right_content, b.metadata AS right_metadata, b.tier AS right_tier,
+            1 - (a.embedding <=> b.embedding) AS similarity
+       FROM candidates a JOIN candidates b ON a.id::text < b.id::text
+      WHERE 1 - (a.embedding <=> b.embedding) >= $2
+        AND NOT EXISTS (
+          SELECT 1 FROM duplicate_resolutions d
+           WHERE d.left_id = a.id AND d.right_id = b.id
+             AND d.resolved_at >= greatest(a.updated_at, b.updated_at))
+      ORDER BY similarity DESC LIMIT $3`,
+    [tiers, Number(threshold) || 0.86, Math.min(Number(limit) || 50, 200)],
+  );
+  return rows;
+}
+
+export async function resolveDuplicate(tiers, {
+  left_id, right_id, action, canonical_id, merged_content, actor = "user",
+} = {}) {
+  const left = await getThought(tiers, left_id);
+  const right = await getThought(tiers, right_id);
+  if (!left || !right || left.id === right.id) throw new Error("Duplicate pair not found");
+  const pair = [left.id, right.id].sort();
+  if (!["keep_both", "related", "supersede", "merge"].includes(action))
+    throw new Error(`Unknown duplicate action "${action}"`);
+  if (canonical_id && ![left.id, right.id].includes(canonical_id))
+    throw new Error("canonical_id must be one of the duplicate pair ids");
+  let result = { action };
+  if (action === "related") result = await linkRelations(tiers, canonical_id || left.id,
+    [canonical_id === left.id ? right.id : left.id], "related_to");
+  if (action === "supersede") {
+    const keep = canonical_id === right.id ? right.id : left.id;
+    result = await linkSupersession(tiers, keep, [keep === left.id ? right.id : left.id]);
+  }
+  if (action === "merge") {
+    if (!String(merged_content || "").trim()) throw new Error("merged_content is required");
+    const tier = left.tier === "vault" || right.tier === "vault" ? "vault" : "open";
+    const merged = await captureThought(tiers, String(merged_content).trim(), {
+      tier, origin: "user", userConfirmed: true,
+    });
+    const oldIds = [left.id, right.id].filter((id) => id !== merged.id);
+    result = oldIds.length
+      ? { ...merged, ...(await linkSupersession(tiers, merged.id, oldIds)) }
+      : merged;
+  }
+  await pool.query(
+    `INSERT INTO duplicate_resolutions (left_id, right_id, resolution, actor, result)
+     VALUES ($1,$2,$3,$4,$5::jsonb)
+     ON CONFLICT (left_id, right_id) DO UPDATE
+       SET resolution = EXCLUDED.resolution, actor = EXCLUDED.actor,
+           result = EXCLUDED.result, resolved_at = now()`,
+    [pair[0], pair[1], action, actor, JSON.stringify(result)],
+  );
+  return result;
+}
+
+export async function createRecallTrace(tiers, rows, ctx = {}) {
+  const listener = tiers.includes("vault") ? "full" : "open";
+  const ids = rows.map((row) => row.id);
+  const { rows: made } = await pool.query(
+    `INSERT INTO recall_traces (listener, client, client_version, result_ids)
+     VALUES ($1,$2,$3,$4::uuid[]) RETURNING id`,
+    [listener, ctx.client || "unknown", ctx.clientVersion || null, ids],
+  );
+  return made[0].id;
+}
+
+export async function reportRecallUsage(tiers, traceId, { used_ids = [], ignored_ids = [] } = {}) {
+  const listeners = listenersFor(tiers);
+  const used = [...new Set(used_ids.map(String))];
+  const ignored = [...new Set(ignored_ids.map(String))].filter((id) => !used.includes(id));
+  const { rows } = await pool.query(
+    `UPDATE recall_traces
+        SET used_ids = $2::uuid[], ignored_ids = $3::uuid[], reported_at = now()
+      WHERE id = $1 AND listener = ANY($4)
+        AND $2::uuid[] <@ result_ids AND $3::uuid[] <@ result_ids
+      RETURNING id, result_ids, used_ids, ignored_ids, reported_at`,
+    [traceId, used, ignored, listeners],
+  );
+  if (!rows[0]) throw new Error("Recall trace not found or contains ids not returned by that search");
+  return rows[0];
+}
+
+export async function recallTraces(tiers, { limit = 100 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT id, created_at, listener, client, client_version, result_ids,
+            used_ids, ignored_ids, reported_at
+       FROM recall_traces WHERE listener = ANY($1)
+      ORDER BY created_at DESC LIMIT $2`,
+    [listenersFor(tiers), Math.min(Number(limit) || 100, 500)],
+  );
+  return rows;
 }
 
 export async function updateThought(tiers, id, { content, metadata, tier }) {
@@ -348,13 +615,54 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS thought_relations (
         from_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
         to_id      uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
-        relation   text NOT NULL CHECK (relation IN ('supersedes', 'related_to')),
+        relation   text NOT NULL CHECK (relation IN (
+          'supersedes', 'related_to', 'derived_from', 'conflicts_with', 'merged_into', 'source_of'
+        )),
         created_at timestamptz NOT NULL DEFAULT now(),
         PRIMARY KEY (from_id, to_id, relation),
         CHECK (from_id <> to_id)
     );
     CREATE INDEX IF NOT EXISTS thought_relations_to_idx
         ON thought_relations (to_id, relation);
+
+    ALTER TABLE thought_relations DROP CONSTRAINT IF EXISTS thought_relations_relation_check;
+    ALTER TABLE thought_relations ADD CONSTRAINT thought_relations_relation_check
+      CHECK (relation IN (
+        'supersedes', 'related_to', 'derived_from', 'conflicts_with', 'merged_into', 'source_of'
+      ));
+
+    CREATE TABLE IF NOT EXISTS memory_review_events (
+        id          bigserial PRIMARY KEY,
+        thought_id  uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+        reviewed_at timestamptz NOT NULL DEFAULT now(),
+        action      text NOT NULL,
+        actor       text NOT NULL DEFAULT 'user',
+        detail      jsonb NOT NULL DEFAULT '{}'::jsonb
+    );
+
+    CREATE TABLE IF NOT EXISTS duplicate_resolutions (
+        left_id     uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+        right_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+        resolution  text NOT NULL,
+        actor       text NOT NULL DEFAULT 'user',
+        result      jsonb NOT NULL DEFAULT '{}'::jsonb,
+        resolved_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (left_id, right_id),
+        CHECK (left_id::text < right_id::text)
+    );
+
+    CREATE TABLE IF NOT EXISTS recall_traces (
+        id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        created_at     timestamptz NOT NULL DEFAULT now(),
+        listener       text NOT NULL CHECK (listener IN ('full', 'open')),
+        client         text NOT NULL,
+        client_version text,
+        result_ids     uuid[] NOT NULL DEFAULT '{}',
+        used_ids       uuid[] NOT NULL DEFAULT '{}',
+        ignored_ids    uuid[] NOT NULL DEFAULT '{}',
+        reported_at    timestamptz
+    );
+    CREATE INDEX IF NOT EXISTS recall_traces_created_idx ON recall_traces (created_at DESC);
 
     CREATE TABLE IF NOT EXISTS usage_events (
         id             bigserial PRIMARY KEY,
@@ -427,11 +735,16 @@ export function logUsage(ev = {}) {
 }
 
 export async function pruneUsage() {
-  const { rowCount } = await pool.query(
-    `DELETE FROM usage_events WHERE at < now() - ($1 || ' days')::interval`,
+  const { rows } = await pool.query(
+    `WITH usage AS (
+       DELETE FROM usage_events WHERE at < now() - ($1 || ' days')::interval RETURNING 1
+     ), traces AS (
+       DELETE FROM recall_traces WHERE created_at < now() - ($1 || ' days')::interval RETURNING 1
+     )
+     SELECT (SELECT count(*) FROM usage) + (SELECT count(*) FROM traces) AS count`,
     [String(RETENTION_DAYS)],
   );
-  return rowCount;
+  return Number(rows[0].count);
 }
 
 // The open listener passes ['open'] and therefore sees only what happened on the
@@ -568,11 +881,33 @@ export async function liveCounters(tiers = ALL) {
        (SELECT count(*) FROM thoughts WHERE tier = 'open')                         AS mem_open,
        (SELECT count(*) FROM thoughts WHERE tier = 'vault')                        AS mem_vault,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND embedding IS NULL)  AS mem_unembedded,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1)
+          AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+          AND (coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
+               OR (metadata->>'review_status' = 'evidence_only' AND NOT metadata ? 'reviewed_at'))) AS mem_pending_review,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1)
+          AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+          AND metadata->>'review_status' = 'evidence_only') AS mem_evidence_only,
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1)
+          AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+          AND metadata->>'review_status' = 'stale') AS mem_stale,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM d)) AS mem_today,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM w)) AS mem_week,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM m)) AS mem_month,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM y)) AS mem_year,
        (SELECT max(created_at) FROM thoughts WHERE tier = ANY($1))                 AS mem_last,
+       (SELECT count(*) FROM recall_traces WHERE listener = ANY($2)
+          AND created_at >= (SELECT v FROM d)) AS recall_searches_today,
+       (SELECT count(*) FROM recall_traces WHERE listener = ANY($2)
+          AND created_at >= (SELECT v FROM d) AND reported_at IS NOT NULL) AS recall_reports_today,
+       (SELECT coalesce(sum(cardinality(result_ids)), 0) FROM recall_traces
+          WHERE listener = ANY($2) AND created_at >= (SELECT v FROM d)) AS recall_returned_today,
+       (SELECT coalesce(sum(cardinality(used_ids)), 0) FROM recall_traces
+          WHERE listener = ANY($2) AND created_at >= (SELECT v FROM d)) AS recall_used_today,
+       (SELECT count(*) FROM recall_traces WHERE listener = ANY($2)
+          AND created_at >= (SELECT v FROM d) AND created_at < now() - interval '10 minutes'
+          AND reported_at IS NULL) AS recall_unreported,
+       (SELECT max(created_at) FROM recall_traces WHERE listener = ANY($2)) AS recall_last,
        (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM d)) AS calls_today,
        (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM w)) AS calls_week,
        (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM m)) AS calls_month,
@@ -593,11 +928,24 @@ export async function liveCounters(tiers = ALL) {
     memories_open: n(r.mem_open),
     memories_vault: n(r.mem_vault),
     memories_unembedded: n(r.mem_unembedded),
+    memories_pending_review: n(r.mem_pending_review),
+    memories_evidence_only: n(r.mem_evidence_only),
+    memories_stale: n(r.mem_stale),
     memories_today: n(r.mem_today),
     memories_week: n(r.mem_week),
     memories_month: n(r.mem_month),
     memories_year: n(r.mem_year),
     last_memory: r.mem_last ? new Date(r.mem_last).toISOString() : null,
+    recall_searches_today: n(r.recall_searches_today),
+    recall_reports_today: n(r.recall_reports_today),
+    recall_memories_returned_today: n(r.recall_returned_today),
+    recall_memories_used_today: n(r.recall_used_today),
+    recall_unreported: n(r.recall_unreported),
+    recall_reporting_percent_today: n(r.recall_searches_today)
+      ? Math.round(n(r.recall_reports_today) * 1000 / n(r.recall_searches_today)) / 10 : null,
+    recall_use_percent_today: n(r.recall_returned_today)
+      ? Math.round(n(r.recall_used_today) * 1000 / n(r.recall_returned_today)) / 10 : null,
+    last_recall: r.recall_last ? new Date(r.recall_last).toISOString() : null,
     calls_today: n(r.calls_today),
     calls_week: n(r.calls_week),
     calls_month: n(r.calls_month),

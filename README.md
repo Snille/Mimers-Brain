@@ -52,17 +52,21 @@ tools are constructed with `tiers = ['open']` and `delete_thought` is not
 registered at all. No parameter, header or path changes that. An attacker who
 gets past the proxy still only reaches open knowledge.
 
-Guarded by `test-isolation.ps1` (22 checks, all green):
+The smoke test is read-only by default. Use `-Write` for the complete 48-check
+canary suite; test rows are removed in a `finally` block even when a check fails:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
+powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Write
+powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Json
 ```
 
-The tests cover: vault rows are invisible on the open port, secret content never
+The full tests cover: vault rows are invisible on the open port, secret content never
 leaks, looking a vault row up by id is refused, writing to the vault from outside
 is refused, statistics do not even reveal that the vault exists, the connection
 guide withholds the vault key from the proxied listener, the usage log never
-carries content, and a wrong key returns 401.
+carries content, a wrong key returns 401, agent memories start as evidence, human
+review changes their trust, and smart ingest preserves source provenance.
 
 ## Running it
 
@@ -75,6 +79,10 @@ docker compose up -d --build
 ```
 
 The interface: <http://localhost:8790>
+
+The **Review** page contains the trust queue, semantically similar duplicate
+candidates, and privacy-preserving recall receipts. Long text entered through
+**New thought** is previewed as atomic memories before anything is saved.
 
 Generate a key:
 ```powershell
@@ -195,11 +203,15 @@ one:
 | --- | --- |
 | `binary_sensor.mimers_brain_online` | connectivity, driven by the last will |
 | `sensor.mimers_brain_memories_total` / `_open` / `_vault` | size of the memory |
+| `sensor.mimers_brain_memories_pending_review` / `_evidence_only` / `_stale` | governance review queue |
 | `sensor.mimers_brain_memories_today` / `_week` / `_month` / `_year` | growth |
 | `sensor.mimers_brain_calls_today` / `_week` / `_month` / `_year` / `_total` | traffic |
 | `sensor.mimers_brain_reads_today`, `_writes_today` | traffic split |
 | `sensor.mimers_brain_clients_week`, `_top_client` | who is using it |
-| `sensor.mimers_brain_last_memory`, `_last_call` | timestamps |
+| `sensor.mimers_brain_recall_searches_today`, `_reports_today`, `_unreported` | privacy-safe recall receipt coverage |
+| `sensor.mimers_brain_recall_memories_returned_today`, `_used_today` | aggregate recall usefulness |
+| `sensor.mimers_brain_recall_reporting_percent_today`, `_use_percent_today` | receipt and use rates |
+| `sensor.mimers_brain_last_memory`, `_last_recall`, `_last_call` | timestamps |
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, and why |
 | `sensor.mimers_brain_uptime` | seconds since start |
 
@@ -213,6 +225,11 @@ cannot be un-made, so they only ever rise within their window.
 Every sensor reads from one retained JSON payload on `<prefix>/state`, so Home
 Assistant repopulates all of them from a single message after a restart instead
 of showing `unknown` until the next tick.
+
+Recall telemetry contains counts, timestamps and trace completion only. Queries,
+answers and memory content never enter MQTT. A recall trace that is still
+unreported after ten minutes degrades the status so missing client receipts are
+visible in Home Assistant and on the TokenTracker.
 
 The availability topic carries a **last will**, which is the part that makes
 "is it alive" honest: if the process dies, the broker publishes `offline` on its
@@ -285,13 +302,20 @@ database — which an image cannot do.
 
 The base remains OB1's `thoughts` table plus `tier`, but metadata v2 adds
 `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
-`verified_at` and `valid_for_version`. The old `type`, `topics` and `people`
+`verified_at`, `valid_for_version`, `origin`, `provenance`, `review_status`,
+allowed-use flags, `source_refs` and `artifact_refs`. The old `type`, `topics` and `people`
 fields remain readable for older clients. Non-canonical migrated tags are kept
 under `legacy_topics` instead of disappearing.
 
 `thought_relations` stores full UUID links between replacements and the memories
-they supersede. A superseded row is hidden from current-only searches, not
-deleted. Permanent deletion remains a separate confirmed operation.
+they supersede, as well as `derived_from`, `related_to`, conflict, merge and
+source relationships. A superseded row is hidden from current-only searches,
+not deleted. Permanent deletion remains a separate confirmed operation.
+
+Agent-authored memories default to pending evidence and cannot be treated as
+user instructions. `review_memory` or the Review page can confirm, restrict,
+mark stale, retain as evidence, or reject them. `recall_traces` records only the
+client and returned/used memory UUIDs — never the query, answer, or content.
 
 One detail in `upsert_thought`: a row can be **promoted** into the vault but
 never silently fall out of it. Capturing the same content again with

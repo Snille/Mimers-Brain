@@ -53,17 +53,22 @@ MCP-servern på 8791 byggs utan förmågan att nå valvet — verktygen konstrue
 parameter, header eller sökväg som ändrar det. En angripare som tar sig förbi
 proxyn når fortfarande bara öppen kunskap.
 
-Verifierat av `test-isolation.ps1` (22 kontroller, alla gröna):
+Smoke-testet är skrivskyddat som standard. Använd `-Write` för hela
+canary-sviten med 48 kontroller; testdata tas bort i ett `finally`-block även om
+en kontroll misslyckas:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
+powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Write
+powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Json
 ```
 
-Testerna täcker: valv-rader syns inte via öppna porten, hemligt innehåll läcker
+Den fulla sviten täcker: valv-rader syns inte via öppna porten, hemligt innehåll läcker
 aldrig ut, direkt id-uppslag av en valv-rad nekas, skrivförsök till valvet
 utifrån nekas, statistik avslöjar inte ens att valvet finns, anslutningsguiden
 lämnar inte ut valvnyckeln på den proxade lyssnaren, användningsloggen bär aldrig
-innehåll, och fel nyckel ger 401.
+innehåll, fel nyckel ger 401, agentminnen börjar som evidens, mänsklig granskning
+ändrar deras tillit och smart import bevarar källans proveniens.
 
 ## Kom igång lokalt
 
@@ -76,6 +81,10 @@ docker compose up -d --build
 ```
 
 Gränssnittet: <http://localhost:8790>
+
+Sidan **Granska** innehåller tillitskön, semantiskt liknande dubblettförslag och
+integritetssäkra återkallningskvitton. Längre text i **Ny tanke** visas först som
+atomära minnesförslag innan något sparas.
 
 Generera en nyckel:
 ```powershell
@@ -195,11 +204,15 @@ vad dokumentationen än antyder — så de är ett kontrakt värt att behandla s
 | --- | --- |
 | `binary_sensor.mimers_brain_online` | uppkoppling, driven av last will |
 | `sensor.mimers_brain_memories_total` / `_open` / `_vault` | minnets storlek |
+| `sensor.mimers_brain_memories_pending_review` / `_evidence_only` / `_stale` | granskningskö för styrningen |
 | `sensor.mimers_brain_memories_today` / `_week` / `_month` / `_year` | tillväxt |
 | `sensor.mimers_brain_calls_today` / `_week` / `_month` / `_year` / `_total` | trafik |
 | `sensor.mimers_brain_reads_today`, `_writes_today` | läs/skriv |
 | `sensor.mimers_brain_clients_week`, `_top_client` | vilka som använder det |
-| `sensor.mimers_brain_last_memory`, `_last_call` | tidpunkter |
+| `sensor.mimers_brain_recall_searches_today`, `_reports_today`, `_unreported` | täckning för integritetssäkra återkallningskvitton |
+| `sensor.mimers_brain_recall_memories_returned_today`, `_used_today` | sammanlagd nytta av återkallade minnen |
+| `sensor.mimers_brain_recall_reporting_percent_today`, `_use_percent_today` | kvitto- och användningsgrad |
+| `sensor.mimers_brain_last_memory`, `_last_recall`, `_last_call` | tidpunkter |
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, och varför |
 | `sensor.mimers_brain_uptime` | sekunder sedan start |
 
@@ -213,6 +226,12 @@ kan inte ogöras, så de kan bara stiga inom sitt fönster.
 Alla sensorer läser ur en enda retained JSON-payload på `<prefix>/state`, så Home
 Assistant fyller alla på nytt från ett meddelande efter en omstart i stället för
 att visa `unknown` fram till nästa tick.
+
+Återkallningstelemetrin innehåller bara antal, tidpunkter och om ett spår fått
+ett kvitto. Frågor, svar och minnesinnehåll går aldrig ut över MQTT. Om ett
+återkallningsspår fortfarande saknar kvitto efter tio minuter blir statusen
+degraderad, så utebliven klientrapportering syns i Home Assistant och på
+TokenTracker.
 
 Availability-topicen bär en **last will**, och det är den delen som gör "lever
 den" ärlig: dör processen publicerar brokern `offline` åt den. Utan en sådan ser
@@ -288,13 +307,21 @@ låt projektet ligga vilande ett tag som fallback.
 
 Basen är fortfarande OB1:s `thoughts`-tabell plus `tier`, men metadata v2 lägger
 till `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
-`verified_at` och `valid_for_version`. Äldre klienter kan fortfarande läsa
+`verified_at`, `valid_for_version`, `origin`, `provenance`, `review_status`,
+regler för tillåten användning, `source_refs` och `artifact_refs`. Äldre klienter kan fortfarande läsa
 `type`, `topics` och `people`. Migrerade specialetiketter bevaras under
 `legacy_topics` i stället för att försvinna.
 
 `thought_relations` lagrar fullständiga UUID-länkar mellan ersättare och minnena
-de ersätter. En överspelad rad döljs från sökningar efter aktuellt innehåll men
-raderas inte. Permanent radering är fortfarande en separat, bekräftad handling.
+de ersätter, samt `derived_from`, relaterade, konflikt-, sammanslagnings- och
+källrelationer. En överspelad rad döljs från sökningar efter aktuellt innehåll
+men raderas inte. Permanent radering är fortfarande en separat, bekräftad handling.
+
+Agentens egna minnen blir som standard väntande evidens och får inte behandlas
+som användarinstruktioner. `review_memory` eller sidan Granska kan bekräfta,
+begränsa, markera gammalt, behålla som evidens eller avvisa dem.
+`recall_traces` sparar bara klienten och returnerade/använda minnes-UUID:n —
+aldrig sökfrågan, svaret eller innehållet.
 
 En detalj i `upsert_thought`: en post kan **befordras** till valvet men aldrig
 tyst falla ur det. Fångar samma innehåll upp igen med `tier='open'` behåller

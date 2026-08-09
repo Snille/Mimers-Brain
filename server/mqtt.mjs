@@ -1,5 +1,5 @@
 // Publishes the brain's own vital signs to MQTT, so Home Assistant - and from
-// there the TockenTracker on the wall - can show whether the memory is alive and
+// there the TokenTracker on the wall - can show whether the memory is alive and
 // how much it is being used.
 //
 // Only counters and timestamps go out. No memory content, no search queries, no
@@ -42,11 +42,14 @@ const AVAILABILITY = {
 };
 
 // name, json key, and the optional extras HA needs to render it properly.
-const SENSORS = [
+export const MQTT_SENSORS = [
   ["Memories Total", "memories_total", { icon: "mdi:brain", unit_of_measurement: "memories", state_class: "measurement" }],
   ["Memories Open", "memories_open", { icon: "mdi:earth", unit_of_measurement: "memories", state_class: "measurement" }],
   ["Memories Vault", "memories_vault", { icon: "mdi:safe", unit_of_measurement: "memories", state_class: "measurement" }],
   ["Memories Unembedded", "memories_unembedded", { icon: "mdi:alert-circle-outline", unit_of_measurement: "memories", state_class: "measurement" }],
+  ["Memories Pending Review", "memories_pending_review", { icon: "mdi:clipboard-text-clock-outline", unit_of_measurement: "memories", state_class: "measurement" }],
+  ["Memories Evidence Only", "memories_evidence_only", { icon: "mdi:file-eye-outline", unit_of_measurement: "memories", state_class: "measurement" }],
+  ["Memories Stale", "memories_stale", { icon: "mdi:clock-alert-outline", unit_of_measurement: "memories", state_class: "measurement" }],
   ["Memories Today", "memories_today", { icon: "mdi:calendar-today", unit_of_measurement: "memories", state_class: "measurement" }],
   ["Memories Week", "memories_week", { icon: "mdi:calendar-week", unit_of_measurement: "memories", state_class: "measurement" }],
   ["Memories Month", "memories_month", { icon: "mdi:calendar-month", unit_of_measurement: "memories", state_class: "measurement" }],
@@ -61,6 +64,14 @@ const SENSORS = [
   ["Clients Week", "clients_week", { icon: "mdi:account-multiple", unit_of_measurement: "clients", state_class: "measurement" }],
   ["Top Client", "top_client", { icon: "mdi:account-star" }],
   ["Last Memory", "last_memory", { device_class: "timestamp", icon: "mdi:clock-outline" }],
+  ["Recall Searches Today", "recall_searches_today", { icon: "mdi:brain", unit_of_measurement: "recalls", state_class: "total_increasing" }],
+  ["Recall Reports Today", "recall_reports_today", { icon: "mdi:check-decagram-outline", unit_of_measurement: "reports", state_class: "total_increasing" }],
+  ["Recall Memories Returned Today", "recall_memories_returned_today", { icon: "mdi:book-search-outline", unit_of_measurement: "memories", state_class: "total_increasing" }],
+  ["Recall Memories Used Today", "recall_memories_used_today", { icon: "mdi:book-check-outline", unit_of_measurement: "memories", state_class: "total_increasing" }],
+  ["Recall Unreported", "recall_unreported", { icon: "mdi:message-alert-outline", unit_of_measurement: "recalls", state_class: "measurement" }],
+  ["Recall Reporting Percent Today", "recall_reporting_percent_today", { icon: "mdi:percent-circle-outline", unit_of_measurement: "%", state_class: "measurement" }],
+  ["Recall Use Percent Today", "recall_use_percent_today", { icon: "mdi:percent-outline", unit_of_measurement: "%", state_class: "measurement" }],
+  ["Last Recall", "last_recall", { device_class: "timestamp", icon: "mdi:clock-outline" }],
   ["Last Call", "last_call", { device_class: "timestamp", icon: "mdi:clock-outline" }],
   ["Status", "status", { icon: "mdi:heart-pulse" }],
   ["Problem", "problem", { icon: "mdi:alert" }],
@@ -107,7 +118,7 @@ export function mqttStatus() {
 }
 
 function publishDiscovery() {
-  for (const [name, key, extra] of SENSORS) {
+  for (const [name, key, extra] of MQTT_SENSORS) {
     const object_id = `mimers_brain_${slug(name)}`;
     client.publish(
       `${DISCOVERY}/sensor/mimers_brain/${slug(name)}/config`,
@@ -159,6 +170,8 @@ export async function publishNow() {
       problems.push("No OPENROUTER_API_KEY: semantic search is off");
     if (counters.memories_unembedded)
       problems.push(`${counters.memories_unembedded} memories have no embedding`);
+    if (counters.recall_unreported)
+      problems.push(`${counters.recall_unreported} recall traces older than 10m have no usage report`);
     payload = {
       ...counters,
       status: problems.length ? "degraded" : "ok",

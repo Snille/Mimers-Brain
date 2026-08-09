@@ -15,6 +15,7 @@
   },
   "nav": {
     "thoughts": "Thoughts",
+    "review": "Review",
     "statistics": "Statistics",
     "connect": "Connect"
   },
@@ -72,7 +73,49 @@
     "delete": "Delete",
     "confirmDelete": "Permanently delete this thought?",
     "history": "History",
+    "evidenceOnly": "evidence only",
     "stale": "verification may be stale"
+  },
+  "ingest": {
+    "title": "Review proposed memories",
+    "description": "Nothing has been saved yet. Edit or deselect proposals before applying them.",
+    "apply": "Save approved memories",
+    "noneSelected": "Select at least one memory."
+  },
+  "review": {
+    "empty": "Nothing to review.",
+    "pending": {
+      "title": "Trust review",
+      "description": "Agent-generated memories remain evidence until you confirm how they may be used."
+    },
+    "duplicates": {
+      "title": "Possible duplicates",
+      "description": "Semantically similar memories are suggested here but never changed automatically."
+    },
+    "actions": {
+      "confirm": "Confirm",
+      "evidence_only": "Evidence only",
+      "restrict": "Restrict",
+      "stale": "Mark stale",
+      "reject": "Reject",
+      "keep_both": "Keep both",
+      "related": "Related",
+      "keep_left": "Keep left",
+      "keep_right": "Keep right",
+      "merge": "Merge"
+    },
+    "mergePrompt": "Edit the merged memory:",
+    "recalls": {
+      "title": "Recall receipts",
+      "description": "Shows only client and memory ids — never the query or answer.",
+      "when": "Time",
+      "client": "Client",
+      "returned": "Returned",
+      "used": "Used",
+      "status": "Status",
+      "reported": "reported",
+      "awaiting": "awaiting report"
+    }
   },
   "tiers": {
     "open": "open",
@@ -237,6 +280,10 @@
       "search_thoughts": "Search by meaning. The important one.",
       "list_thoughts": "Recent memories filtered by type, topic, person and time",
       "capture_thought": "Save a new memory",
+      "preview_ingest": "Preview atomic memories from a longer source",
+      "apply_ingest": "Save only user-approved proposals",
+      "report_memory_usage": "Report which recalled memories were used",
+      "review_memory": "Review trust and allowed use",
       "supersede_thought": "Replace memories while preserving navigable history",
       "thought_stats": "Totals, types, topics and people",
       "search": "Search in the shape ChatGPT and Gemini expect",

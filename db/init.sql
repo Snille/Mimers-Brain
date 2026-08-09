@@ -33,13 +33,52 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_thoughts_fingerprint
 CREATE TABLE IF NOT EXISTS thought_relations (
     from_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
     to_id      uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
-    relation   text NOT NULL CHECK (relation IN ('supersedes', 'related_to')),
+    relation   text NOT NULL CHECK (relation IN (
+        'supersedes', 'related_to', 'derived_from', 'conflicts_with', 'merged_into', 'source_of'
+    )),
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (from_id, to_id, relation),
     CHECK (from_id <> to_id)
 );
 
 CREATE INDEX IF NOT EXISTS thought_relations_to_idx ON thought_relations (to_id, relation);
+
+-- Human review and duplicate decisions remain auditable without putting notes
+-- into the memory itself or exposing them through ordinary recall.
+CREATE TABLE IF NOT EXISTS memory_review_events (
+    id         bigserial PRIMARY KEY,
+    thought_id uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+    reviewed_at timestamptz NOT NULL DEFAULT now(),
+    action     text NOT NULL,
+    actor      text NOT NULL DEFAULT 'user',
+    detail     jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS duplicate_resolutions (
+    left_id     uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+    right_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+    resolution  text NOT NULL,
+    actor       text NOT NULL DEFAULT 'user',
+    result      jsonb NOT NULL DEFAULT '{}'::jsonb,
+    resolved_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (left_id, right_id),
+    CHECK (left_id::text < right_id::text)
+);
+
+-- Privacy-preserving recall receipts: ids and client identity only. There is
+-- deliberately no column for the query, response, or memory content.
+CREATE TABLE IF NOT EXISTS recall_traces (
+    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    listener       text NOT NULL CHECK (listener IN ('full', 'open')),
+    client         text NOT NULL,
+    client_version text,
+    result_ids     uuid[] NOT NULL DEFAULT '{}',
+    used_ids       uuid[] NOT NULL DEFAULT '{}',
+    ignored_ids    uuid[] NOT NULL DEFAULT '{}',
+    reported_at    timestamptz
+);
+CREATE INDEX IF NOT EXISTS recall_traces_created_idx ON recall_traces (created_at DESC);
 
 CREATE OR REPLACE FUNCTION update_updated_at() RETURNS trigger AS $$
 BEGIN

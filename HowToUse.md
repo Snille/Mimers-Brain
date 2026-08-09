@@ -24,9 +24,17 @@ language model to call tools. It exposes six:
 | `search_thoughts` | Search by meaning, not words. This is the important one. |
 | `list_thoughts` | List recent memories, filtered by type, topic, person, time |
 | `capture_thought` | Save a new memory |
+| `preview_ingest` + `apply_ingest` | Preview and save approved atomic memories from long source text |
+| `report_memory_usage` | Report which recalled ids materially influenced the answer, without query content |
+| `review_memory` | Confirm or restrict agent-authored evidence (trusted LAN connection only) |
 | `thought_stats` | Totals, types, topics, people |
 | `search` + `fetch` | The same thing in the shape ChatGPT and Gemini expect |
 | `delete_thought` | LAN listener only |
+
+Agent-written memories are evidence by default. A client may set
+`user_confirmed=true` only when you directly confirmed or requested that exact
+memory. Text longer than 1,500 characters goes through `preview_ingest` and an
+approval step instead of being stored as one transcript-sized memory.
 
 Anything that speaks MCP can therefore use the memory — you do not build
 something per model.

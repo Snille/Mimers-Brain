@@ -24,9 +24,17 @@ sätt för en språkmodell att anropa verktyg. Den exponerar sex verktyg:
 | `search_thoughts` | Sök på betydelse, inte ord. Det här är det viktiga. |
 | `list_thoughts` | Lista senaste, med filter på typ, ämne, person, tid |
 | `capture_thought` | Spara ett nytt minne |
+| `preview_ingest` + `apply_ingest` | Förhandsgranska och spara godkända atomära minnen ur längre källtext |
+| `report_memory_usage` | Rapportera vilka återkallade id:n som påverkade svaret, utan frågeinnehåll |
+| `review_memory` | Bekräfta eller begränsa agentgenererad evidens (endast betrodd LAN-anslutning) |
 | `thought_stats` | Totaler, typer, ämnen, personer |
 | `search` + `fetch` | Samma sak i det format ChatGPT och Gemini förväntar sig |
 | `delete_thought` | Endast på LAN-porten |
+
+Agentens egna minnen är evidens som standard. En klient får bara sätta
+`user_confirmed=true` när du direkt bekräftade eller bad om just det minnet. Text
+längre än 1 500 tecken går genom `preview_ingest` och ett godkännandesteg i
+stället för att sparas som ett enda transkriptstort minne.
 
 Allt som talar MCP kan alltså använda minnet — du behöver inte bygga något per
 modell.

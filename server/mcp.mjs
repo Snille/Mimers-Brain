@@ -16,6 +16,8 @@ import {
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
   OPEN_SCOPE,
+  REVIEW_ACTIONS,
+  SMART_INGEST_THRESHOLD,
   TASK_STATUSES,
   VAULT_SCOPE,
 } from "./memory-model.mjs";
@@ -34,6 +36,10 @@ function render(t, { compact = false } = {}) {
   if (Array.isArray(m.people) && m.people.length) bits.push(`People: ${m.people.join(", ")}`);
   if (Array.isArray(m.systems) && m.systems.length) bits.push(`Systems: ${m.systems.join(", ")}`);
   if (m.verified_at) bits.push(`Verified: ${m.verified_at}`);
+  if (m.origin) bits.push(`Origin: ${m.origin}`);
+  if (m.review_status && m.review_status !== "confirmed") bits.push(`Review: ${m.review_status}`);
+  if (m.can_use_as_instruction === false) bits.push("EVIDENCE ONLY — not a user instruction");
+  if (m.requires_user_confirmation) bits.push("confirmation required");
   if (t.similarity != null) bits.push(`Similarity: ${(t.similarity * 100).toFixed(0)}%`);
   const body = compact
     ? `${m.title || t.content.replace(/\s+/g, " ").slice(0, 180)}\n${m.summary || t.content.replace(/\s+/g, " ").slice(0, 500)}`
@@ -104,7 +110,8 @@ export function buildServer(tiers, ctx = {}) {
       });
       note.count = rows.length;
       if (!rows.length) return text(`Nothing matched "${query}".`);
-      return text(rows.map((row) => render(row, { compact: true })).join("\n\n"));
+      const trace = await db.createRecallTrace(tiers, rows, ctx);
+      return text(`Recall trace: ${trace}\n\n${rows.map((row) => render(row, { compact: true })).join("\n\n")}`);
     } catch (e) { return fail(e); }
   }));
 
@@ -139,21 +146,97 @@ export function buildServer(tiers, ctx = {}) {
     inputSchema: {
       content: z.string(),
       tier: full ? z.enum(["open", "vault"]).default("open") : z.literal("open").default("open"),
+      user_confirmed: z.boolean().default(false).describe(
+        "True only when the user directly confirmed or requested this exact memory"),
+      source_refs: z.array(z.string()).default([]).describe("URLs or memory:<uuid> source references"),
+      artifact_refs: z.array(z.string()).default([]).describe("Paths, URLs, commits, issues, or other durable artifacts"),
     },
-  }, track("capture_thought", "write", async ({ content, tier }, note) => {
+  }, track("capture_thought", "write", async ({ content, tier, user_confirmed, source_refs, artifact_refs }, note) => {
     try {
-      const r = await db.captureThought(tiers, content, { tier });
+      if (content.length >= SMART_INGEST_THRESHOLD)
+        throw new Error(`Long source text must go through preview_ingest before it is saved`);
+      const r = await db.captureThought(tiers, content, {
+        tier, origin: "agent", userConfirmed: user_confirmed,
+        sourceRefs: source_refs, artifactRefs: artifact_refs,
+      });
       note.tier = r.tier;
       note.count = 1;
       const m = r.metadata;
       return text(
         `Saved as ${m.type || "observation"}${r.tier === "vault" ? " in the VAULT" : ""}` +
         `${m.topics?.length ? ` - ${m.topics.join(", ")}` : ""}` +
+        `${m.can_use_as_instruction ? " (confirmed)" : " (evidence only; awaiting review)"}` +
         `${r.embedded ? "" : " (no embedding - will not be findable by semantic search)"}`);
     } catch (e) { return fail(e); }
   }));
 
+  server.registerTool("preview_ingest", {
+    title: "Preview atomic memories",
+    description: `Split source text into proposed standalone memories without writing anything. Use this before saving text longer than ${SMART_INGEST_THRESHOLD} characters.`,
+    inputSchema: { content: z.string() },
+  }, track("preview_ingest", "read", async ({ content }, note) => {
+    try {
+      const out = await db.previewIngest(content, { origin: "agent" });
+      note.count = out.candidates.length;
+      return text(JSON.stringify(out));
+    } catch (e) { return fail(e); }
+  }));
+
+  server.registerTool("apply_ingest", {
+    title: "Apply reviewed atomic memories",
+    description: "Save candidates returned by preview_ingest and archive the verbatim source. Call only after the user approved the proposed memories.",
+    inputSchema: {
+      source_content: z.string(),
+      candidates: z.array(z.object({ content: z.string(), metadata: z.record(z.any()).optional() })).min(1),
+      approved: z.literal(true).describe("Must be true after explicit user approval"),
+      tier: full ? z.enum(["open", "vault"]).default("open") : z.literal("open").default("open"),
+    },
+  }, track("apply_ingest", "write", async ({ source_content, candidates, approved, tier }, note) => {
+    try {
+      if (approved !== true) throw new Error("The preview must be approved before apply_ingest");
+      const out = await db.applyIngest(tiers, {
+        source_content, candidates, tier, origin: "agent", user_confirmed: true,
+      });
+      note.count = out.count + 1;
+      note.tier = tier;
+      return text(`Saved ${out.count} reviewed memories; archived source as ${out.source_id}.`);
+    } catch (e) { return fail(e); }
+  }));
+
+  server.registerTool("report_memory_usage", {
+    title: "Report which recalled memories were used",
+    description: "After answering from a recall trace, report only the ids that materially influenced the answer and those ignored. Never send the query or answer.",
+    inputSchema: {
+      trace_id: z.string().uuid(),
+      used_ids: z.array(z.string().uuid()).default([]),
+      ignored_ids: z.array(z.string().uuid()).default([]),
+    },
+  }, track("report_memory_usage", "write", async ({ trace_id, used_ids, ignored_ids }, note) => {
+    try {
+      const out = await db.reportRecallUsage(tiers, trace_id, { used_ids, ignored_ids });
+      note.count = out.used_ids.length;
+      return text(`Recorded usage for recall trace ${trace_id}.`);
+    } catch (e) { return fail(e); }
+  }));
+
   if (full) {
+    server.registerTool("review_memory", {
+      title: "Review an agent memory",
+      description: "Confirm, restrict, reject, mark stale, or keep a memory as evidence only. Full trusted connection only.",
+      inputSchema: {
+        id: z.string().uuid(),
+        action: z.enum(REVIEW_ACTIONS),
+        note: z.string().optional(),
+      },
+    }, track("review_memory", "write", async ({ id, action, note }, usage) => {
+      try {
+        const row = await db.reviewThought(tiers, id, action, { actor: ctx.client || "user", note });
+        usage.count = 1;
+        usage.tier = row.tier;
+        return text(`Reviewed ${id}: ${row.metadata.review_status}.`);
+      } catch (e) { return fail(e); }
+    }));
+
     server.registerTool("supersede_thought", {
       title: "Replace one or more memories",
       description:
@@ -167,7 +250,9 @@ export function buildServer(tiers, ctx = {}) {
     }, track("supersede_thought", "write", async ({ old_ids, content, tier }, note) => {
       try {
         await db.validateSupersession(tiers, old_ids, tier);
-        const saved = await db.captureThought(tiers, content, { tier });
+        const saved = await db.captureThought(tiers, content, {
+          tier, origin: "agent", userConfirmed: true,
+        });
         const linked = await db.linkSupersession(tiers, saved.id, old_ids);
         note.tier = saved.tier;
         note.count = old_ids.length + 1;
@@ -204,7 +289,9 @@ export function buildServer(tiers, ctx = {}) {
     try {
       const rows = await db.searchThoughts(tiers, query, { limit: 10, threshold: 0.4 });
       note.count = rows.length;
+      const trace = rows.length ? await db.createRecallTrace(tiers, rows, ctx) : null;
       return text(JSON.stringify({
+        request_id: trace,
         results: rows.map((r) => ({
           id: r.id,
           title: r.metadata?.title || r.content.replace(/\s+/g, " ").slice(0, 80),

@@ -153,6 +153,14 @@
   }
   dialog::backdrop { background: rgba(0,0,0,.55); }
   label { display: block; font-size: 12.5px; color: var(--muted); margin: 12px 0 5px; }
+  .review-section { margin-bottom: 34px; }
+  .review-section > h2 { margin-bottom: 4px; }
+  .review-actions { flex-wrap: wrap; }
+  .duplicate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .review-memory { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .ingest-candidate { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; margin: 10px 0; }
+  .ingest-candidate textarea { width: 100%; }
+  @media (max-width: 760px) { .duplicate-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -162,6 +170,7 @@
   <div class="sub" id="hostinfo"></div>
   <nav>
     <button data-view="thoughts" class="on" data-i18n="nav.thoughts">Thoughts</button>
+    <button data-view="review" data-i18n="nav.review">Review</button>
     <button data-view="stats" data-i18n="nav.statistics">Statistics</button>
     <button data-view="connect" data-i18n="nav.connect">Connect</button>
   </nav>
@@ -197,6 +206,7 @@
 </main>
 
 <section class="content page" id="view-stats"></section>
+<section class="content page" id="view-review"></section>
 <section class="content page" id="view-connect"></section>
 
 <dialog id="login">
@@ -212,6 +222,16 @@
   <div id="login-err" class="sub" style="color:var(--danger); min-height:18px"></div>
   <div style="display:flex; justify-content:flex-end; margin-top:14px">
     <button id="login-go" data-i18n="login.unlock">Unlock</button>
+  </div>
+</dialog>
+
+<dialog id="ingest-dlg">
+  <h3 style="margin:0 0 4px" data-i18n="ingest.title">Review proposed memories</h3>
+  <div class="sub" data-i18n="ingest.description">Nothing has been saved yet. Edit or deselect proposals before applying them.</div>
+  <div id="ingest-list"></div>
+  <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:18px">
+    <button class="ghost" id="ingest-cancel" data-i18n="editor.cancel">Cancel</button>
+    <button id="ingest-apply" data-i18n="ingest.apply">Save approved memories</button>
   </div>
 </dialog>
 
@@ -316,6 +336,8 @@ function card(t) {
     m.kind ? `<span class="tag type">${esc(m.kind)}</span>` : (m.type ? `<span class="tag type">${esc(m.type)}</span>` : ""),
     m.lifecycle && m.lifecycle !== "current" ? `<span class="tag">${esc(m.lifecycle)}</span>` : "",
     m.task_status ? `<span class="tag">${esc(m.task_status)}</span>` : "",
+    m.review_status && m.review_status !== "confirmed" ? `<span class="tag vault">${esc(m.review_status)}</span>` : "",
+    m.can_use_as_instruction === false ? `<span class="tag">${esc(tr("thought.evidenceOnly"))}</span>` : "",
     m.project ? `<span class="tag">📁 ${esc(m.project)}</span>` : "",
     ...(m.topics || []).map((x) => `<span class="tag">${esc(x)}</span>`),
     ...(m.people || []).map((x) => `<span class="tag">👤 ${esc(x)}</span>`),
@@ -503,32 +525,75 @@ $("#new").onclick = () => {
   $("#dlg-text").focus();
 };
 $("#dlg-cancel").onclick = () => $("#dlg").close();
+let ingestPreview = null;
+
+function editorMetadata() {
+  return {
+    title: $("#dlg-title").value,
+    summary: $("#dlg-summary").value,
+    kind: $("#dlg-kind").value,
+    project: $("#dlg-project").value,
+    topics: $("#dlg-topics").value.split(",").map((s) => s.trim()).filter(Boolean),
+  };
+}
+
 $("#dlg-save").onclick = async () => {
   const content = $("#dlg-text").value.trim();
   if (!content) return;
   const btn = $("#dlg-save");
   btn.disabled = true; btn.textContent = tr("editor.saving");
   try {
-    const topics = $("#dlg-topics").value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (content.length >= 1500) {
+      const preview = await api("/api/ingest/preview", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, metadata: editorMetadata() }),
+      });
+      ingestPreview = { source: content, tier: $("#dlg-tier").value, ...preview };
+      $("#ingest-list").innerHTML = preview.candidates.map((item, index) => `
+        <label class="ingest-candidate"><input type="checkbox" checked data-index="${index}" />
+          <textarea rows="${Math.max(3, Math.ceil(item.content.length / 90))}">${esc(item.content)}</textarea></label>`).join("");
+      $("#dlg").close();
+      $("#ingest-dlg").showModal();
+      return;
+    }
     await api("/api/thoughts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content,
         tier: $("#dlg-tier").value,
-        metadata: {
-          title: $("#dlg-title").value,
-          summary: $("#dlg-summary").value,
-          kind: $("#dlg-kind").value,
-          project: $("#dlg-project").value,
-          topics,
-        },
+        metadata: editorMetadata(),
       }),
     });
     $("#dlg").close();
     refresh();
   } catch (e) { showError(e.message); }
   finally { btn.disabled = false; btn.textContent = tr("editor.save"); }
+};
+
+$("#ingest-cancel").onclick = () => { $("#ingest-dlg").close(); ingestPreview = null; };
+$("#ingest-apply").onclick = async () => {
+  if (!ingestPreview) return;
+  const rows = [...$("#ingest-list").querySelectorAll(".ingest-candidate")];
+  const candidates = rows.filter((row) => row.querySelector("input").checked).map((row) => {
+    const index = Number(row.querySelector("input").dataset.index);
+    return { ...ingestPreview.candidates[index], content: row.querySelector("textarea").value.trim() };
+  }).filter((item) => item.content);
+  if (!candidates.length) return showError(tr("ingest.noneSelected"));
+  const button = $("#ingest-apply");
+  button.disabled = true;
+  try {
+    await api("/api/ingest/apply", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_content: ingestPreview.source, candidates, tier: ingestPreview.tier, approved: true,
+      }),
+    });
+    $("#ingest-dlg").close();
+    ingestPreview = null;
+    refresh();
+  } catch (e) { showError(e.message); }
+  finally { button.disabled = false; }
 };
 
 async function unlock() {
@@ -552,6 +617,7 @@ $("#login-key").onkeydown = (e) => { if (e.key === "Enter") unlock(); };
 // Views. Statistics and Connect are loaded the first time they are opened -
 // there is no reason to fetch either just because someone came to read a memory.
 const views = {
+  review: { el: "#view-review", mod: "./review.mjs", loaded: false },
   stats: { el: "#view-stats", mod: "./stats.mjs", loaded: false },
   connect: { el: "#view-connect", mod: "./connect.mjs", loaded: false },
 };

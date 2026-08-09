@@ -2,14 +2,23 @@
 # must not accept vault writes, and must not serve a vault row by direct id.
 # Also checks that MCP_OPEN_KEY stays confined to /mcp on the open listener.
 #
-#   .\test-isolation.ps1                                      # localhost, keys from .env
-#   .\test-isolation.ps1 -HostName 192.0.2.41 -KeyFile k.txt  # against a deployment
+#   .\test-isolation.ps1                                      # read-only checks
+#   .\test-isolation.ps1 -Write                               # full canary suite
+#   .\test-isolation.ps1 -Json                                # machine-readable result
 param(
     [string]$HostName = "localhost",
+    [int]$FullPort = 8790,
+    [int]$OpenPort = 8791,
     [string]$KeyFile,
-    [string]$OpenKeyFile
+    [string]$OpenKeyFile,
+    [switch]$Write,
+    [switch]$Json
 )
 $ErrorActionPreference = "Stop"
+if ($Json) {
+    $InformationPreference = "SilentlyContinue"
+    $PSDefaultParameterValues['Write-Host:InformationAction'] = 'Ignore'
+}
 Set-Location $PSScriptRoot
 
 $key = if ($KeyFile) { (Get-Content $KeyFile -Raw).Trim() }
@@ -17,15 +26,54 @@ $key = if ($KeyFile) { (Get-Content $KeyFile -Raw).Trim() }
        elseif (Test-Path .env) { ((Get-Content .env | Select-String '^MCP_ACCESS_KEY=(.*)$').Matches.Groups[1].Value).Trim() }
        else { "" } # isolated local test instance with authentication disabled
 $H = @{ Authorization = "Bearer $key"; "Content-Type" = "application/json" }
-$FULL = "http://${HostName}:8790"
-$OPEN = "http://${HostName}:8791"
+$FULL = "http://${HostName}:$FullPort"
+$OPEN = "http://${HostName}:$OpenPort"
 Write-Host "Testing against $HostName" -ForegroundColor Cyan
 
-$pass = 0; $fail = 0
+$pass = 0; $fail = 0; $results = @(); $createdIds = [System.Collections.ArrayList]::new()
 function Check($name, $ok, $detail) {
+    $script:results += [pscustomobject]@{ name = $name; ok = [bool]$ok; detail = if ($ok) { "" } else { $detail } }
     if ($ok) { $script:pass++; Write-Host "  PASS  $name" -ForegroundColor Green }
     else     { $script:fail++; Write-Host "  FAIL  $name -- $detail" -ForegroundColor Red }
 }
+
+function Finish {
+    if ($Json) {
+        [pscustomobject]@{ mode = if ($Write) { "write" } else { "read-only" }; passed = $pass; failed = $fail; checks = $results } |
+            ConvertTo-Json -Depth 5
+    } else {
+        Write-Host "`n$pass passed, $fail failed`n" -ForegroundColor $(if ($fail) { "Red" } else { "Green" })
+    }
+    if ($fail) { exit 1 }
+}
+
+if (-not $Write) {
+    Write-Host "`nRead-only smoke test (use -Write for canary isolation checks)" -ForegroundColor Cyan
+    $healthFull = Invoke-RestMethod "$FULL/healthz"
+    $healthOpen = Invoke-RestMethod "$OPEN/healthz"
+    Check "FULL health endpoint" ($healthFull.ok -and $healthFull.tier -eq "full") "unexpected response"
+    Check "OPEN health endpoint" ($healthOpen.ok -and $healthOpen.tier -eq "open") "unexpected response"
+    $specFull = Invoke-RestMethod "$FULL/openapi.json"
+    $specOpen = Invoke-RestMethod "$OPEN/openapi.json"
+    Check "OpenAPI exposes recall receipts" ([bool]$specOpen.paths."/tools/report_memory_usage") "tool missing"
+    Check "OpenAPI exposes smart ingest" ([bool]$specOpen.paths."/tools/preview_ingest") "tool missing"
+    Check "OPEN hides trusted review tool" (-not [bool]$specOpen.paths."/tools/review_memory") "review tool leaked"
+    Check "FULL exposes trusted review tool" ([bool]$specFull.paths."/tools/review_memory") "tool missing"
+    $openResponse = Invoke-WebRequest "$OPEN/api/thoughts?limit=1" -Headers $H
+    Check "OPEN memory API is readable" ($openResponse.StatusCode -eq 200) "HTTP $($openResponse.StatusCode)"
+    $openStats = Invoke-RestMethod "$OPEN/api/stats" -Headers $H
+    Check "OPEN statistics expose no vault count" (-not $openStats.byTier.vault) "vault count leaked"
+    Finish
+    exit 0
+}
+
+function Cleanup {
+    foreach ($id in @($createdIds)) {
+        try { Invoke-RestMethod "$FULL/api/thoughts/$id" -Method Delete -Headers $H | Out-Null } catch {}
+    }
+}
+
+try {
 
 Write-Host "`nWriting test data through the FULL listener" -ForegroundColor Cyan
 $o = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -Body (@{
@@ -34,6 +82,7 @@ $o = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -Body (@{
 $v = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -Body (@{
     content = "VAULT test note: the password for the test system is CANARY-42."
     tier = "vault" } | ConvertTo-Json)
+[void]$createdIds.Add($o.id); [void]$createdIds.Add($v.id)
 Check "vault write kept tier=vault" ($v.tier -eq "vault") "got '$($v.tier)'"
 
 Write-Host "`nReading through the FULL listener (should see both)" -ForegroundColor Cyan
@@ -135,6 +184,7 @@ $historyOld = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -B
     content = "Luba integration test memory."; tier = "open"
     metadata = @{ type = "task"; topics = @("Networking"); people = @("Erik", "Luba") }
 } | ConvertTo-Json -Depth 5)
+[void]$createdIds.Add($historyOld.id)
 Check "legacy task gets kind=task" ($historyOld.metadata.kind -eq "task") "got '$($historyOld.metadata.kind)'"
 Check "new tasks default to pending" ($historyOld.metadata.task_status -eq "pending") "got '$($historyOld.metadata.task_status)'"
 Check "topic aliases are canonical" ($historyOld.metadata.topics -contains "network") "network missing"
@@ -146,6 +196,7 @@ $historyNew = Invoke-RestMethod "$FULL/api/thoughts/supersede" -Method Post -Hea
     old_ids = @($historyOld.id); content = "Current integration test replacement."; tier = "open"
     metadata = @{ kind = "fact"; topics = @("network") }
 } | ConvertTo-Json -Depth 5)
+[void]$createdIds.Add($historyNew.id)
 $currentRows = Invoke-RestMethod "$FULL/api/thoughts" -Headers $H
 $allRows = Invoke-RestMethod "$FULL/api/thoughts?lifecycle=all" -Headers $H
 Check "superseded row is hidden by default" (-not ($currentRows | Where-Object { $_.id -eq $historyOld.id })) "old row visible"
@@ -154,6 +205,36 @@ Check "superseded history remains readable" ([bool]($allRows | Where-Object { $_
 $historyFetched = Invoke-RestMethod "$FULL/api/thoughts/$($historyOld.id)" -Headers $H
 Check "old row is marked superseded" ($historyFetched.metadata.lifecycle -eq "superseded") "got '$($historyFetched.metadata.lifecycle)'"
 Check "history relation is navigable" ($historyFetched.relations.Count -eq 1) "relation missing"
+
+Write-Host "`nProvenance, review and smart ingest" -ForegroundColor Cyan
+Check "UI-authored memory is user-confirmed" ($o.metadata.origin -eq "user" -and $o.metadata.can_use_as_instruction) "trust defaults differ"
+$agent = Invoke-RestMethod "$FULL/tools/capture_thought" -Method Post -Headers $H -Body (@{
+    content = "Agent inference can be useful evidence but is not automatically Erik's instruction."
+    tier = "open"
+} | ConvertTo-Json)
+[void]$createdIds.Add($agent.id)
+$agentRow = Invoke-RestMethod "$FULL/api/thoughts/$($agent.id)" -Headers $H
+Check "agent memory starts pending" ($agentRow.metadata.review_status -eq "pending") "got '$($agentRow.metadata.review_status)'"
+Check "agent memory cannot instruct before review" (-not $agentRow.metadata.can_use_as_instruction) "instruction flag was true"
+$reviewed = Invoke-RestMethod "$FULL/api/thoughts/$($agent.id)/review" -Method Post -Headers $H -Body '{"action":"confirm"}'
+Check "human review can confirm an agent memory" ($reviewed.metadata.review_status -eq "confirmed" -and $reviewed.metadata.can_use_as_instruction) "review did not apply"
+
+$longSource = ("First durable procedure paragraph with enough detail to stand alone. " * 12) + "`n`n" +
+              ("Second durable decision paragraph with separate information. " * 12) + "`n`n" +
+              ("Third durable lesson paragraph that should remain independently editable. " * 12)
+$preview = Invoke-RestMethod "$FULL/api/ingest/preview" -Method Post -Headers $H -Body (@{
+    content = $longSource; metadata = @{ project = "mimers-brain"; topics = @("mimers-brain") }
+} | ConvertTo-Json -Depth 8)
+Check "long ingest returns an unwritten preview" ($preview.candidates.Count -ge 2) "got $($preview.candidates.Count) candidate(s)"
+$applied = Invoke-RestMethod "$FULL/api/ingest/apply" -Method Post -Headers $H -Body (@{
+    source_content = $longSource; candidates = @($preview.candidates); tier = "open"; approved = $true
+} | ConvertTo-Json -Depth 10)
+[void]$createdIds.Add($applied.source_id)
+foreach ($memory in @($applied.memories)) { [void]$createdIds.Add($memory.id) }
+$sourceRow = Invoke-RestMethod "$FULL/api/thoughts/$($applied.source_id)" -Headers $H
+$atomRow = Invoke-RestMethod "$FULL/api/thoughts/$($applied.memories[0].id)" -Headers $H
+Check "ingest archives the verbatim source" ($sourceRow.metadata.lifecycle -eq "archived") "source is current"
+Check "ingest records derived_from provenance" ([bool]($atomRow.relations | Where-Object { $_.relation -eq "derived_from" })) "relation missing"
 
 try {
     Invoke-RestMethod "$OPEN/tools/capture_thought" -Method Post -Headers $H -Body (@{
@@ -250,13 +331,12 @@ Check "OPEN usage counts only open-tier memories" ($uOpen.memories.total -lt $uF
 $raw = (Invoke-WebRequest "$OPEN/api/usage" -Headers $H).Content
 Check "usage statistics contain no memory content" ($raw -notmatch "CANARY") "the secret appeared in the statistics"
 
+} finally {
 Write-Host "`nCleaning up test data" -ForegroundColor Cyan
-foreach ($id in @($historyNew.id, $historyOld.id, $v.id, $o.id)) {
-    try { Invoke-RestMethod "$FULL/api/thoughts/$id" -Method Delete -Headers $H | Out-Null } catch {}
+Cleanup
 }
 $left = Invoke-RestMethod "$FULL/api/thoughts?lifecycle=all" -Headers $H |
-    Where-Object { $_.id -in @($historyNew.id, $historyOld.id, $v.id, $o.id) }
+    Where-Object { $_.id -in @($createdIds) }
 Check "test rows removed" (-not $left) "test rows still present"
 
-Write-Host "`n$pass passed, $fail failed`n" -ForegroundColor $(if ($fail) { "Red" } else { "Green" })
-if ($fail) { exit 1 }
+Finish

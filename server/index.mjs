@@ -266,10 +266,14 @@ function connectInfo(req, { tiers, allowUrlKey }) {
       { name: "search_thoughts", what: "Search by meaning. The important one." },
       { name: "list_thoughts", what: "Recent memories, filtered by kind, status, project, topic, person, system or time" },
       { name: "capture_thought", what: "Save a new memory" },
+      { name: "preview_ingest", what: "Preview atomic memories from a long source" },
+      { name: "apply_ingest", what: "Save only user-approved ingest proposals" },
+      { name: "report_memory_usage", what: "Report which recalled ids influenced the answer" },
       { name: "thought_stats", what: "Totals, kinds, statuses, projects, topics, people and systems" },
       { name: "search", what: "Search, in the shape ChatGPT and Gemini expect" },
       { name: "fetch", what: "Fetch one memory by id" },
       ...(full ? [
+        { name: "review_memory", what: "Review trust and allowed use of an agent memory" },
         { name: "supersede_thought", what: "Replace memories and preserve navigable history" },
         { name: "delete_thought", what: "LAN listener only" },
       ] : []),
@@ -398,7 +402,10 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
         const name = path.slice("/tools/".length);
         const t0 = Date.now();
         try {
-          const { tool, out } = await callTool(tiers, name, args);
+          const who = clientOf(req);
+          const { tool, out } = await callTool(tiers, name, args, {
+            client: who.name, clientVersion: who.version,
+          });
           note(tool.name, tool.action, {
             results: out?.count ?? null,
             tier: out?.tier ?? null,
@@ -438,6 +445,48 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
             days: Math.min(Number(url.searchParams.get("days")) || 60, 400),
           }));
 
+        if (path === "/api/review" && req.method === "GET")
+          return json(res, 200, {
+            pending: await db.reviewQueue(tiers, {
+              limit: Math.min(Number(url.searchParams.get("limit")) || 100, 500),
+            }),
+            duplicates: await db.duplicateCandidates(tiers, {
+              threshold: Number(url.searchParams.get("threshold")) || 0.86,
+              limit: 50,
+            }),
+            recalls: await db.recallTraces(tiers, { limit: 50 }),
+          });
+
+        if (path === "/api/ingest/preview" && req.method === "POST") {
+          const { content, metadata } = await body(req);
+          if (!content?.trim()) return json(res, 400, { error: "Empty source text" });
+          const out = await db.previewIngest(content.trim(), { metadata, origin: "user" });
+          note("ui.ingest.preview", "read", { results: out.candidates.length });
+          return json(res, 200, out);
+        }
+
+        if (path === "/api/ingest/apply" && req.method === "POST") {
+          const payload = await body(req);
+          if (payload.approved !== true)
+            return json(res, 400, { error: "The preview must be approved first" });
+          const out = await db.applyIngest(tiers, {
+            ...payload, origin: "user", user_confirmed: true,
+          });
+          note("ui.ingest.apply", "write", { tier: payload.tier || "open", results: out.count + 1 });
+          publishSoon();
+          return json(res, 200, out);
+        }
+
+        if (path === "/api/duplicates/resolve" && req.method === "POST") {
+          const out = await db.resolveDuplicate(tiers, { ...(await body(req)), actor: "user" });
+          note("ui.duplicate.resolve", "write", { results: 1 });
+          publishSoon();
+          return json(res, 200, out);
+        }
+
+        if (path === "/api/recall-traces" && req.method === "GET")
+          return json(res, 200, await db.recallTraces(tiers, { limit: 200 }));
+
         if (path === "/api/mqtt" && req.method === "GET")
           return json(res, 200, mqttStatus());
 
@@ -474,7 +523,9 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
         if (path === "/api/thoughts" && req.method === "POST") {
           const { content, tier, metadata } = await body(req);
           if (!content?.trim()) return json(res, 400, { error: "Empty memory" });
-          const saved = await db.captureThought(tiers, content.trim(), { tier, metadata });
+          const saved = await db.captureThought(tiers, content.trim(), {
+            tier, metadata, origin: "user", userConfirmed: true,
+          });
           note("ui.capture", "write", { tier: saved.tier, results: 1 });
           publishSoon();
           return json(res, 200, saved);
@@ -496,11 +547,24 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
             return json(res, 400, { error: "old_ids is required" });
           if (!content?.trim()) return json(res, 400, { error: "Empty replacement memory" });
           await db.validateSupersession(tiers, old_ids, tier);
-          const saved = await db.captureThought(tiers, content.trim(), { tier, metadata });
+          const saved = await db.captureThought(tiers, content.trim(), {
+            tier, metadata, origin: "user", userConfirmed: true,
+          });
           const linked = await db.linkSupersession(tiers, saved.id, old_ids);
           note("ui.supersede", "write", { tier: saved.tier, results: old_ids.length + 1 });
           publishSoon();
           return json(res, 200, { ...saved, ...linked });
+        }
+
+        const review = path.match(/^\/api\/thoughts\/([0-9a-f-]{36})\/review$/i);
+        if (review && req.method === "POST") {
+          const { action, note: reviewNote } = await body(req);
+          const row = await db.reviewThought(tiers, review[1], action, {
+            actor: "user", note: reviewNote,
+          });
+          note("ui.review", "write", { tier: row.tier, results: 1 });
+          publishSoon();
+          return json(res, 200, row);
         }
 
         const m = path.match(/^\/api\/thoughts\/([0-9a-f-]{36})$/i);
@@ -564,7 +628,7 @@ startMqtt();
 // Once a day, and once at boot. The usage log is small - a few hundred bytes a
 // call - but it is the one table that grows without anyone deciding to add to it.
 const prune = () => db.pruneUsage()
-  .then((n) => n && console.log(`Pruned ${n} usage rows past retention.`))
+  .then((n) => n && console.log(`Pruned ${n} telemetry rows past retention.`))
   .catch((e) => console.error("prune:", e.message));
 prune();
 setInterval(prune, 24 * 60 * 60 * 1000).unref();

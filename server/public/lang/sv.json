@@ -15,6 +15,7 @@
   },
   "nav": {
     "thoughts": "Tankar",
+    "review": "Granska",
     "statistics": "Statistik",
     "connect": "Anslut"
   },
@@ -72,7 +73,49 @@
     "delete": "Ta bort",
     "confirmDelete": "Ta bort den här tanken permanent?",
     "history": "Historik",
+    "evidenceOnly": "endast evidens",
     "stale": "verifieringen kan vara gammal"
+  },
+  "ingest": {
+    "title": "Granska föreslagna minnen",
+    "description": "Inget har sparats ännu. Redigera eller avmarkera förslagen innan du tillämpar dem.",
+    "apply": "Spara godkända minnen",
+    "noneSelected": "Välj minst ett minne."
+  },
+  "review": {
+    "empty": "Inget att granska.",
+    "pending": {
+      "title": "Tillitsgranskning",
+      "description": "Agentgenererade minnen är evidens tills du bekräftar hur de får användas."
+    },
+    "duplicates": {
+      "title": "Möjliga dubbletter",
+      "description": "Semantiskt liknande minnen föreslås här men ändras aldrig automatiskt."
+    },
+    "actions": {
+      "confirm": "Bekräfta",
+      "evidence_only": "Endast evidens",
+      "restrict": "Begränsa",
+      "stale": "Markera gammalt",
+      "reject": "Avvisa",
+      "keep_both": "Behåll båda",
+      "related": "Relaterade",
+      "keep_left": "Behåll vänster",
+      "keep_right": "Behåll höger",
+      "merge": "Slå ihop"
+    },
+    "mergePrompt": "Redigera det sammanslagna minnet:",
+    "recalls": {
+      "title": "Återkallningskvitton",
+      "description": "Visar endast klient och minnes-ID:n — aldrig sökfrågan eller svaret.",
+      "when": "Tid",
+      "client": "Klient",
+      "returned": "Returnerade",
+      "used": "Använda",
+      "status": "Status",
+      "reported": "rapporterat",
+      "awaiting": "väntar på rapport"
+    }
   },
   "tiers": {
     "open": "öppen",
@@ -237,6 +280,10 @@
       "search_thoughts": "Sök efter betydelse. Det viktigaste verktyget.",
       "list_thoughts": "Senaste minnen filtrerade på typ, ämne, person och tid",
       "capture_thought": "Spara ett nytt minne",
+      "preview_ingest": "Förhandsgranska atomära minnen ur en längre källa",
+      "apply_ingest": "Spara enbart användargodkända förslag",
+      "report_memory_usage": "Rapportera vilka återkallade minnen som användes",
+      "review_memory": "Granska tillit och tillåten användning",
       "supersede_thought": "Ersätt minnen men behåll navigerbar historik",
       "thought_stats": "Summor, typer, ämnen och personer",
       "search": "Sökning i formen som ChatGPT och Gemini förväntar sig",

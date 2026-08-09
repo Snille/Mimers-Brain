@@ -22,6 +22,8 @@ import {
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
   OPEN_SCOPE,
+  REVIEW_ACTIONS,
+  SMART_INGEST_THRESHOLD,
   TASK_STATUSES,
   VAULT_SCOPE,
 } from "./memory-model.mjs";
@@ -51,6 +53,14 @@ function memory(t) {
     systems: m.systems || [],
     verified_at: m.verified_at || null,
     valid_for_version: m.valid_for_version || null,
+    origin: m.origin || "legacy",
+    provenance: m.provenance || "imported",
+    review_status: m.review_status || "confirmed",
+    can_use_as_instruction: m.can_use_as_instruction !== false,
+    can_use_as_evidence: m.can_use_as_evidence !== false,
+    requires_user_confirmation: Boolean(m.requires_user_confirmation),
+    source_refs: m.source_refs || [],
+    artifact_refs: m.artifact_refs || [],
     tier: t.tier,
     created_at: t.created_at,
     updated_at: t.updated_at,
@@ -69,7 +79,7 @@ function uuid(v) {
   return s;
 }
 
-export function toolsFor(tiers) {
+export function toolsFor(tiers, ctx = {}) {
   const full = tiers.includes("vault");
   const scope = full ? VAULT_SCOPE : OPEN_SCOPE;
 
@@ -99,7 +109,8 @@ export function toolsFor(tiers) {
         const rows = await db.searchThoughts(tiers, String(query).trim(), {
           limit, threshold, kind, lifecycle, taskStatus: task_status, project,
         });
-        return { count: rows.length, results: rows.map(memory) };
+        const request_id = rows.length ? await db.createRecallTrace(tiers, rows, ctx) : null;
+        return { request_id, count: rows.length, results: rows.map(memory) };
       },
     },
     {
@@ -141,11 +152,22 @@ export function toolsFor(tiers) {
         properties: {
           content: str("The memory, as a standalone statement"),
           tier: { type: "string", enum: full ? ["open", "vault"] : ["open"], default: "open" },
+          user_confirmed: {
+            type: "boolean", default: false,
+            description: "True only when the user directly confirmed or requested this exact memory",
+          },
+          source_refs: { type: "array", items: str("A source URL or memory:<uuid> reference"), default: [] },
+          artifact_refs: { type: "array", items: str("A durable path, URL, commit, issue, or artifact"), default: [] },
         },
       },
-      async run({ content, tier = "open" }) {
+      async run({ content, tier = "open", user_confirmed = false, source_refs = [], artifact_refs = [] }) {
         if (!String(content || "").trim()) throw new BadRequest("content is required");
-        const r = await db.captureThought(tiers, String(content).trim(), { tier });
+        if (String(content).length >= SMART_INGEST_THRESHOLD)
+          throw new BadRequest("Long source text must go through preview_ingest before it is saved");
+        const r = await db.captureThought(tiers, String(content).trim(), {
+          tier, origin: "agent", userConfirmed: user_confirmed,
+          sourceRefs: source_refs, artifactRefs: artifact_refs,
+        });
         publishSoon();
         return {
           id: r.id,
@@ -155,8 +177,73 @@ export function toolsFor(tiers) {
           embedded: r.embedded,
           // Said plainly rather than left to be inferred from `embedded: false`:
           // a memory with no vector is saved but invisible to semantic search.
-          note: r.embedded ? "Saved." : "Saved, but with no embedding - it will not be found by semantic search.",
+          review_status: r.metadata.review_status,
+          can_use_as_instruction: r.metadata.can_use_as_instruction,
+          note: `${r.metadata.can_use_as_instruction ? "Saved as confirmed memory." : "Saved as evidence only; awaiting review."}` +
+            `${r.embedded ? "" : " No embedding - it will not be found by semantic search."}`,
         };
+      },
+    },
+    {
+      name: "preview_ingest",
+      action: "read",
+      summary: "Preview atomic memories",
+      description: `Split source text into proposed standalone memories without writing. Use before saving text longer than ${SMART_INGEST_THRESHOLD} characters.`,
+      schema: {
+        type: "object", required: ["content"],
+        properties: { content: str("The verbatim source text") },
+      },
+      async run({ content }) {
+        if (!String(content || "").trim()) throw new BadRequest("content is required");
+        return db.previewIngest(String(content).trim(), { origin: "agent" });
+      },
+    },
+    {
+      name: "apply_ingest",
+      action: "write",
+      summary: "Apply reviewed atomic memories",
+      description: "Save previewed candidates and archive the verbatim source. Call only after explicit user approval.",
+      schema: {
+        type: "object", required: ["source_content", "candidates", "approved"],
+        properties: {
+          source_content: str("The same verbatim source passed to preview_ingest"),
+          candidates: {
+            type: "array", minItems: 1,
+            items: {
+              type: "object", required: ["content"],
+              properties: { content: str("Approved atomic memory"), metadata: { type: "object" } },
+            },
+          },
+          approved: { type: "boolean", const: true },
+          tier: { type: "string", enum: full ? ["open", "vault"] : ["open"], default: "open" },
+        },
+      },
+      async run({ source_content, candidates, approved, tier = "open" }) {
+        if (approved !== true) throw new BadRequest("The preview must be approved first");
+        const out = await db.applyIngest(tiers, {
+          source_content, candidates, tier, origin: "agent", user_confirmed: true,
+        });
+        publishSoon();
+        return out;
+      },
+    },
+    {
+      name: "report_memory_usage",
+      action: "write",
+      summary: "Report recalled memory usage",
+      description: "Report which ids from a recall trace influenced the answer. Never include the query or answer.",
+      schema: {
+        type: "object", required: ["trace_id"],
+        properties: {
+          trace_id: str("Recall trace uuid returned by search_thoughts"),
+          used_ids: { type: "array", items: str("A returned memory uuid"), default: [] },
+          ignored_ids: { type: "array", items: str("A returned memory uuid"), default: [] },
+        },
+      },
+      async run({ trace_id, used_ids = [], ignored_ids = [] }) {
+        return db.reportRecallUsage(tiers, uuid(trace_id), {
+          used_ids: used_ids.map(uuid), ignored_ids: ignored_ids.map(uuid),
+        });
       },
     },
     {
@@ -189,6 +276,28 @@ export function toolsFor(tiers) {
 
   if (full) {
     tools.push({
+      name: "review_memory",
+      action: "write",
+      summary: "Review an agent memory",
+      description: "Confirm, restrict, reject, mark stale, or retain a memory as evidence only.",
+      schema: {
+        type: "object", required: ["id", "action"],
+        properties: {
+          id: str("The memory uuid"),
+          action: { type: "string", enum: REVIEW_ACTIONS },
+          note: str("Optional short review note"),
+        },
+      },
+      async run({ id, action, note }) {
+        const row = await db.reviewThought(tiers, uuid(id), action, {
+          actor: ctx.client || "user", note,
+        });
+        publishSoon();
+        return memory(row);
+      },
+    });
+
+    tools.push({
       name: "supersede_thought",
       action: "write",
       summary: "Replace one or more memories",
@@ -209,7 +318,9 @@ export function toolsFor(tiers) {
         const ids = old_ids.map(uuid);
         if (!String(content || "").trim()) throw new BadRequest("content is required");
         await db.validateSupersession(tiers, ids, tier);
-        const saved = await db.captureThought(tiers, String(content).trim(), { tier });
+        const saved = await db.captureThought(tiers, String(content).trim(), {
+          tier, origin: "agent", userConfirmed: true,
+        });
         const linked = await db.linkSupersession(tiers, saved.id, ids);
         publishSoon();
         return { id: saved.id, tier: saved.tier, superseded_ids: linked.superseded_ids };
@@ -295,8 +406,8 @@ export function spec(tiers, { baseUrl, version, listener }) {
 
 // Dispatch. Returns the tool's result; throws with .status set for anything the
 // caller got wrong.
-export async function callTool(tiers, name, args) {
-  const tool = toolsFor(tiers).find((t) => t.name === name);
+export async function callTool(tiers, name, args, ctx = {}) {
+  const tool = toolsFor(tiers, ctx).find((t) => t.name === name);
   if (!tool) {
     const e = new Error(`Unknown tool "${name}"`);
     e.status = 404;
