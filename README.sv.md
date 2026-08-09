@@ -140,6 +140,19 @@ VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient 
 återgivna med *den här* instansens adresser, nycklar och verktygslista i stället
 för platshållare. Kopieringsknappar ger färdiga kommandon och färdig JSON.
 
+Samma sida visar också en kopierbar **minnespolicy** för alla modeller. MCP-klienter
+får exakt den policyn vid initieringen; OpenAPI-klienter får den i
+`info.description` och `x-memory-policy`. Om en klient ignorerar instruktioner på
+protokollnivå klistras policyn in i dess globala instruktioner eller
+systeminstruktioner. För Codex är den dokumenterade beständiga reservvägen
+`~/.codex/AGENTS.md`.
+
+Policyn säger åt modellerna att söka innan de svarar om Erik eller hans system,
+hämta fullständiga detaljer bara vid behov, spara varaktiga slutsatser i stället
+för småprat, använda navigerbar ersättning vid rättelser och aldrig lagra råa
+hemligheter. Servern fortsätter samtidigt att validera nivåer och metadata,
+eftersom instruktioner i sig inte är en säkerhetsgräns.
+
 Nycklarna är maskerade tills du ber om dem, och en regel avgör vilka som alls
 ligger på sidan: `MCP_ACCESS_KEY` serveras **bara av LAN-lyssnaren**. Att nå
 gränssnittet via proxyn betyder att autentiseraren släppte in dig, men att skicka

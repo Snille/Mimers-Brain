@@ -151,6 +151,12 @@
   "connect": {
     "loading": "Hämtar …",
     "fetchError": "Kunde inte hämta anslutningsuppgifterna.",
+    "policy": {
+      "title": "En policy för alla modeller",
+      "description": "MCP-klienter får policyn som serverinstruktioner. Klistra in samma text i klientens globala instruktioner eller systeminstruktioner om den inte stöder MCP-serverinstruktioner.",
+      "copyTitle": "Minnespolicy",
+      "note": "Behåll texten oförändrad så att alla klienter följer samma regler för sökning, lagring, ersättning och hemligheter."
+    },
     "addresses": {
       "title": "De två adresserna",
       "description": "Valvet serveras bara av den första adressen och lagrar känslig kontext och SECRET_REF-pekare. Råa lösenord, tokens och nycklar får aldrig sparas på någon nivå.",
@@ -191,7 +197,8 @@
       "title": "VS Code (Codex)",
       "description": "Editorn öppnar anslutningen från din egen maskin, så LAN-adressen fungerar och du får hela valvet. Vilken modell som svarar spelar ingen roll för <i>åtkomsten</i> — men det spelar roll för <i>innehållet</i>: varje valvrad ett verktyg returnerar hamnar i kontexten och skickas vidare till modelleverantören i nästa tur. Peka på den publika adressen i stället om det inte är lämpligt.",
       "environment": "Nyckeln stannar utanför configfilen",
-      "note": "Sätt <code>MIMERS_VALV_KEY</code> som användarvariabel och starta om editorn, annars ärver inte extension-värden den. <code>codex</code>-binären ligger inne i tillägget, inte på PATH."
+      "note": "Sätt <code>MIMERS_VALV_KEY</code> som användarvariabel och starta om editorn, annars ärver inte extension-värden den. <code>codex</code>-binären ligger inne i tillägget, inte på PATH.",
+      "policyNote": "Som reserv kan du lägga den kopierade policyn i <code>~/.codex/AGENTS.md</code>. Codex läser globala AGENTS.md-instruktioner i början av varje körning."
     },
     "claudeDesktop": {
       "title": "Claude Desktop — chattsidan (connector)",
@@ -204,9 +211,9 @@
     "openWebui": {
       "title": "Open WebUI",
       "description": "Mimers Brain har en egen OpenAPI-yta bredvid MCP, så Open WebUI behöver ingen översättningsproxy.",
-      "config": "Verktygsserverns URL",
-      "start": "Konfigurera bearer-token",
-      "note": "Använd <code>http://&lt;brain-host&gt;:8791</code> på hemnätet eller Brains publika URL och ange MCP_ACCESS_KEY som bearer-token."
+      "config": "OpenAPI-dokumentets URL",
+      "auth": "Bearer-token",
+      "note": "Använd MCP_ACCESS_KEY som token. URL:en går direkt till Mimers Brain; ingen mcpo-översättningsproxy behövs."
     },
     "otherClients": {
       "title": "ChatGPT, Gemini och andra",

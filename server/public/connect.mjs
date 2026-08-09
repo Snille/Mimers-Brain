@@ -106,6 +106,18 @@ function keyCard() {
     </div>`;
 }
 
+function policyCard() {
+  return `
+    <div class="card">
+      <h3>${esc(t("connect.policy.title"))}</h3>
+      <p class="sub">${t("connect.policy.description")}</p>
+      ${block(t("connect.policy.copyTitle"), () => cfg.memoryPolicy, {
+        lang: "text",
+        note: t("connect.policy.note"),
+      })}
+    </div>`;
+}
+
 function clientCards() {
   const lan = cfg.lanUrl || "http://<LAN-IP>:8790";
   const pub = cfg.publicUrl || t("connect.addresses.publicPlaceholder");
@@ -132,6 +144,7 @@ function clientCards() {
       ${block(t("connect.codex.environment"), () =>
         `codex mcp add mimers-brain --url ${lan}/mcp --bearer-token-env-var MIMERS_VALV_KEY`,
         { note: t("connect.codex.note") })}
+      <p class="sub">${t("connect.codex.policyNote")}</p>
     </div>`);
 
   if (cfg.hasOpenKey) cards.push(`
@@ -149,16 +162,8 @@ function clientCards() {
     <div class="card">
       <h3>${esc(t("connect.openWebui.title"))}</h3>
       <p class="sub">${t("connect.openWebui.description")}</p>
-      ${block(t("connect.openWebui.config"), (a) => JSON.stringify({
-        mcpServers: {
-          "mimers-brain": {
-            type: "streamable-http",
-            url: `${pub}/mcp`,
-            headers: { Authorization: `Bearer ${a}` },
-          },
-        },
-      }, null, 2), { lang: "json" })}
-      ${block(t("connect.openWebui.start"), () => `uvx mcpo --port 8000 --config config.json`,
+      ${block(t("connect.openWebui.config"), () => `${pub}/openapi.json`)}
+      ${block(t("connect.openWebui.auth"), (a) => `Bearer ${a}`,
         { note: t("connect.openWebui.note") })}
     </div>`);
 
@@ -204,7 +209,7 @@ function clientCards() {
 }
 
 function draw() {
-  root.innerHTML = addresses() + keyCard() + clientCards();
+  root.innerHTML = addresses() + policyCard() + keyCard() + clientCards();
 
   root.querySelector("#reveal").onclick = () => { reveal = !reveal; draw(); };
 

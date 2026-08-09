@@ -105,6 +105,30 @@ Check "OPEN spec offers no vault tier" ($tierEnum -notcontains "vault") "vault w
 $captureDescription = $specFull.paths."/tools/capture_thought".post.description
 Check "capture guidance forbids raw secrets" ($captureDescription -match "never store raw") "safety rule missing"
 Check "capture guidance does not invite passwords" ($captureDescription -notmatch "vault \(keys, passwords, tokens\)") "old unsafe wording remains"
+$policy = $specFull."x-memory-policy"
+Check "OpenAPI publishes the central memory policy" ($policy -match "search Mimers Brain first" -and
+    $policy -match "supersede_thought" -and $policy -match "Never store raw") "policy missing or incomplete"
+Check "OpenAPI info carries the same policy" ($specFull.info.description -match "search Mimers Brain first") "policy missing from info.description"
+
+$mcpHeaders = $H.Clone()
+$mcpHeaders.Accept = "application/json, text/event-stream"
+$initRpc = @{
+    jsonrpc = "2.0"; id = 901; method = "initialize"
+    params = @{
+        protocolVersion = "2025-06-18"; capabilities = @{}
+        clientInfo = @{ name = "mimers-policy-test"; version = "1.0" }
+    }
+} | ConvertTo-Json -Depth 6
+$initRaw = (Invoke-WebRequest "$FULL/mcp" -Method Post -Headers $mcpHeaders -Body $initRpc).Content.Trim()
+if ($initRaw.StartsWith("{")) {
+    $initResult = $initRaw | ConvertFrom-Json
+} else {
+    $dataLine = $initRaw -split "`n" | Where-Object { $_ -match '^data:\s*' } | Select-Object -First 1
+    $initResult = ($dataLine -replace '^data:\s*', '') | ConvertFrom-Json
+}
+Check "MCP initialize publishes the central memory policy" ($initResult.result.instructions -match "search Mimers Brain first" -and
+    $initResult.result.instructions -match "Connection scope") "instructions missing"
+Check "MCP reports the deployed app version" ($initResult.result.serverInfo.version -eq $specFull.info.version) "MCP and OpenAPI versions differ"
 
 Write-Host "`nNavigable supersession and metadata v2" -ForegroundColor Cyan
 $historyOld = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -Body (@{
@@ -209,6 +233,7 @@ if ($key) {
     Check "FULL /api/connect provides the vault key" (-not [string]::IsNullOrEmpty($cFull.accessKey)) "nothing to copy"
 }
 Check "OPEN /api/connect hides delete_thought" ($cOpen.tools.name -notcontains "delete_thought") "it was listed"
+Check "connection guide exposes the memory policy" ($cFull.memoryPolicy -eq $policy) "policy differs from OpenAPI"
 
 Write-Host "`nUsage statistics" -ForegroundColor Cyan
 $uFull = Invoke-RestMethod "$FULL/api/usage" -Headers $H

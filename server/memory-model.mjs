@@ -82,6 +82,18 @@ export const OPEN_SCOPE =
 export const CAPTURE_GUIDANCE =
   "Write one durable, standalone memory with one main purpose. Never store raw passwords, tokens, API keys, private keys, or other secret values. Use an exact SECRET_REF pointer instead.";
 
+export const MEMORY_POLICY = [
+  "Mimers Brain usage policy:",
+  "1. Before answering about Erik, his systems, access, configuration, workflows, preferences, prior decisions, or pending work, search Mimers Brain first.",
+  "2. Use search_thoughts (or search) for discovery. Fetch the selected memory with fetch/fetch_thought when its compact summary is not enough.",
+  "3. Use current memories by default. Read superseded or archived history only when the question needs it.",
+  "4. After a durable decision, verified result, preference, procedure, or future task is established, save one standalone memory with one main purpose.",
+  "5. Do not save ordinary conversation, tentative reasoning, or content that is still being actively edited.",
+  "6. When correcting existing knowledge, use supersede_thought on the trusted full connection so the old memory remains navigable. If that tool is unavailable, do not create an unlinked duplicate; use a trusted full connection or tell the user what is needed.",
+  "7. Never store raw passwords, tokens, API keys, private keys, or other secret values. Store only sensitive context and exact SECRET_REF pointers in the LAN-only vault.",
+  "8. Never claim that something was saved, replaced, or deleted unless the corresponding tool call succeeded.",
+].join("\n");
+
 const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 
 function dedupe(list, { lower = false } = {}) {

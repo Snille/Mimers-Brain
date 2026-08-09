@@ -18,6 +18,7 @@ import { timingSafeEqual, createHash } from "node:crypto";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildServer } from "./mcp.mjs";
+import { MEMORY_POLICY } from "./memory-model.mjs";
 import { spec, callTool } from "./openapi.mjs";
 import * as db from "./lib.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
@@ -260,6 +261,7 @@ function connectInfo(req, { tiers, allowUrlKey }) {
     // fetch it instead of pretending the key is unset.
     accessKey: full ? ACCESS_KEY || null : null,
     openKey: OPEN_KEY || null,
+    memoryPolicy: MEMORY_POLICY,
     tools: [
       { name: "search_thoughts", what: "Search by meaning. The important one." },
       { name: "list_thoughts", what: "Recent memories, filtered by kind, status, project, topic, person, system or time" },
@@ -341,6 +343,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
 
         const who = clientOf(req);
         const server = buildServer(tiers, {
+          version: VERSION,
           listener: label,
           client: who.name,
           clientVersion: who.version,

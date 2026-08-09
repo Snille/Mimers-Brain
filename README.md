@@ -139,6 +139,18 @@ Code, the Claude Desktop connector, Open WebUI, ChatGPT, a generic MCP client â€
 rendered with *this* instance's addresses, keys and tool list rather than
 placeholders. Copy buttons hand over ready-made commands and JSON.
 
+The same page also exposes one copyable **memory policy** for every model. MCP
+clients receive that exact policy during initialization; OpenAPI clients receive
+it in `info.description` and `x-memory-policy`. If a client ignores protocol-level
+instructions, paste the policy into its global or system instructions. For Codex,
+the documented persistent fallback is `~/.codex/AGENTS.md`.
+
+The policy tells models to search before answering about Erik or his systems,
+fetch full details only when needed, save durable conclusions rather than chat,
+use navigable supersession for corrections, and never store raw secrets. The
+server still validates tiers and metadata because instructions alone are not a
+security boundary.
+
 Keys are masked until you ask for them, and one rule decides which are on the
 page at all: `MCP_ACCESS_KEY` is served **only by the LAN listener**. Reaching
 the UI through the proxy means the authenticator let you in, but sending the

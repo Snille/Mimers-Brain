@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { spec, toolsFor } from "../openapi.mjs";
+import { MEMORY_POLICY } from "../memory-model.mjs";
 
 test("open and full OpenAPI surfaces keep the tier boundary", () => {
   const open = toolsFor(["open"]);
@@ -30,5 +31,5 @@ test("the OpenAPI document exposes v2 filters", () => {
   for (const name of ["kind", "lifecycle", "task_status", "project"]) {
     assert.ok(properties[name], `${name} is missing`);
   }
+  assert.equal(document["x-memory-policy"], MEMORY_POLICY);
 });
-

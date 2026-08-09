@@ -151,6 +151,12 @@
   "connect": {
     "loading": "Loading …",
     "fetchError": "Could not load the connection details.",
+    "policy": {
+      "title": "One policy for every model",
+      "description": "MCP clients receive this policy as server instructions. Paste the same text into the client's global or system instructions when it does not support MCP server instructions.",
+      "copyTitle": "Memory policy",
+      "note": "Keep this text unchanged so every client follows the same retrieval, capture, supersession and secret-handling rules."
+    },
     "addresses": {
       "title": "The two addresses",
       "description": "The vault is served only by the first address and stores sensitive context and SECRET_REF pointers. Raw passwords, tokens and keys must never be stored in either tier.",
@@ -191,7 +197,8 @@
       "title": "VS Code (Codex)",
       "description": "The editor opens the connection from your own machine, so the LAN address works and gives access to the full vault. The model answering does not affect <i>access</i>, but it does affect <i>content</i>: every vault row returned by a tool enters the context and is sent to the model provider on the next turn. Use the public address instead if that is not appropriate.",
       "environment": "Keep the key out of the config file",
-      "note": "Set <code>MIMERS_VALV_KEY</code> as a user environment variable and restart the editor so the extension inherits it. The <code>codex</code> binary lives inside the extension and is not normally on PATH."
+      "note": "Set <code>MIMERS_VALV_KEY</code> as a user environment variable and restart the editor so the extension inherits it. The <code>codex</code> binary lives inside the extension and is not normally on PATH.",
+      "policyNote": "As a fallback, put the copied policy in <code>~/.codex/AGENTS.md</code>. Codex reads global AGENTS.md guidance at the start of each run."
     },
     "claudeDesktop": {
       "title": "Claude Desktop — chat connector",
@@ -204,9 +211,9 @@
     "openWebui": {
       "title": "Open WebUI",
       "description": "Mimers Brain has a native OpenAPI tool surface beside MCP, so Open WebUI needs no translation proxy.",
-      "config": "Tool server URL",
-      "start": "Configure the bearer token",
-      "note": "Use <code>http://&lt;brain-host&gt;:8791</code> on the LAN or the public Brain URL, then provide MCP_ACCESS_KEY as the bearer token."
+      "config": "OpenAPI document URL",
+      "auth": "Bearer token",
+      "note": "Use MCP_ACCESS_KEY as the token. The URL points directly to Mimers Brain; no mcpo translation proxy is needed."
     },
     "otherClients": {
       "title": "ChatGPT, Gemini and others",

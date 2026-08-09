@@ -12,6 +12,7 @@ import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
 import {
   CAPTURE_GUIDANCE,
+  MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
   OPEN_SCOPE,
@@ -42,9 +43,12 @@ function render(t, { compact = false } = {}) {
 
 export function buildServer(tiers, ctx = {}) {
   const full = tiers.includes("vault");
+  const scope = full ? VAULT_SCOPE : OPEN_SCOPE;
   const server = new McpServer({
     name: full ? "mimers-brain" : "mimers-brain-open",
-    version: "0.1.0",
+    version: ctx.version || "development",
+  }, {
+    instructions: `${MEMORY_POLICY}\n\nConnection scope: ${scope}`,
   });
 
   // Every tool is wrapped so the usage log gets a row without each handler
@@ -78,11 +82,9 @@ export function buildServer(tiers, ctx = {}) {
     return out;
   };
 
-  const scope = full ? VAULT_SCOPE : OPEN_SCOPE;
-
   server.registerTool("search_thoughts", {
     title: "Search the memory",
-    description: `Search the memory by meaning. Reach for this first whenever you need to know how a system is accessed or how something works. ${scope}`,
+    description: `Search the memory by meaning. Use this before answering about Erik, his systems, access, configuration, workflows, preferences, prior decisions, or pending work. ${scope}`,
     inputSchema: {
       query: z.string().describe("What you are looking for"),
       // 5, not 10: a search returns whole memories, so every extra hit costs a
@@ -133,7 +135,7 @@ export function buildServer(tiers, ctx = {}) {
   server.registerTool("capture_thought", {
     title: "Save a memory",
     description:
-      `Save something to the memory. ${CAPTURE_GUIDANCE} ${scope}`,
+      `Save a durable conclusion, not ordinary conversation or tentative reasoning. If this corrects existing knowledge, use supersede_thought when available. ${CAPTURE_GUIDANCE} Never report success unless this call succeeds. ${scope}`,
     inputSchema: {
       content: z.string(),
       tier: full ? z.enum(["open", "vault"]).default("open") : z.literal("open").default("open"),
@@ -196,7 +198,7 @@ export function buildServer(tiers, ctx = {}) {
   // ChatGPT / deep-research compatibility pair, same contract as OB1.
   server.registerTool("search", {
     title: "Search",
-    description: `Read-only search over the memory, for clients expecting search/fetch. ${scope}`,
+    description: `Read-only discovery over the memory, for clients expecting search/fetch. Use it before answering about Erik, his systems, prior decisions, preferences or pending work. ${scope}`,
     inputSchema: { query: z.string() },
   }, track("search", "read", async ({ query }, note) => {
     try {
@@ -215,7 +217,7 @@ export function buildServer(tiers, ctx = {}) {
 
   server.registerTool("fetch", {
     title: "Fetch",
-    description: "Fetch one memory by id after using search.",
+    description: "Fetch the full content and relations of one memory by id after search when the compact result is not enough.",
     inputSchema: { id: z.string() },
   }, track("fetch", "read", async ({ id }, note) => {
     try {

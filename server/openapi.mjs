@@ -18,6 +18,7 @@ import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
 import {
   CAPTURE_GUIDANCE,
+  MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
   OPEN_SCOPE,
@@ -78,8 +79,8 @@ export function toolsFor(tiers) {
       action: "read",
       summary: "Search the memory",
       description:
-        `Search the memory by meaning. Reach for this first whenever you need to know ` +
-        `how a system is accessed or how something works. ${scope}`,
+        `Search the memory by meaning. Use this before answering about Erik, his systems, ` +
+        `access, configuration, workflows, preferences, prior decisions, or pending work. ${scope}`,
       schema: {
         type: "object",
         required: ["query"],
@@ -130,7 +131,10 @@ export function toolsFor(tiers) {
       name: "capture_thought",
       action: "write",
       summary: "Save a memory",
-      description: `Save something to the memory. ${CAPTURE_GUIDANCE} ${scope}`,
+      description:
+        `Save a durable conclusion, not ordinary conversation or tentative reasoning. ` +
+        `If this corrects existing knowledge, use supersede_thought when available. ` +
+        `${CAPTURE_GUIDANCE} Never report success unless this call succeeds. ${scope}`,
       schema: {
         type: "object",
         required: ["content"],
@@ -169,7 +173,7 @@ export function toolsFor(tiers) {
       name: "fetch_thought",
       action: "read",
       summary: "Fetch one memory",
-      description: "Fetch a single memory by id, as returned by search_thoughts or list_thoughts.",
+      description: "Fetch the full content and relations of one memory by id after search when the compact result is not enough.",
       schema: {
         type: "object",
         required: ["id"],
@@ -273,11 +277,11 @@ export function spec(tiers, { baseUrl, version, listener }) {
     info: {
       title: listener === "full" ? "Mimers Brain" : "Mimers Brain (open)",
       version,
-      description:
-        listener === "full"
-          ? "Memory, open and vault tiers. Local network only."
-          : "Memory, open tier. The vault is not reachable through this server.",
+      description: `${listener === "full"
+        ? "Memory, open and vault tiers. Local network only."
+        : "Memory, open tier. The vault is not reachable through this server."}\n\n${MEMORY_POLICY}`,
     },
+    "x-memory-policy": MEMORY_POLICY,
     servers: [{ url: baseUrl }],
     components: {
       securitySchemes: {
