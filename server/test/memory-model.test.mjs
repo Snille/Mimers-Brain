@@ -16,6 +16,17 @@ test("derives a compact title and summary without losing the content", () => {
   assert.equal(deriveSummary(content), "Use the root account.");
 });
 
+test("legacy replacement prose is omitted from display titles", () => {
+  assert.equal(
+    deriveTitle("ERIKS MUSIKSMAK — ERSÄTTER den tidigare posten och en annan notering."),
+    "ERIKS MUSIKSMAK",
+  );
+  assert.equal(
+    deriveTitle("Löst nuläge. KOMPLETTERAR id abcdef12 med slutresultatet."),
+    "Löst nuläge.",
+  );
+});
+
 test("normalises topic aliases and keeps the legacy type", () => {
   const meta = normaliseMeta({
     type: "task",

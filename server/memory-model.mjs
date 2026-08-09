@@ -104,9 +104,17 @@ export function canonicalTopic(value) {
   return CANONICAL_TOPICS.includes(canonical) ? canonical : null;
 }
 
+export function cleanTitle(value) {
+  return clean(value)
+    .replace(/^#+\s*/, "")
+    .replace(/\s+(?:(?:—|–|-)\s*)?(?:ERSÄTTER|KOMPLETTERAR)\b.*$/iu, "")
+    .replace(/[,:;—–-]\s*$/, "")
+    .slice(0, 180);
+}
+
 export function deriveTitle(content) {
   const line = String(content ?? "").split(/\r?\n/).map(clean).find(Boolean) || "Untitled memory";
-  return line.replace(/^#+\s*/, "").slice(0, 180);
+  return cleanTitle(line);
 }
 
 export function deriveSummary(content) {
@@ -120,7 +128,7 @@ export function deriveSummary(content) {
 export function normaliseMeta(meta = {}, content = "") {
   const out = { ...meta };
 
-  out.title = clean(out.title) || deriveTitle(content);
+  out.title = cleanTitle(out.title) || deriveTitle(content);
   out.summary = clean(out.summary) || deriveSummary(content);
 
   const proposedKind = clean(out.kind).toLowerCase();
