@@ -42,7 +42,7 @@ Det här är den enda detalj som verkligen betyder något:
 | `http://192.0.2.41:8790/mcp` | öppet **+ valvet** | du är hemma eller på VPN |
 | `https://brain.example.net/mcp` | **endast öppet** | allt annat, och alla andra modeller |
 
-Valvet — nycklar, lösenord, tokens — serveras bara av den första. Det är inte en
+Valvet — känslig kontext och SECRET_REF-pekare, aldrig råa hemliga värden — serveras bara av den första. Det är inte en
 inställning som går att slå på för den andra: MCP-servern på 8791 byggs helt utan
 förmågan att nå de raderna, så ingen header, parameter eller sökväg kan lyfta ut
 dem. Därför kan du peka vilken extern modell som helst på `brain.example.net` utan
@@ -376,7 +376,8 @@ utan sammanhang. "Det fungerade" är värdelöst; "deployen av Lagersystem avbry
 om `data/languages/` avviker från origin, eftersom översättningsverktyget skriver
 dem live" är användbart.
 
-Lägg i **valvet** om det innehåller en nyckel, ett lösenord eller en token — eller
-om det skulle hjälpa någon utomstående att ta sig in. Allt annat är öppet, och
-öppet är bättre: det når dig varsomhelst och kan användas av vilken modell som
-helst.
+Lägg känslig kontext i **valvet**, men använd bara en exakt `SECRET_REF`-pekare
+till nycklar, lösenord, tokens och privata nycklar — aldrig själva värdet.
+Använd också valvet om det skulle hjälpa någon utomstående att ta sig in. Allt
+annat är öppet, och öppet är bättre: det når dig varsomhelst och kan användas av
+vilken modell som helst.

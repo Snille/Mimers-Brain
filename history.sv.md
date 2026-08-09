@@ -6,6 +6,33 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.7.0: minnen blir poster i stället för incidentformade textblock
+
+De första 84 minnena visade att bra innehåll inte räcker. Fria ämnesetiketter
+hade gett 171 stavningar, avslutade arbeten låg som tasks, och en fråga om
+aktuell SSH-åtkomst kunde placera det kanoniska svaret under kortare sidonoter.
+Metadata v2 lägger till titel, sammanfattning, sort, livscykel, uppgiftsstatus,
+projekt, system, verifieringsdatum och ett kontrollerat ämnesförråd, samtidigt
+som gamla klienter fortfarande kan läsa fältet `type`.
+
+Sökningen är nu hybrid: semantisk likhet är fortfarande grunden, men ordträffar
+i titel och sammanfattning kan lyfta det kanoniska svaret. Överspelade minnen
+döljs som standard men behöver inte längre förstöras. `supersede_thought`
+skapar ersättaren, bevarar föregångarna och lagrar fullständiga UUID-relationer
+som gränssnittet kan följa åt båda hållen.
+
+Samtidigt rättades beskrivningen av valvet överallt. Det är till för känslig
+kontext och exakta `SECRET_REF`-pekare, aldrig råa lösenord, tokens, API-nycklar
+eller privata nycklar. Migreringskommandot använder `--dry-run` som utgångsläge,
+vägrar skriva om det förväntade radantalet avviker, visar inget minnesinnehåll
+och bevarar gamla specialetiketter under `legacy_topics`.
+
+Gränssnittet visar de nya filtren och historiken, semantiska sökresultat använder
+kompakta titel-/sammanfattningskort, och testsviten kombinerar Node-enhetstester
+med 36 isolerings- och historikkontroller mot en riktig testcontainer.
+
+---
+
 ## 2026-08-09 — 0.6.0: en andra dörr, för klienter som aldrig lärt sig MCP
 
 Open WebUI kan anropa externa verktyg, men den läser ett OpenAPI-dokument och

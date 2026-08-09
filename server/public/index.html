@@ -83,6 +83,10 @@
   .tag.sim { color: var(--ok); border-color: var(--ok); }
   .tag.vault { color: var(--warn); border-color: var(--warn); font-weight: 600; }
   .card.vault { border-left: 3px solid var(--warn); }
+  .card.superseded { opacity: .72; border-left: 3px solid var(--muted); }
+  .card .memory-title { margin: 0 0 4px; font-size: 16px; }
+  .card .summary { color: var(--muted); margin-bottom: 10px; }
+  .history-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .card .body { white-space: pre-wrap; word-break: break-word; }
   .editfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 12px; }
   .editfields input, .editfields select { width: 100%; }
@@ -169,9 +173,13 @@
 
 <main class="on" id="view-thoughts">
   <aside>
-    <h2 data-i18n="filters.type">Type</h2><div id="f-types"></div>
+    <h2 data-i18n="filters.kind">Kind</h2><div id="f-kinds"></div>
+    <h2 data-i18n="filters.lifecycle">Lifecycle</h2><div id="f-lifecycles"></div>
+    <h2 data-i18n="filters.taskStatus">Tasks</h2><div id="f-task-statuses"></div>
+    <h2 data-i18n="filters.projects">Projects</h2><div id="f-projects"></div>
     <h2 data-i18n="filters.topics">Topics</h2><div id="f-topics"></div>
     <h2 data-i18n="filters.people">People</h2><div id="f-people"></div>
+    <h2 data-i18n="filters.systems">Systems</h2><div id="f-systems"></div>
   </aside>
 
   <section class="content">
@@ -212,19 +220,29 @@
   <div class="sub" data-i18n="editor.description">Write it as a standalone statement that any AI can understand much later without the original context.</div>
   <label for="dlg-text" data-i18n="editor.content">Content</label>
   <textarea id="dlg-text" rows="8"></textarea>
-  <label for="dlg-type" data-i18n="editor.type">Type</label>
-  <select id="dlg-type">
-    <option value="observation">observation</option>
+  <label for="dlg-title" data-i18n="editor.title">Title</label>
+  <input type="text" id="dlg-title" />
+  <label for="dlg-summary" data-i18n="editor.summary">Summary</label>
+  <textarea id="dlg-summary" rows="3"></textarea>
+  <label for="dlg-kind" data-i18n="editor.kind">Kind</label>
+  <select id="dlg-kind">
+    <option value="fact">fact</option>
     <option value="reference">reference</option>
-    <option value="project">project</option>
+    <option value="procedure">procedure</option>
+    <option value="decision">decision</option>
+    <option value="lesson">lesson</option>
+    <option value="incident">incident</option>
     <option value="task">task</option>
     <option value="idea">idea</option>
-    <option value="person_note">person_note</option>
+    <option value="preference">preference</option>
+    <option value="profile">profile</option>
   </select>
+  <label for="dlg-project" data-i18n="editor.project">Project</label>
+  <input type="text" id="dlg-project" placeholder="home-assistant" />
   <label for="dlg-tier" data-i18n="editor.tier">Tier</label>
   <select id="dlg-tier">
     <option value="open" data-i18n="tiers.openOption">Open — also available remotely</option>
-    <option value="vault" data-i18n="tiers.vaultOption">🔒 Vault — keys and passwords never leave the LAN</option>
+    <option value="vault" data-i18n="tiers.vaultOption">🔒 Vault — sensitive context and SECRET_REF pointers</option>
   </select>
   <label for="dlg-topics" data-i18n="editor.topics">Topics (comma-separated)</label>
   <input type="text" id="dlg-topics" placeholder="network, proxmox" data-i18n-placeholder="editor.topicsPlaceholder" />
@@ -243,7 +261,8 @@ await initI18n();
 
 const $ = (s) => document.querySelector(s);
 const state = { filters: {}, mode: "text", q: "", semantic: false };
-const TYPES = ["observation", "reference", "project", "task", "idea", "person_note"];
+const KINDS = ["fact", "reference", "procedure", "decision", "lesson", "incident", "task", "idea", "preference", "profile"];
+const LIFECYCLES = ["current", "superseded", "archived"];
 
 for (const item of availableLanguages()) {
   const option = document.createElement("option");
@@ -289,21 +308,48 @@ function card(t) {
   const el = document.createElement("div");
   el.className = "card";
   if (t.tier === "vault") el.classList.add("vault");
+  if (m.lifecycle === "superseded") el.classList.add("superseded");
+  const verified = m.verified_at ? new Date(`${m.verified_at}T00:00:00`) : null;
+  const stale = verified && Number.isFinite(verified.valueOf()) && Date.now() - verified.valueOf() > 180 * 86400000;
   const tags = [
     t.tier === "vault" ? `<span class="tag vault">🔒 ${esc(tr("tiers.vault"))}</span>` : "",
-    m.type ? `<span class="tag type">${esc(m.type)}</span>` : "",
+    m.kind ? `<span class="tag type">${esc(m.kind)}</span>` : (m.type ? `<span class="tag type">${esc(m.type)}</span>` : ""),
+    m.lifecycle && m.lifecycle !== "current" ? `<span class="tag">${esc(m.lifecycle)}</span>` : "",
+    m.task_status ? `<span class="tag">${esc(m.task_status)}</span>` : "",
+    m.project ? `<span class="tag">📁 ${esc(m.project)}</span>` : "",
     ...(m.topics || []).map((x) => `<span class="tag">${esc(x)}</span>`),
     ...(m.people || []).map((x) => `<span class="tag">👤 ${esc(x)}</span>`),
+    ...(m.systems || []).map((x) => `<span class="tag">⚙ ${esc(x)}</span>`),
+    stale ? `<span class="tag vault">${esc(tr("thought.stale"))}</span>` : "",
     t.similarity != null ? `<span class="tag sim">${(t.similarity * 100).toFixed(0)}%</span>` : "",
   ].join("");
 
+  const relationIds = [
+    ...(Array.isArray(m.supersedes) ? m.supersedes : []),
+    ...(m.superseded_by ? [m.superseded_by] : []),
+  ];
+
   el.innerHTML = `
     <div class="meta">${tags}<span class="grow"></span><span>${fmt(t.created_at)}</span></div>
+    ${m.title ? `<h3 class="memory-title">${esc(m.title)}</h3>` : ""}
+    ${m.summary && m.summary !== m.title ? `<div class="summary">${esc(m.summary)}</div>` : ""}
     <div class="body">${esc(t.content)}</div>
+    ${relationIds.length ? `<div class="history-links">${relationIds.map((id) =>
+      `<button class="ghost small history" data-id="${esc(id)}">${esc(tr("thought.history"))} ${esc(String(id).slice(0, 8))}</button>`).join("")}</div>` : ""}
     <div class="actions">
       <button class="ghost edit">${esc(tr("thought.edit"))}</button>
       <button class="ghost danger del">${esc(tr("thought.delete"))}</button>
     </div>`;
+
+  for (const button of el.querySelectorAll(".history")) {
+    button.onclick = async () => {
+      try {
+        const row = await api(`/api/thoughts/${button.dataset.id}`);
+        $("#list").replaceChildren(card(row));
+        $("#headstat").textContent = tr("header.shown", { shown: 1 });
+      } catch (e) { showError(e.message); }
+    };
+  }
 
   el.querySelector(".edit").onclick = () => {
     if (el.classList.contains("editing")) return;
@@ -317,14 +363,22 @@ function card(t) {
     // Tags are edited as plain comma-separated text. It round-trips exactly what
     // the sidebar shows, which is what makes merging two spellings of the same
     // topic - or of the same person - a ten-second job.
-    const types = !m.type || TYPES.includes(m.type) ? TYPES : [m.type, ...TYPES];
+    const kinds = !m.kind || KINDS.includes(m.kind) ? KINDS : [m.kind, ...KINDS];
     const fields = document.createElement("div");
     fields.className = "editfields";
     fields.innerHTML = `
-      <label>${esc(tr("editor.type"))}<select class="e-type">${types
-        .map((x) => `<option${x === m.type ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
+      <label>${esc(tr("editor.title"))}<input class="e-title" value="${esc(m.title || "")}" /></label>
+      <label>${esc(tr("editor.summary"))}<input class="e-summary" value="${esc(m.summary || "")}" /></label>
+      <label>${esc(tr("editor.kind"))}<select class="e-kind">${kinds
+        .map((x) => `<option${x === m.kind ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
+      <label>${esc(tr("editor.lifecycle"))}<select class="e-lifecycle">${LIFECYCLES
+        .map((x) => `<option${x === (m.lifecycle || "current") ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
+      <label>${esc(tr("editor.taskStatus"))}<select class="e-task-status"><option value=""></option><option${m.task_status === "pending" ? " selected" : ""}>pending</option><option${m.task_status === "done" ? " selected" : ""}>done</option></select></label>
+      <label>${esc(tr("editor.project"))}<input class="e-project" value="${esc(m.project || "")}" /></label>
       <label>${esc(tr("editor.topics"))}<input class="e-topics" value="${esc((m.topics || []).join(", "))}" /></label>
-      <label>${esc(tr("editor.people"))}<input class="e-people" value="${esc((m.people || []).join(", "))}" /></label>`;
+      <label>${esc(tr("editor.people"))}<input class="e-people" value="${esc((m.people || []).join(", "))}" /></label>
+      <label>${esc(tr("editor.systems"))}<input class="e-systems" value="${esc((m.systems || []).join(", "))}" /></label>
+      <label>${esc(tr("editor.verifiedAt"))}<input class="e-verified" value="${esc(m.verified_at || "")}" placeholder="YYYY-MM-DD" /></label>`;
     ta.after(fields);
 
     const acts = el.querySelector(".actions");
@@ -347,9 +401,16 @@ function card(t) {
         const payload = {
           metadata: {
             ...m,
-            type: fields.querySelector(".e-type").value,
+            title: fields.querySelector(".e-title").value,
+            summary: fields.querySelector(".e-summary").value,
+            kind: fields.querySelector(".e-kind").value,
+            lifecycle: fields.querySelector(".e-lifecycle").value,
+            task_status: fields.querySelector(".e-task-status").value || undefined,
+            project: fields.querySelector(".e-project").value,
             topics: list(".e-topics"),
             people: list(".e-people"),
+            systems: list(".e-systems"),
+            verified_at: fields.querySelector(".e-verified").value,
           },
         };
         // Only send content when it actually changed - the server re-embeds
@@ -385,7 +446,13 @@ async function refresh() {
       rows = await api("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: state.q, limit: 40 }),
+        body: JSON.stringify({
+          query: state.q, limit: 40,
+          kind: state.filters.kind,
+          lifecycle: state.filters.lifecycle || "current",
+          task_status: state.filters.task_status,
+          project: state.filters.project,
+        }),
       });
     } else {
       const p = new URLSearchParams();
@@ -404,9 +471,13 @@ async function refresh() {
 
     const s = await api("/api/stats");
     const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
-    chips("#f-types", top(s.types, 12), "type");
+    chips("#f-kinds", top(s.kinds || s.types, 15), "kind");
+    chips("#f-lifecycles", top(s.lifecycles || { current: s.total }, 5), "lifecycle");
+    chips("#f-task-statuses", top(s.taskStatuses || {}, 5), "task_status");
+    chips("#f-projects", top(s.projects || {}, 15), "project");
     chips("#f-topics", top(s.topics, 25), "topic");
     chips("#f-people", top(s.people, 15), "person");
+    chips("#f-systems", top(s.systems || {}, 20), "system");
     const tierBits = Object.entries(s.byTier || {}).map(([k, v]) => `${tr(`tiers.${k}`)} ${v}`).join(" · ");
     $("#headstat").textContent = `${tr("header.shownOf", { shown: rows.length, total: s.total })}${tierBits ? ` (${tierBits})` : ""}`;
   } catch (e) {
@@ -425,7 +496,12 @@ $("#q").oninput = (e) => {
 $("#mode").onchange = (e) => { state.mode = e.target.value; if (state.q) refresh(); };
 $("#clear").onclick = () => { state.q = ""; state.filters = {}; $("#q").value = ""; refresh(); };
 
-$("#new").onclick = () => { $("#dlg-text").value = ""; $("#dlg-topics").value = ""; $("#dlg").showModal(); $("#dlg-text").focus(); };
+$("#new").onclick = () => {
+  for (const id of ["#dlg-text", "#dlg-title", "#dlg-summary", "#dlg-project", "#dlg-topics"])
+    $(id).value = "";
+  $("#dlg").showModal();
+  $("#dlg-text").focus();
+};
 $("#dlg-cancel").onclick = () => $("#dlg").close();
 $("#dlg-save").onclick = async () => {
   const content = $("#dlg-text").value.trim();
@@ -440,7 +516,13 @@ $("#dlg-save").onclick = async () => {
       body: JSON.stringify({
         content,
         tier: $("#dlg-tier").value,
-        metadata: { type: $("#dlg-type").value, topics },
+        metadata: {
+          title: $("#dlg-title").value,
+          summary: $("#dlg-summary").value,
+          kind: $("#dlg-kind").value,
+          project: $("#dlg-project").value,
+          topics,
+        },
       }),
     });
     $("#dlg").close();

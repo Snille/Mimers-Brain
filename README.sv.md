@@ -8,7 +8,9 @@ en nivå som aldrig lämnar det privata nätverket.
 
 Vilken modell som helst som talar MCP kan läsa och skriva till minnet, så
 kunskapen om ens system beskrivs en gång i stället för i varje ny konversation.
-Hemligheter serveras bara på LAN; allt annat går att nå varifrån som helst.
+Känslig kontext och SECRET_REF-pekare serveras bara på LAN; råa lösenord,
+tokens, API-nycklar och privata nycklar lagras aldrig. Allt annat går att nå
+varifrån som helst.
 
 | | |
 | --- | --- |
@@ -129,7 +131,9 @@ sköter inloggningen.
 
 Tre vyer, och inloggningen ovan gäller alla tre.
 
-**Tankar** är listan, sökningen och taggredigeringen.
+**Tankar** är listan, hybridsökningen och metadataredigeringen. Aktuella minnen
+visas som standard; projekt, sort, uppgiftsstatus, personer och system är skilda
+facetter. Överspelade rader går fortfarande att läsa via historiklänkarna.
 
 **Anslut** är uppkopplingsanvisningarna för varje klient — Claude Code, Codex i
 VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient —
@@ -269,8 +273,15 @@ låt projektet ligga vilande ett tag som fallback.
 
 ## Schema
 
-Samma form som OB1:s `thoughts`-tabell, plus `tier`. Det gör migreringen
-triviell och håller metadata-formatet identiskt (`type`, `topics`, `people`).
+Basen är fortfarande OB1:s `thoughts`-tabell plus `tier`, men metadata v2 lägger
+till `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
+`verified_at` och `valid_for_version`. Äldre klienter kan fortfarande läsa
+`type`, `topics` och `people`. Migrerade specialetiketter bevaras under
+`legacy_topics` i stället för att försvinna.
+
+`thought_relations` lagrar fullständiga UUID-länkar mellan ersättare och minnena
+de ersätter. En överspelad rad döljs från sökningar efter aktuellt innehåll men
+raderas inte. Permanent radering är fortfarande en separat, bekräftad handling.
 
 En detalj i `upsert_thought`: en post kan **befordras** till valvet men aldrig
 tyst falla ur det. Fångar samma innehåll upp igen med `tier='open'` behåller

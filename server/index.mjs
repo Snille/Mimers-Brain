@@ -262,12 +262,15 @@ function connectInfo(req, { tiers, allowUrlKey }) {
     openKey: OPEN_KEY || null,
     tools: [
       { name: "search_thoughts", what: "Search by meaning. The important one." },
-      { name: "list_thoughts", what: "Recent memories, filtered by type, topic, person, time" },
+      { name: "list_thoughts", what: "Recent memories, filtered by kind, status, project, topic, person, system or time" },
       { name: "capture_thought", what: "Save a new memory" },
-      { name: "thought_stats", what: "Totals, types, topics, people" },
+      { name: "thought_stats", what: "Totals, kinds, statuses, projects, topics, people and systems" },
       { name: "search", what: "Search, in the shape ChatGPT and Gemini expect" },
       { name: "fetch", what: "Fetch one memory by id" },
-      ...(full ? [{ name: "delete_thought", what: "LAN listener only" }] : []),
+      ...(full ? [
+        { name: "supersede_thought", what: "Replace memories and preserve navigable history" },
+        { name: "delete_thought", what: "LAN listener only" },
+      ] : []),
     ],
   };
 }
@@ -441,12 +444,26 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
         if (path === "/api/thoughts" && req.method === "GET") {
           const q = url.searchParams.get("q");
           const rows = q
-            ? await db.textSearch(tiers, q)
+            ? await db.textSearch(tiers, q, {
+                limit: 100,
+                kind: url.searchParams.get("kind") || undefined,
+                lifecycle: url.searchParams.get("lifecycle") || "current",
+                taskStatus: url.searchParams.get("task_status") || undefined,
+                project: url.searchParams.get("project") || undefined,
+                topic: url.searchParams.get("topic") || undefined,
+                person: url.searchParams.get("person") || undefined,
+                system: url.searchParams.get("system") || undefined,
+              })
             : await db.listThoughts(tiers, {
                 limit: Number(url.searchParams.get("limit")) || 100,
                 type: url.searchParams.get("type") || undefined,
+                kind: url.searchParams.get("kind") || undefined,
+                lifecycle: url.searchParams.get("lifecycle") || "current",
+                task_status: url.searchParams.get("task_status") || undefined,
+                project: url.searchParams.get("project") || undefined,
                 topic: url.searchParams.get("topic") || undefined,
                 person: url.searchParams.get("person") || undefined,
+                system: url.searchParams.get("system") || undefined,
               });
           return json(res, 200, rows);
         }
@@ -461,14 +478,34 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
         }
 
         if (path === "/api/search" && req.method === "POST") {
-          const { query, limit, threshold } = await body(req);
+          const { query, limit, threshold, kind, lifecycle, task_status, project } = await body(req);
           if (!query?.trim()) return json(res, 400, { error: "Empty search" });
-          const rows = await db.searchThoughts(tiers, query.trim(), { limit, threshold });
+          const rows = await db.searchThoughts(tiers, query.trim(), {
+            limit, threshold, kind, lifecycle, taskStatus: task_status, project,
+          });
           note("ui.search", "read", { results: rows.length });
           return json(res, 200, rows);
         }
 
+        if (path === "/api/thoughts/supersede" && req.method === "POST") {
+          const { old_ids, content, tier = "open", metadata } = await body(req);
+          if (!Array.isArray(old_ids) || !old_ids.length)
+            return json(res, 400, { error: "old_ids is required" });
+          if (!content?.trim()) return json(res, 400, { error: "Empty replacement memory" });
+          await db.validateSupersession(tiers, old_ids, tier);
+          const saved = await db.captureThought(tiers, content.trim(), { tier, metadata });
+          const linked = await db.linkSupersession(tiers, saved.id, old_ids);
+          note("ui.supersede", "write", { tier: saved.tier, results: old_ids.length + 1 });
+          publishSoon();
+          return json(res, 200, { ...saved, ...linked });
+        }
+
         const m = path.match(/^\/api\/thoughts\/([0-9a-f-]{36})$/i);
+        if (m && req.method === "GET") {
+          const row = await db.getThought(tiers, m[1]);
+          if (!row) return json(res, 404, { error: "Not found" });
+          return json(res, 200, { ...row, relations: await db.thoughtRelations(tiers, m[1]) });
+        }
         if (m && req.method === "PATCH") {
           const row = await db.updateThought(tiers, m[1], await body(req));
           note("ui.edit", "write", { tier: row.tier, results: 1 });

@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS thoughts (
     embedding           vector(1536),
     metadata            jsonb DEFAULT '{}'::jsonb,
     -- 'open'  = topology, workflows, project knowledge. Served on both ports.
-    -- 'vault' = tokens, keys, passwords. Served ONLY on the LAN-only port.
+    -- 'vault' = sensitive context and SECRET_REF pointers. Raw secret values
+    --           are never stored. Served ONLY on the LAN-only port.
     tier                text NOT NULL DEFAULT 'open' CHECK (tier IN ('open', 'vault')),
     content_fingerprint text,
     created_at          timestamptz DEFAULT now(),
@@ -26,6 +27,19 @@ CREATE INDEX IF NOT EXISTS thoughts_embedding_idx  ON thoughts USING hnsw (embed
 CREATE UNIQUE INDEX IF NOT EXISTS idx_thoughts_fingerprint
     ON thoughts (content_fingerprint)
     WHERE content_fingerprint IS NOT NULL;
+
+-- Navigable history. A replacement points to every older memory it supersedes;
+-- the older rows stay readable but are hidden from current-only searches.
+CREATE TABLE IF NOT EXISTS thought_relations (
+    from_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+    to_id      uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+    relation   text NOT NULL CHECK (relation IN ('supersedes', 'related_to')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (from_id, to_id, relation),
+    CHECK (from_id <> to_id)
+);
+
+CREATE INDEX IF NOT EXISTS thought_relations_to_idx ON thought_relations (to_id, relation);
 
 CREATE OR REPLACE FUNCTION update_updated_at() RETURNS trigger AS $$
 BEGIN

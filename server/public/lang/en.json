@@ -26,9 +26,13 @@
     "shownOf": "{shown} of {total}"
   },
   "filters": {
-    "type": "Type",
+    "kind": "Kind",
+    "lifecycle": "Lifecycle",
+    "taskStatus": "Tasks",
+    "projects": "Projects",
     "topics": "Topics",
-    "people": "People"
+    "people": "People",
+    "systems": "Systems"
   },
   "search": {
     "placeholder": "Search …",
@@ -47,10 +51,17 @@
     "newTitle": "New thought",
     "description": "Write it as a standalone statement that any AI can understand much later without the original context.",
     "content": "Content",
-    "type": "Type",
+    "title": "Title",
+    "summary": "Summary",
+    "kind": "Kind",
+    "lifecycle": "Lifecycle",
+    "taskStatus": "Task status",
+    "project": "Project",
     "tier": "Tier",
     "topics": "Topics (comma-separated)",
     "people": "People (comma-separated)",
+    "systems": "Systems (comma-separated)",
+    "verifiedAt": "Verified at",
     "topicsPlaceholder": "network, proxmox",
     "cancel": "Cancel",
     "save": "Save",
@@ -59,13 +70,15 @@
   "thought": {
     "edit": "Edit",
     "delete": "Delete",
-    "confirmDelete": "Permanently delete this thought?"
+    "confirmDelete": "Permanently delete this thought?",
+    "history": "History",
+    "stale": "verification may be stale"
   },
   "tiers": {
     "open": "open",
     "vault": "vault",
     "openOption": "Open — also available remotely",
-    "vaultOption": "🔒 Vault — keys and passwords never leave the LAN"
+    "vaultOption": "🔒 Vault — sensitive context and SECRET_REF pointers"
   },
   "stats": {
     "counting": "Counting …",
@@ -140,7 +153,7 @@
     "fetchError": "Could not load the connection details.",
     "addresses": {
       "title": "The two addresses",
-      "description": "This is the part that matters. The vault — keys, passwords and tokens — is served only by the first address. It is not a setting that can be enabled on the second: the MCP server on the open port is built without the ability to reach those rows.",
+      "description": "The vault is served only by the first address and stores sensitive context and SECRET_REF pointers. Raw passwords, tokens and keys must never be stored in either tier.",
       "address": "Address",
       "content": "Contents",
       "when": "When",
@@ -190,10 +203,10 @@
     },
     "openWebui": {
       "title": "Open WebUI",
-      "description": "Open WebUI speaks to OpenAPI tool servers. The established path is <code>mcpo</code>, which places an OpenAPI facade in front of the MCP server. Run it on the Open WebUI host and point the UI at it.",
-      "config": "config.json for mcpo",
-      "start": "Start the facade",
-      "note": "Then add <code>http://&lt;host&gt;:8000/mimers-brain</code> under <i>Settings → Tools</i> in Open WebUI. Newer versions may support MCP servers directly, so check your version before setting up mcpo."
+      "description": "Mimers Brain has a native OpenAPI tool surface beside MCP, so Open WebUI needs no translation proxy.",
+      "config": "Tool server URL",
+      "start": "Configure the bearer token",
+      "note": "Use <code>http://&lt;brain-host&gt;:8791</code> on the LAN or the public Brain URL, then provide MCP_ACCESS_KEY as the bearer token."
     },
     "otherClients": {
       "title": "ChatGPT, Gemini and others",
@@ -217,6 +230,7 @@
       "search_thoughts": "Search by meaning. The important one.",
       "list_thoughts": "Recent memories filtered by type, topic, person and time",
       "capture_thought": "Save a new memory",
+      "supersede_thought": "Replace memories while preserving navigable history",
       "thought_stats": "Totals, types, topics and people",
       "search": "Search in the shape ChatGPT and Gemini expect",
       "fetch": "Fetch one memory by id",

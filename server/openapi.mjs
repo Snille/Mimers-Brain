@@ -16,6 +16,14 @@
 
 import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
+import {
+  CAPTURE_GUIDANCE,
+  MEMORY_KINDS,
+  MEMORY_LIFECYCLES,
+  OPEN_SCOPE,
+  TASK_STATUSES,
+  VAULT_SCOPE,
+} from "./memory-model.mjs";
 
 // A bad argument is the caller's mistake, not a server fault. Carrying the
 // status on the error keeps the dispatcher free of per-tool special cases.
@@ -30,11 +38,21 @@ function memory(t) {
   return {
     id: t.id,
     content: t.content,
+    title: m.title || null,
+    summary: m.summary || null,
+    kind: m.kind || null,
+    lifecycle: m.lifecycle || "current",
+    task_status: m.task_status || null,
+    project: m.project || null,
     type: m.type || null,
     topics: m.topics || [],
     people: m.people || [],
+    systems: m.systems || [],
+    verified_at: m.verified_at || null,
+    valid_for_version: m.valid_for_version || null,
     tier: t.tier,
     created_at: t.created_at,
+    updated_at: t.updated_at,
     ...(t.similarity != null ? { similarity: Number(t.similarity.toFixed?.(3) ?? t.similarity) } : {}),
   };
 }
@@ -52,9 +70,7 @@ function uuid(v) {
 
 export function toolsFor(tiers) {
   const full = tiers.includes("vault");
-  const scope = full
-    ? "This connection reaches both open knowledge and the vault (keys, passwords, tokens)."
-    : "This connection reaches open knowledge only. The vault is served on the local network alone.";
+  const scope = full ? VAULT_SCOPE : OPEN_SCOPE;
 
   const tools = [
     {
@@ -71,11 +87,17 @@ export function toolsFor(tiers) {
           query: str("What you are looking for"),
           limit: { type: "integer", default: 5, description: "Raise this when searching broadly" },
           threshold: { type: "number", default: 0.3 },
+          kind: { type: "string", enum: MEMORY_KINDS },
+          lifecycle: { type: "string", enum: [...MEMORY_LIFECYCLES, "all"], default: "current" },
+          task_status: { type: "string", enum: TASK_STATUSES },
+          project: str("Only memories owned by this project"),
         },
       },
-      async run({ query, limit = 5, threshold = 0.3 }) {
+      async run({ query, limit = 5, threshold = 0.3, kind, lifecycle = "current", task_status, project }) {
         if (!String(query || "").trim()) throw new BadRequest("query is required");
-        const rows = await db.searchThoughts(tiers, String(query).trim(), { limit, threshold });
+        const rows = await db.searchThoughts(tiers, String(query).trim(), {
+          limit, threshold, kind, lifecycle, taskStatus: task_status, project,
+        });
         return { count: rows.length, results: rows.map(memory) };
       },
     },
@@ -89,8 +111,13 @@ export function toolsFor(tiers) {
         properties: {
           limit: { type: "integer", default: 10 },
           type: str("Only memories of this type, e.g. observation, reference"),
+          kind: { type: "string", enum: MEMORY_KINDS },
+          lifecycle: { type: "string", enum: [...MEMORY_LIFECYCLES, "all"], default: "current" },
+          task_status: { type: "string", enum: TASK_STATUSES },
+          project: str("Only memories owned by this project"),
           topic: str("Only memories carrying this topic"),
           person: str("Only memories mentioning this person"),
+          system: str("Only memories mentioning this system or device"),
           days: { type: "integer", description: "Only memories from the last N days" },
         },
       },
@@ -103,12 +130,7 @@ export function toolsFor(tiers) {
       name: "capture_thought",
       action: "write",
       summary: "Save a memory",
-      description:
-        `Save something to the memory. Write it as a standalone statement that will ` +
-        `still make sense years later with no surrounding context. ` +
-        (full
-          ? `Set tier="vault" for keys, passwords and tokens - those then never leave the local network.`
-          : `This connection can only write open knowledge; secrets must be saved from the local network.`),
+      description: `Save something to the memory. ${CAPTURE_GUIDANCE} ${scope}`,
       schema: {
         type: "object",
         required: ["content"],
@@ -156,12 +178,40 @@ export function toolsFor(tiers) {
       async run({ id }) {
         const t = await db.getThought(tiers, uuid(id));
         if (!t) throw new BadRequest("No memory with that id on this tier");
-        return memory(t);
+        return { ...memory(t), relations: await db.thoughtRelations(tiers, t.id) };
       },
     },
   ];
 
   if (full) {
+    tools.push({
+      name: "supersede_thought",
+      action: "write",
+      summary: "Replace one or more memories",
+      description:
+        "Create a current replacement and preserve the old memories as navigable superseded history. " +
+        CAPTURE_GUIDANCE,
+      schema: {
+        type: "object",
+        required: ["old_ids", "content"],
+        properties: {
+          old_ids: { type: "array", minItems: 1, items: str("A full memory uuid") },
+          content: str("The replacement memory as a standalone statement"),
+          tier: { type: "string", enum: ["open", "vault"], default: "open" },
+        },
+      },
+      async run({ old_ids, content, tier = "open" }) {
+        if (!Array.isArray(old_ids) || !old_ids.length) throw new BadRequest("old_ids is required");
+        const ids = old_ids.map(uuid);
+        if (!String(content || "").trim()) throw new BadRequest("content is required");
+        await db.validateSupersession(tiers, ids, tier);
+        const saved = await db.captureThought(tiers, String(content).trim(), { tier });
+        const linked = await db.linkSupersession(tiers, saved.id, ids);
+        publishSoon();
+        return { id: saved.id, tier: saved.tier, superseded_ids: linked.superseded_ids };
+      },
+    });
+
     tools.push({
       name: "delete_thought",
       action: "delete",

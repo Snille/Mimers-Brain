@@ -8,8 +8,9 @@ with a tier that never leaves the local network.
 
 Anything that speaks MCP can read and write the memory, so what you know about
 your systems gets written down once instead of re-explained in every new
-conversation. Secrets are served on the LAN only; everything else is reachable
-from anywhere.
+conversation. Sensitive context and SECRET_REF pointers are served on the LAN
+only; raw passwords, tokens, API keys and private keys are never stored.
+Everything else is reachable from anywhere.
 
 | | |
 | --- | --- |
@@ -129,7 +130,9 @@ sign-in.
 
 Three views, and the sign-in described above covers all of them.
 
-**Memories** is the list, the search and the tag editing.
+**Memories** is the list, hybrid search and metadata editing. Current memories
+are shown by default; projects, kinds, task state, people and systems are
+separate facets. Superseded rows remain readable through their history links.
 
 **Connect** is the setup instructions for every client — Claude Code, Codex in VS
 Code, the Claude Desktop connector, Open WebUI, ChatGPT, a generic MCP client —
@@ -268,8 +271,15 @@ database — which an image cannot do.
 
 ## Schema
 
-The same shape as OB1's `thoughts` table plus `tier`, which keeps migration
-trivial and the metadata format identical (`type`, `topics`, `people`).
+The base remains OB1's `thoughts` table plus `tier`, but metadata v2 adds
+`title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
+`verified_at` and `valid_for_version`. The old `type`, `topics` and `people`
+fields remain readable for older clients. Non-canonical migrated tags are kept
+under `legacy_topics` instead of disappearing.
+
+`thought_relations` stores full UUID links between replacements and the memories
+they supersede. A superseded row is hidden from current-only searches, not
+deleted. Permanent deletion remains a separate confirmed operation.
 
 One detail in `upsert_thought`: a row can be **promoted** into the vault but
 never silently fall out of it. Capturing the same content again with

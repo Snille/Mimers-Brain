@@ -6,6 +6,14 @@
 
 import pg from "pg";
 import { createHash } from "node:crypto";
+import {
+  CANONICAL_TOPICS,
+  MEMORY_KINDS,
+  embeddingText,
+  normaliseMeta,
+} from "./memory-model.mjs";
+
+export { normaliseMeta } from "./memory-model.mjs";
 
 export const OPEN = ["open"];
 export const ALL = ["open", "vault"];
@@ -52,9 +60,10 @@ export async function embed(text) {
   return (await r.json()).data[0].embedding;
 }
 
-// Mirrors OB1's metadata extraction so thoughts look the same in both systems.
+// The model proposes metadata, but memory-model.mjs owns the vocabulary and
+// validation. Free-form output is never written directly.
 export async function extractMetadata(text) {
-  if (!EMBED_KEY) return { topics: ["uncategorized"], type: "observation" };
+  if (!EMBED_KEY) return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
   try {
     const r = await fetch(META_URL, {
       method: "POST",
@@ -65,10 +74,17 @@ export async function extractMetadata(text) {
         messages: [{
           role: "user",
           content:
-            `Extract metadata as JSON with keys:\n` +
-            `- "people": array of people mentioned (empty if none)\n` +
-            `- "topics": array of 1-3 short topic tags (always at least one)\n` +
-            `- "type": one of "observation", "task", "idea", "reference", "person_note"\n\n` +
+            `Extract long-term-memory metadata as JSON. Return only these keys:\n` +
+            `- "title": a factual title, at most 180 characters\n` +
+            `- "summary": the current conclusion, at most 500 characters\n` +
+            `- "kind": one of ${MEMORY_KINDS.join(", ")}\n` +
+            `- "task_status": "pending" or "done", only when kind is task\n` +
+            `- "project": one lower-kebab-case owning project, or empty\n` +
+            `- "people": human people only; Luba/Sleipner is a robot mower, not a person\n` +
+            `- "systems": software, services, tools, machines, devices and named robots\n` +
+            `- "topics": 1-3 values chosen only from: ${CANONICAL_TOPICS.join(", ")}\n` +
+            `- "verified_at": YYYY-MM-DD when the text states a verification date, or empty\n` +
+            `Do not invent facts. lifecycle is always set by the server.\n\n` +
             text,
         }],
       }),
@@ -76,47 +92,28 @@ export async function extractMetadata(text) {
     if (!r.ok) throw new Error(String(r.status));
     return JSON.parse((await r.json()).choices[0].message.content);
   } catch {
-    return { topics: ["uncategorized"], type: "observation" };
+    return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
   }
-}
-
-// The extractor is free-form, so it happily produces both "Home Automation" and
-// "home automation" for the same idea. Left alone they become two facets that
-// filter separately, and a stats object with case-colliding keys that some JSON
-// parsers (PowerShell's among them) refuse outright, silently returning a raw
-// string instead. Topics are lowercased; people only get trimmed and deduped,
-// because they are proper nouns and "erik" in the sidebar would look wrong.
-//
-// Applied on every write - capture and update both - so hand-edited tags in the
-// UI cannot reintroduce the collision.
-export function normaliseMeta(meta) {
-  const out = { ...meta };
-  const dedupe = (list, lower) => {
-    const seen = new Set();
-    const kept = [];
-    for (const raw of Array.isArray(list) ? list : []) {
-      const s = String(raw).replace(/\s+/g, " ").trim();
-      if (!s) continue;
-      const key = s.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      kept.push(lower ? key : s);
-    }
-    return kept;
-  };
-  if ("topics" in out) out.topics = dedupe(out.topics, true);
-  if ("people" in out) out.people = dedupe(out.people, false);
-  return out;
 }
 
 const COLS = "id, content, metadata, tier, created_at, updated_at";
 
-export async function listThoughts(tiers, { limit = 10, type, topic, person, days } = {}) {
+export async function listThoughts(tiers, {
+  limit = 10, type, kind, lifecycle = "current", taskStatus, task_status, project,
+  topic, person, system, days,
+} = {}) {
+  taskStatus ||= task_status;
   const args = [tiers];
   let sql = `SELECT ${COLS} FROM thoughts WHERE tier = ANY($1)`;
   if (type) sql += ` AND metadata @> $${args.push(JSON.stringify({ type }))}::jsonb`;
+  if (kind) sql += ` AND metadata @> $${args.push(JSON.stringify({ kind }))}::jsonb`;
+  if (lifecycle && lifecycle !== "all")
+    sql += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
+  if (taskStatus) sql += ` AND metadata->>'task_status' = $${args.push(taskStatus)}`;
+  if (project) sql += ` AND metadata->>'project' = $${args.push(project)}`;
   if (topic) sql += ` AND metadata @> $${args.push(JSON.stringify({ topics: [topic] }))}::jsonb`;
   if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
+  if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
   if (days) sql += ` AND created_at > now() - ($${args.push(String(days))} || ' days')::interval`;
   sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 200))}`;
   return (await pool.query(sql, args)).rows;
@@ -126,22 +123,62 @@ export async function listThoughts(tiers, { limit = 10, type, topic, person, day
 // sentence scores 1.00, shared keywords ~0.79, and a loose rewording with no
 // words in common ~0.43. A 0.5 default silently drops that last case, which is
 // exactly the kind of recall the brain exists for.
-export async function searchThoughts(tiers, query, { limit = 10, threshold = 0.3 } = {}) {
+export async function searchThoughts(tiers, query, {
+  limit = 10, threshold = 0.3, kind, lifecycle = "current", taskStatus, project,
+} = {}) {
   const vector = await embed(query);
   if (!vector) throw new Error("Semantic search needs OPENROUTER_API_KEY");
+  const args = [JSON.stringify(vector), query, tiers, threshold];
+  let filters = `tier = ANY($3)`;
+  if (lifecycle && lifecycle !== "all")
+    filters += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
+  if (kind) filters += ` AND metadata->>'kind' = $${args.push(kind)}`;
+  if (taskStatus) filters += ` AND metadata->>'task_status' = $${args.push(taskStatus)}`;
+  if (project) filters += ` AND metadata->>'project' = $${args.push(project)}`;
+  const limitArg = args.push(Math.min(Number(limit) || 10, 100));
   const { rows } = await pool.query(
-    `SELECT * FROM match_thoughts($1::vector, $2, $3, '{}'::jsonb, $4)`,
-    [JSON.stringify(vector), threshold, limit, tiers],
+    `WITH ranked AS (
+       SELECT ${COLS},
+              coalesce(1 - (embedding <=> $1::vector), 0) AS semantic_score,
+              ts_rank_cd(
+                setweight(to_tsvector('simple', coalesce(metadata->>'title', '')), 'A') ||
+                setweight(to_tsvector('simple', coalesce(metadata->>'summary', '')), 'B') ||
+                setweight(to_tsvector('simple', content), 'C'),
+                websearch_to_tsquery('simple', $2)
+              ) AS lexical_score
+         FROM thoughts
+        WHERE ${filters}
+     )
+     SELECT *, semantic_score AS similarity,
+            semantic_score * 0.78 + least(lexical_score, 1) * 0.22 +
+            CASE WHEN coalesce(metadata->>'title', '') ILIKE '%' || $2 || '%' THEN 0.15 ELSE 0 END
+            AS rank_score
+       FROM ranked
+      WHERE semantic_score > $4 OR lexical_score > 0
+      ORDER BY rank_score DESC, created_at DESC
+      LIMIT $${limitArg}`,
+    args,
   );
   return rows;
 }
 
-export async function textSearch(tiers, q, limit = 100) {
-  const { rows } = await pool.query(
-    `SELECT ${COLS} FROM thoughts WHERE tier = ANY($1) AND content ILIKE $2
-     ORDER BY created_at DESC LIMIT $3`,
-    [tiers, `%${q}%`, Math.min(limit, 500)],
-  );
+export async function textSearch(tiers, q, {
+  limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system,
+} = {}) {
+  const args = [tiers, `%${q}%`];
+  let sql = `SELECT ${COLS} FROM thoughts
+    WHERE tier = ANY($1)
+      AND (content ILIKE $2 OR metadata->>'title' ILIKE $2 OR metadata->>'summary' ILIKE $2)`;
+  if (lifecycle && lifecycle !== "all")
+    sql += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
+  if (kind) sql += ` AND metadata->>'kind' = $${args.push(kind)}`;
+  if (taskStatus) sql += ` AND metadata->>'task_status' = $${args.push(taskStatus)}`;
+  if (project) sql += ` AND metadata->>'project' = $${args.push(project)}`;
+  if (topic) sql += ` AND metadata @> $${args.push(JSON.stringify({ topics: [topic] }))}::jsonb`;
+  if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
+  if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
+  sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 500))}`;
+  const { rows } = await pool.query(sql, args);
   return rows;
 }
 
@@ -153,16 +190,83 @@ export async function getThought(tiers, id) {
   return rows[0] || null;
 }
 
+export async function thoughtRelations(tiers, id) {
+  const visible = await getThought(tiers, id);
+  if (!visible) throw new Error("Not found");
+  const { rows } = await pool.query(
+    `SELECT r.from_id, r.to_id, r.relation, r.created_at,
+            CASE WHEN r.from_id = $1 THEN r.to_id ELSE r.from_id END AS other_id,
+            CASE WHEN r.from_id = $1 THEN 'outgoing' ELSE 'incoming' END AS direction
+       FROM thought_relations r
+       JOIN thoughts other ON other.id = CASE WHEN r.from_id = $1 THEN r.to_id ELSE r.from_id END
+      WHERE (r.from_id = $1 OR r.to_id = $1) AND other.tier = ANY($2)
+      ORDER BY r.created_at`,
+    [id, tiers],
+  );
+  return rows;
+}
+
+export async function validateSupersession(tiers, oldIds, replacementTier) {
+  const ids = [...new Set((oldIds || []).map(String))];
+  if (!ids.length) throw new Error("At least one old memory id is required");
+  const { rows } = await pool.query(
+    `SELECT id, tier FROM thoughts WHERE id = ANY($1::uuid[]) AND tier = ANY($2)`,
+    [ids, tiers],
+  );
+  if (rows.length !== ids.length) throw new Error("One or more old memories were not found");
+  if (rows.some((row) => row.tier === "vault") && replacementTier !== "vault")
+    throw new Error("A vault memory may only be superseded by another vault memory");
+  return ids;
+}
+
+export async function linkSupersession(tiers, replacementId, oldIds) {
+  const replacement = await getThought(tiers, replacementId);
+  if (!replacement) throw new Error("Replacement memory not found");
+  const ids = await validateSupersession(tiers, oldIds, replacement.tier);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO thought_relations (from_id, to_id, relation)
+       SELECT $1::uuid, old_id, 'supersedes'
+         FROM unnest($2::uuid[]) old_id
+       ON CONFLICT DO NOTHING`,
+      [replacementId, ids],
+    );
+    await client.query(
+      `UPDATE thoughts
+          SET metadata = jsonb_set(
+                jsonb_set(metadata, '{lifecycle}', '"superseded"'::jsonb, true),
+                '{superseded_by}', to_jsonb($1::text), true)
+        WHERE id = ANY($2::uuid[])`,
+      [replacementId, ids],
+    );
+    await client.query(
+      `UPDATE thoughts
+          SET metadata = jsonb_set(metadata, '{supersedes}', to_jsonb($2::text[]), true)
+        WHERE id = $1`,
+      [replacementId, ids],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return { replacement_id: replacementId, superseded_ids: ids };
+}
+
 export async function captureThought(tiers, content, { tier = "open", metadata } = {}) {
   if (!tiers.includes(tier))
     throw new Error(`This endpoint may not write to tier "${tier}"`);
 
-  const [vector, auto] = await Promise.all([
-    embed(content).catch(() => null),
-    metadata ? Promise.resolve(null) : extractMetadata(content),
-  ]);
-
-  const meta = normaliseMeta({ ...(auto || {}), ...(metadata || {}), source: "mimers-brain" });
+  const auto = metadata ? null : await extractMetadata(content);
+  const meta = normaliseMeta(
+    { ...(auto || {}), ...(metadata || {}), lifecycle: metadata?.lifecycle || "current", source: "mimers-brain" },
+    content,
+  );
+  const vector = await embed(embeddingText(content, meta)).catch(() => null);
 
   const { rows } = await pool.query(
     `SELECT upsert_thought($1, $2::jsonb, $3) AS result`,
@@ -185,16 +289,21 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
 
   const sets = [];
   const args = [id];
+  const nextContent = typeof content === "string" ? content : existing.content;
+  const nextMeta = metadata
+    ? normaliseMeta(metadata, nextContent)
+    : normaliseMeta(existing.metadata, nextContent);
   if (typeof content === "string") {
     sets.push(`content = $${args.push(content)}`);
     sets.push(`content_fingerprint = $${args.push(fingerprint(content))}`);
-    const vector = await embed(content).catch(() => null);
-    if (vector) sets.push(`embedding = $${args.push(JSON.stringify(vector))}::vector`);
   }
   // Replaces the whole object, so callers must send back the keys they want to
   // keep. The UI merges against what it already has for exactly this reason.
-  if (metadata)
-    sets.push(`metadata = $${args.push(JSON.stringify(normaliseMeta(metadata)))}::jsonb`);
+  if (metadata) sets.push(`metadata = $${args.push(JSON.stringify(nextMeta))}::jsonb`);
+  if (typeof content === "string" || metadata) {
+    const vector = await embed(embeddingText(nextContent, nextMeta)).catch(() => null);
+    if (vector) sets.push(`embedding = $${args.push(JSON.stringify(vector))}::vector`);
+  }
   if (tier) sets.push(`tier = $${args.push(tier)}`);
   if (!sets.length) throw new Error("Nothing to update");
 
@@ -217,6 +326,17 @@ export async function deleteThought(tiers, id) {
 // and runs on each boot - that is what upgrades an existing brain in place.
 export async function ensureSchema() {
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS thought_relations (
+        from_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+        to_id      uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+        relation   text NOT NULL CHECK (relation IN ('supersedes', 'related_to')),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (from_id, to_id, relation),
+        CHECK (from_id <> to_id)
+    );
+    CREATE INDEX IF NOT EXISTS thought_relations_to_idx
+        ON thought_relations (to_id, relation);
+
     CREATE TABLE IF NOT EXISTS usage_events (
         id             bigserial PRIMARY KEY,
         at             timestamptz NOT NULL DEFAULT now(),
@@ -499,6 +619,18 @@ export async function stats(tiers) {
           FROM (SELECT metadata->>'type' AS type, count(*) AS c FROM base
                  WHERE coalesce(metadata->>'type', '') <> ''
                  GROUP BY 1) x) AS types,
+       (SELECT jsonb_object_agg(kind, c)
+          FROM (SELECT coalesce(nullif(metadata->>'kind', ''), metadata->>'type', 'unknown') AS kind,
+                       count(*) AS c FROM base GROUP BY 1) x) AS kinds,
+       (SELECT jsonb_object_agg(lifecycle, c)
+          FROM (SELECT coalesce(nullif(metadata->>'lifecycle', ''), 'current') AS lifecycle,
+                       count(*) AS c FROM base GROUP BY 1) x) AS lifecycles,
+       (SELECT jsonb_object_agg(task_status, c)
+          FROM (SELECT metadata->>'task_status' AS task_status, count(*) AS c FROM base
+                 WHERE coalesce(metadata->>'task_status', '') <> '' GROUP BY 1) x) AS task_statuses,
+       (SELECT jsonb_object_agg(project, c)
+          FROM (SELECT metadata->>'project' AS project, count(*) AS c FROM base
+                 WHERE coalesce(metadata->>'project', '') <> '' GROUP BY 1) x) AS projects,
        (SELECT jsonb_object_agg(topic, c)
           FROM (SELECT topic, count(*) AS c
                   FROM (SELECT metadata->'topics' AS arr FROM base
@@ -510,7 +642,13 @@ export async function stats(tiers) {
                   FROM (SELECT metadata->'people' AS arr FROM base
                          WHERE jsonb_typeof(metadata->'people') = 'array') s,
                        jsonb_array_elements_text(s.arr) AS person
-                 GROUP BY 1) x) AS people`,
+                 GROUP BY 1) x) AS people,
+       (SELECT jsonb_object_agg(system, c)
+          FROM (SELECT system, count(*) AS c
+                  FROM (SELECT metadata->'systems' AS arr FROM base
+                         WHERE jsonb_typeof(metadata->'systems') = 'array') s,
+                       jsonb_array_elements_text(s.arr) AS system
+                 GROUP BY 1) x) AS systems`,
     [tiers],
   );
   const r = rows[0];
@@ -518,8 +656,13 @@ export async function stats(tiers) {
     total: Number(r.total),
     byTier: r.by_tier || {},
     types: r.types || {},
+    kinds: r.kinds || {},
+    lifecycles: r.lifecycles || {},
+    taskStatuses: r.task_statuses || {},
+    projects: r.projects || {},
     topics: r.topics || {},
     people: r.people || {},
+    systems: r.systems || {},
     // min/max, not a sort. The old code sorted Date objects with the default
     // comparator, which compares them as strings - so it ordered by weekday name
     // and these two came out wrong. Nothing reads them yet, which is why it was

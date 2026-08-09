@@ -10,18 +10,34 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
+import {
+  CAPTURE_GUIDANCE,
+  MEMORY_KINDS,
+  MEMORY_LIFECYCLES,
+  OPEN_SCOPE,
+  TASK_STATUSES,
+  VAULT_SCOPE,
+} from "./memory-model.mjs";
 
 const text = (s) => ({ content: [{ type: "text", text: s }] });
 const fail = (e) => ({ content: [{ type: "text", text: `Error: ${e.message}` }], isError: true });
 
-function render(t) {
+function render(t, { compact = false } = {}) {
   const m = t.metadata || {};
-  const bits = [`Type: ${m.type || "unknown"}`];
+  const bits = [`Kind: ${m.kind || m.type || "unknown"}`];
+  if (m.lifecycle && m.lifecycle !== "current") bits.push(`Lifecycle: ${m.lifecycle}`);
+  if (m.task_status) bits.push(`Task: ${m.task_status}`);
+  if (m.project) bits.push(`Project: ${m.project}`);
   if (t.tier === "vault") bits.push("TIER: VAULT");
   if (Array.isArray(m.topics) && m.topics.length) bits.push(`Topics: ${m.topics.join(", ")}`);
   if (Array.isArray(m.people) && m.people.length) bits.push(`People: ${m.people.join(", ")}`);
+  if (Array.isArray(m.systems) && m.systems.length) bits.push(`Systems: ${m.systems.join(", ")}`);
+  if (m.verified_at) bits.push(`Verified: ${m.verified_at}`);
   if (t.similarity != null) bits.push(`Similarity: ${(t.similarity * 100).toFixed(0)}%`);
-  return `${t.content}\n  [${bits.join(" | ")}] (id ${t.id})`;
+  const body = compact
+    ? `${m.title || t.content.replace(/\s+/g, " ").slice(0, 180)}\n${m.summary || t.content.replace(/\s+/g, " ").slice(0, 500)}`
+    : t.content;
+  return `${body}\n  [${bits.join(" | ")}] (id ${t.id})`;
 }
 
 export function buildServer(tiers, ctx = {}) {
@@ -62,9 +78,7 @@ export function buildServer(tiers, ctx = {}) {
     return out;
   };
 
-  const scope = full
-    ? "This connection reaches both open knowledge and the vault (keys, passwords, tokens)."
-    : "This connection reaches open knowledge only. The vault is served on the local network alone.";
+  const scope = full ? VAULT_SCOPE : OPEN_SCOPE;
 
   server.registerTool("search_thoughts", {
     title: "Search the memory",
@@ -76,13 +90,19 @@ export function buildServer(tiers, ctx = {}) {
       // the first result or two. Raise it explicitly when casting a wide net.
       limit: z.number().default(5).describe("Raise this when searching broadly"),
       threshold: z.number().default(0.3),
+      kind: z.enum(MEMORY_KINDS).optional(),
+      lifecycle: z.enum([...MEMORY_LIFECYCLES, "all"]).default("current"),
+      task_status: z.enum(TASK_STATUSES).optional(),
+      project: z.string().optional(),
     },
-  }, track("search_thoughts", "read", async ({ query, limit, threshold }, note) => {
+  }, track("search_thoughts", "read", async ({ query, limit, threshold, kind, lifecycle, task_status, project }, note) => {
     try {
-      const rows = await db.searchThoughts(tiers, query, { limit, threshold });
+      const rows = await db.searchThoughts(tiers, query, {
+        limit, threshold, kind, lifecycle, taskStatus: task_status, project,
+      });
       note.count = rows.length;
       if (!rows.length) return text(`Nothing matched "${query}".`);
-      return text(rows.map(render).join("\n\n"));
+      return text(rows.map((row) => render(row, { compact: true })).join("\n\n"));
     } catch (e) { return fail(e); }
   }));
 
@@ -92,8 +112,13 @@ export function buildServer(tiers, ctx = {}) {
     inputSchema: {
       limit: z.number().default(10),
       type: z.string().optional(),
+      kind: z.enum(MEMORY_KINDS).optional(),
+      lifecycle: z.enum([...MEMORY_LIFECYCLES, "all"]).default("current"),
+      task_status: z.enum(TASK_STATUSES).optional(),
+      project: z.string().optional(),
       topic: z.string().optional(),
       person: z.string().optional(),
+      system: z.string().optional(),
       days: z.number().optional(),
       },
   }, track("list_thoughts", "read", async (args, note) => {
@@ -108,11 +133,7 @@ export function buildServer(tiers, ctx = {}) {
   server.registerTool("capture_thought", {
     title: "Save a memory",
     description:
-      `Save something to the memory. Write it as a standalone statement that will ` +
-      `still make sense years later with no surrounding context. ` +
-      (full
-        ? `Set tier="vault" for keys, passwords and tokens - those then never leave the local network.`
-        : `This connection can only write open knowledge; secrets must be saved from the local network.`),
+      `Save something to the memory. ${CAPTURE_GUIDANCE} ${scope}`,
     inputSchema: {
       content: z.string(),
       tier: full ? z.enum(["open", "vault"]).default("open") : z.literal("open").default("open"),
@@ -130,6 +151,30 @@ export function buildServer(tiers, ctx = {}) {
     } catch (e) { return fail(e); }
   }));
 
+  if (full) {
+    server.registerTool("supersede_thought", {
+      title: "Replace one or more memories",
+      description:
+        "Create a current replacement and preserve the old memories as navigable superseded history. " +
+        CAPTURE_GUIDANCE,
+      inputSchema: {
+        old_ids: z.array(z.string().uuid()).min(1),
+        content: z.string(),
+        tier: z.enum(["open", "vault"]).default("open"),
+      },
+    }, track("supersede_thought", "write", async ({ old_ids, content, tier }, note) => {
+      try {
+        await db.validateSupersession(tiers, old_ids, tier);
+        const saved = await db.captureThought(tiers, content, { tier });
+        const linked = await db.linkSupersession(tiers, saved.id, old_ids);
+        note.tier = saved.tier;
+        note.count = old_ids.length + 1;
+        publishSoon();
+        return text(`Saved replacement ${saved.id}; preserved ${linked.superseded_ids.length} superseded memories.`);
+      } catch (e) { return fail(e); }
+    }));
+  }
+
   server.registerTool("thought_stats", {
     title: "Statistics",
     description: `A summary of the memory: totals, types, most common topics and people. ${scope}`,
@@ -142,7 +187,9 @@ export function buildServer(tiers, ctx = {}) {
       return text(
         `Total: ${s.total}\n` +
         `Per tier: ${Object.entries(s.byTier).map(([k, v]) => `${k}=${v}`).join(", ") || "-"}\n\n` +
-        `Types:\n${top(s.types)}\n\nTopics:\n${top(s.topics)}\n\nPeople:\n${top(s.people)}`);
+        `Kinds:\n${top(s.kinds)}\n\nLifecycle:\n${top(s.lifecycles)}\n\n` +
+        `Projects:\n${top(s.projects)}\n\nTopics:\n${top(s.topics)}\n\n` +
+        `People:\n${top(s.people)}\n\nSystems:\n${top(s.systems)}`);
     } catch (e) { return fail(e); }
   }));
 
@@ -158,8 +205,8 @@ export function buildServer(tiers, ctx = {}) {
       return text(JSON.stringify({
         results: rows.map((r) => ({
           id: r.id,
-          title: r.content.replace(/\s+/g, " ").slice(0, 80),
-          text: r.content,
+          title: r.metadata?.title || r.content.replace(/\s+/g, " ").slice(0, 80),
+          text: r.metadata?.summary || r.content.replace(/\s+/g, " ").slice(0, 500),
           url: `${process.env.CITATION_BASE_URL || "http://localhost:8790/thoughts"}/${r.id}`,
         })),
       }));
@@ -177,9 +224,10 @@ export function buildServer(tiers, ctx = {}) {
       note.count = 1;
       return text(JSON.stringify({
         id: t.id,
-        title: t.content.replace(/\s+/g, " ").slice(0, 80),
+        title: t.metadata?.title || t.content.replace(/\s+/g, " ").slice(0, 80),
         text: t.content,
         metadata: t.metadata,
+        relations: await db.thoughtRelations(tiers, id),
         url: `${process.env.CITATION_BASE_URL || "http://localhost:8790/thoughts"}/${t.id}`,
       }));
     } catch (e) { return fail(e); }

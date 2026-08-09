@@ -1,12 +1,14 @@
 {
   "name": "mimers-valv",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "description": "Self-hosted MCP memory server with a LAN-only vault tier",
   "main": "index.mjs",
   "scripts": {
-    "start": "node index.mjs"
+    "start": "node index.mjs",
+    "test": "node --test",
+    "audit": "node scripts/migrate-v2.mjs --dry-run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.0",

@@ -6,6 +6,33 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.7.0: memories become records instead of incident-shaped blobs
+
+The first 84 memories proved that good content is not enough. Free-form topic
+tags had produced 171 spellings, completed work was labelled as tasks, and a
+question about current SSH access could rank the canonical answer below shorter
+side notes. Metadata v2 adds a title, summary, kind, lifecycle, task status,
+project, systems, verification date and a controlled topic vocabulary while
+keeping the old `type` field readable for existing clients.
+
+Search is now hybrid: semantic similarity remains the base, but title and
+summary word matches can lift the canonical answer. Superseded memories are
+hidden by default but no longer have to be destroyed. `supersede_thought`
+creates a replacement, preserves every predecessor and records full UUID
+relations that the UI can follow in either direction.
+
+The vault wording was corrected everywhere at the same time. It is for
+sensitive context and exact `SECRET_REF` pointers, never raw passwords, tokens,
+API keys or private keys. A migration command defaults to `--dry-run`, refuses
+to apply unless the expected row count matches, prints no memory content, and
+preserves non-canonical old tags under `legacy_topics`.
+
+The UI exposes the new filters and history, semantic results return compact
+title/summary cards, and the test suite now combines Node unit tests with 36
+live-container isolation and history checks.
+
+---
+
 ## 2026-08-09 — 0.6.0: a second door, for clients that never learned MCP
 
 Open WebUI can call external tools, but it reads an OpenAPI document and calls

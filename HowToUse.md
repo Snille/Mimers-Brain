@@ -42,7 +42,7 @@ This is the only detail that really matters:
 | `http://192.0.2.41:8790/mcp` | open **+ vault** | on the LAN or over VPN |
 | `https://brain.example.net/mcp` | **open only** | everything else, and every other model |
 
-The vault — keys, passwords, tokens — is served only by the first. This is not a
+The vault — sensitive context and SECRET_REF pointers, never raw secret values — is served only by the first. This is not a
 setting that can be switched on for the second: the MCP server on 8791 is built
 entirely without the ability to reach those rows, so no header, parameter or path
 can lift them out. That is why you can point any external model at the public
@@ -378,6 +378,7 @@ no surrounding context. "It worked" is worthless; "the Lagersystem deploy aborts
 if `data/languages/` differs from origin, because the translation tool writes
 those files live on the server" is useful.
 
-Put it in the **vault** if it contains a key, a password or a token — or if it
-would help an outsider get in. Everything else is open, and open is better: it
-reaches you anywhere and can be used by any model.
+Put sensitive context in the **vault**, but store only an exact `SECRET_REF`
+pointer to a key, password, token or private key — never the raw value. Also use
+the vault if it would help an outsider get in. Everything else is open, and open
+is better: it reaches you anywhere and can be used by any model.

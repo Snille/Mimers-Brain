@@ -13,7 +13,8 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 $key = if ($KeyFile) { (Get-Content $KeyFile -Raw).Trim() }
-       else { ((Get-Content .env | Select-String '^MCP_ACCESS_KEY=(.*)$').Matches.Groups[1].Value).Trim() }
+       elseif (Test-Path .env) { ((Get-Content .env | Select-String '^MCP_ACCESS_KEY=(.*)$').Matches.Groups[1].Value).Trim() }
+       else { "" } # isolated local test instance with authentication disabled
 $H = @{ Authorization = "Bearer $key"; "Content-Type" = "application/json" }
 $FULL = "http://${HostName}:8790"
 $OPEN = "http://${HostName}:8791"
@@ -77,10 +78,13 @@ Check "FULL counts more than OPEN" ($sFull.total -gt $sOpen.total) "full=$($sFul
 Check "OPEN stats do not mention the vault" (-not $sOpen.byTier.vault) "byTier exposes the vault"
 
 Write-Host "`nAuthentication" -ForegroundColor Cyan
-try {
-    Invoke-RestMethod "$OPEN/api/thoughts" -Headers @{ Authorization = "Bearer wrong-key" }
-    Check "a wrong key is refused" $false "it was let through"
-} catch { Check "a wrong key is refused" $true "" }
+if (-not $key) { Write-Host "  SKIP  authentication disabled on this test instance" -ForegroundColor DarkGray }
+else {
+    try {
+        Invoke-RestMethod "$OPEN/api/thoughts" -Headers @{ Authorization = "Bearer wrong-key" }
+        Check "a wrong key is refused" $false "it was let through"
+    } catch { Check "a wrong key is refused" $true "" }
+}
 
 Write-Host "`nThe OpenAPI surface" -ForegroundColor Cyan
 # /openapi.json and /tools/* are a second door onto the same memory, so the tier
@@ -92,9 +96,39 @@ $openPaths = $specOpen.paths.PSObject.Properties.Name
 $fullPaths = $specFull.paths.PSObject.Properties.Name
 Check "OPEN spec hides delete_thought" ($openPaths -notcontains "/tools/delete_thought") "it was listed"
 Check "FULL spec offers delete_thought" ($fullPaths -contains "/tools/delete_thought") "it was missing"
+Check "OPEN spec hides supersede_thought" ($openPaths -notcontains "/tools/supersede_thought") "it was listed"
+Check "FULL spec offers supersede_thought" ($fullPaths -contains "/tools/supersede_thought") "it was missing"
 
 $tierEnum = $specOpen.paths."/tools/capture_thought".post.requestBody.content."application/json".schema.properties.tier.enum
 Check "OPEN spec offers no vault tier" ($tierEnum -notcontains "vault") "vault was offered"
+$captureDescription = $specFull.paths."/tools/capture_thought".post.description
+Check "capture guidance forbids raw secrets" ($captureDescription -match "never store raw") "safety rule missing"
+Check "capture guidance does not invite passwords" ($captureDescription -notmatch "vault \(keys, passwords, tokens\)") "old unsafe wording remains"
+
+Write-Host "`nNavigable supersession and metadata v2" -ForegroundColor Cyan
+$historyOld = Invoke-RestMethod "$FULL/api/thoughts" -Method Post -Headers $H -Body (@{
+    content = "Luba integration test memory."; tier = "open"
+    metadata = @{ type = "task"; topics = @("Networking"); people = @("Erik", "Luba") }
+} | ConvertTo-Json -Depth 5)
+Check "legacy task gets kind=task" ($historyOld.metadata.kind -eq "task") "got '$($historyOld.metadata.kind)'"
+Check "new tasks default to pending" ($historyOld.metadata.task_status -eq "pending") "got '$($historyOld.metadata.task_status)'"
+Check "topic aliases are canonical" ($historyOld.metadata.topics -contains "network") "network missing"
+Check "Luba is not a person" ($historyOld.metadata.people -notcontains "Luba") "Luba remained under people"
+Check "Luba and Sleipner are systems" (($historyOld.metadata.systems -contains "Luba") -and
+    ($historyOld.metadata.systems -contains "Sleipner")) "system aliases missing"
+
+$historyNew = Invoke-RestMethod "$FULL/api/thoughts/supersede" -Method Post -Headers $H -Body (@{
+    old_ids = @($historyOld.id); content = "Current integration test replacement."; tier = "open"
+    metadata = @{ kind = "fact"; topics = @("network") }
+} | ConvertTo-Json -Depth 5)
+$currentRows = Invoke-RestMethod "$FULL/api/thoughts" -Headers $H
+$allRows = Invoke-RestMethod "$FULL/api/thoughts?lifecycle=all" -Headers $H
+Check "superseded row is hidden by default" (-not ($currentRows | Where-Object { $_.id -eq $historyOld.id })) "old row visible"
+Check "replacement is current" ([bool]($currentRows | Where-Object { $_.id -eq $historyNew.id })) "replacement missing"
+Check "superseded history remains readable" ([bool]($allRows | Where-Object { $_.id -eq $historyOld.id })) "old row disappeared"
+$historyFetched = Invoke-RestMethod "$FULL/api/thoughts/$($historyOld.id)" -Headers $H
+Check "old row is marked superseded" ($historyFetched.metadata.lifecycle -eq "superseded") "got '$($historyFetched.metadata.lifecycle)'"
+Check "history relation is navigable" ($historyFetched.relations.Count -eq 1) "relation missing"
 
 try {
     Invoke-RestMethod "$OPEN/tools/capture_thought" -Method Post -Headers $H -Body (@{
@@ -107,11 +141,13 @@ try {
     Check "OPEN /tools cannot fetch a vault row" $false "the row came back"
 } catch { Check "OPEN /tools cannot fetch a vault row" $true "" }
 
-try {
-    Invoke-RestMethod "$OPEN/tools/thought_stats" -Method Post -Body '{}' -Headers @{
-        Authorization = "Bearer wrong-key"; "Content-Type" = "application/json" } | Out-Null
-    Check "/tools refuses a wrong key" $false "it was let through"
-} catch { Check "/tools refuses a wrong key" $true "" }
+if ($key) {
+    try {
+        Invoke-RestMethod "$OPEN/tools/thought_stats" -Method Post -Body '{}' -Headers @{
+            Authorization = "Bearer wrong-key"; "Content-Type" = "application/json" } | Out-Null
+        Check "/tools refuses a wrong key" $false "it was let through"
+    } catch { Check "/tools refuses a wrong key" $true "" }
+}
 
 # The document is public on purpose - names and argument schemas, nothing more -
 # so a client can be configured before it has a key. Nothing else may be.
@@ -167,7 +203,9 @@ $cOpen = Invoke-RestMethod "$OPEN/api/connect" -Headers $H
 # into a browser cache on every visit - and it is the one credential that opens
 # the vault on the LAN.
 Check "OPEN /api/connect withholds the vault key" ([string]::IsNullOrEmpty($cOpen.accessKey)) "it was handed out"
-Check "FULL /api/connect provides the vault key" (-not [string]::IsNullOrEmpty($cFull.accessKey)) "nothing to copy"
+if ($key) {
+    Check "FULL /api/connect provides the vault key" (-not [string]::IsNullOrEmpty($cFull.accessKey)) "nothing to copy"
+}
 Check "OPEN /api/connect hides delete_thought" ($cOpen.tools.name -notcontains "delete_thought") "it was listed"
 
 Write-Host "`nUsage statistics" -ForegroundColor Cyan
@@ -186,10 +224,11 @@ $raw = (Invoke-WebRequest "$OPEN/api/usage" -Headers $H).Content
 Check "usage statistics contain no memory content" ($raw -notmatch "CANARY") "the secret appeared in the statistics"
 
 Write-Host "`nCleaning up test data" -ForegroundColor Cyan
-foreach ($id in @($v.id, $o.id)) {
+foreach ($id in @($historyNew.id, $historyOld.id, $v.id, $o.id)) {
     try { Invoke-RestMethod "$FULL/api/thoughts/$id" -Method Delete -Headers $H | Out-Null } catch {}
 }
-$left = Invoke-RestMethod "$FULL/api/thoughts" -Headers $H | Where-Object { $_.id -in @($v.id, $o.id) }
+$left = Invoke-RestMethod "$FULL/api/thoughts?lifecycle=all" -Headers $H |
+    Where-Object { $_.id -in @($historyNew.id, $historyOld.id, $v.id, $o.id) }
 Check "test rows removed" (-not $left) "test rows still present"
 
 Write-Host "`n$pass passed, $fail failed`n" -ForegroundColor $(if ($fail) { "Red" } else { "Green" })
