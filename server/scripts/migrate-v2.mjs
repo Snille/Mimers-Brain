@@ -188,7 +188,7 @@ const report = {
   systems: tally(proposed.flatMap(({ next }) => next.metadata.systems || [])),
   pending_task_ids: proposed.filter(({ next }) => next.metadata.kind === "task" && next.metadata.task_status === "pending")
     .map(({ row }) => row.id),
-  split_candidates_over_2500_chars: changed.filter((item) => item.chars > 2500).map((item) => item.id),
+  split_candidates_over_2500_chars: rows.filter((row) => row.content.length > 2500).map((row) => row.id),
   changes: changed.map(({ id, fields }) => ({ id, fields })),
 };
 
