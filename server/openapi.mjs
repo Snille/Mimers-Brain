@@ -16,6 +16,7 @@
 
 import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
+import { recallReference } from "./recall.mjs";
 import {
   CAPTURE_GUIDANCE,
   MEMORY_POLICY,
@@ -90,7 +91,9 @@ export function toolsFor(tiers, ctx = {}) {
       summary: "Search the memory",
       description:
         `Search the memory by meaning. Use this before answering about Erik, his systems, ` +
-        `access, configuration, workflows, preferences, prior decisions, or pending work. ${scope}`,
+        `access, configuration, workflows, preferences, prior decisions, or pending work. ` +
+        `After using the results, pass the returned trace_id to report_memory_usage. ` +
+        `request_id is the same value and remains only as a compatibility alias. ${scope}`,
       schema: {
         type: "object",
         required: ["query"],
@@ -109,8 +112,8 @@ export function toolsFor(tiers, ctx = {}) {
         const rows = await db.searchThoughts(tiers, String(query).trim(), {
           limit, threshold, kind, lifecycle, taskStatus: task_status, project,
         });
-        const request_id = rows.length ? await db.createRecallTrace(tiers, rows, ctx) : null;
-        return { request_id, count: rows.length, results: rows.map(memory) };
+        const trace_id = rows.length ? await db.createRecallTrace(tiers, rows, ctx) : null;
+        return { ...recallReference(trace_id), count: rows.length, results: rows.map(memory) };
       },
     },
     {

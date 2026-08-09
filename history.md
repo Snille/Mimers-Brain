@@ -6,6 +6,15 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.9.1: search and receipts use the same ID
+
+OpenAPI search now returns `trace_id`, the exact field name accepted by
+`report_memory_usage`. The previous `request_id` remains as a backwards-compatible
+alias with the same value. MCP search also labels the value explicitly as
+`trace_id`, while the shared memory policy and usage guides describe the complete
+receipt flow. Clients therefore no longer leave searches "awaiting report" merely
+because the search and reporting tools used different names for the same UUID.
+
 ## 2026-08-09 — 0.9.0: statistics measure memory health, not just traffic
 
 The Statistics page now leads with what can safely be used: active memories,

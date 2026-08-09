@@ -6,6 +6,15 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.9.1: sökning och kvitto använder samma ID
+
+OpenAPI-sökningen returnerar nu `trace_id`, exakt det fältnamn som
+`report_memory_usage` tar emot. Det tidigare `request_id` finns kvar med samma
+värde som bakåtkompatibelt alias. MCP-sökningen benämner också värdet uttryckligen
+som `trace_id`, och den gemensamma minnespolicyn samt användarguiderna beskriver
+hela kvittoflödet. Därmed lämnar klienter inte längre sökningar som "väntar på
+rapport" bara för att sök- och rapportverktygen använde olika namn på samma UUID.
+
 ## 2026-08-09 — 0.9.0: statistik mäter minnets hälsa, inte bara trafiken
 
 Statistiksidan börjar nu med det som faktiskt går att använda: aktiva minnen,

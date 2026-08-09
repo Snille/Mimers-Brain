@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { spec, toolsFor } from "../openapi.mjs";
 import { MEMORY_POLICY } from "../memory-model.mjs";
+import { recallReference } from "../recall.mjs";
 
 test("open and full OpenAPI surfaces keep the tier boundary", () => {
   const open = toolsFor(["open"]);
@@ -39,4 +40,14 @@ test("the OpenAPI document exposes v2 filters", () => {
     assert.ok(properties[name], `${name} is missing`);
   }
   assert.equal(document["x-memory-policy"], MEMORY_POLICY);
+});
+
+test("recall searches expose trace_id with a backwards-compatible request_id alias", () => {
+  const id = "123e4567-e89b-12d3-a456-426614174000";
+  assert.deepEqual(recallReference(id), { trace_id: id, request_id: id });
+
+  const search = toolsFor(["open"]).find((tool) => tool.name === "search_thoughts");
+  const report = toolsFor(["open"]).find((tool) => tool.name === "report_memory_usage");
+  assert.match(search.description, /returned trace_id/i);
+  assert.deepEqual(report.schema.required, ["trace_id"]);
 });

@@ -39,6 +39,12 @@ stället för att sparas som ett enda transkriptstort minne.
 Allt som talar MCP kan alltså använda minnet — du behöver inte bygga något per
 modell.
 
+`search_thoughts` returnerar ett `trace_id` (samt samma värde som
+`request_id` för äldre klienter). När svaret är färdigt ska klienten skicka
+`trace_id` till `report_memory_usage` tillsammans med de returnerade minnes-ID:n
+som användes respektive ignorerades. Utan det kvittot visas sökningen som
+**väntar på rapport** och räknas som försenad efter tio minuter.
+
 ---
 
 ## De två adresserna

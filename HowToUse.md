@@ -39,6 +39,12 @@ approval step instead of being stored as one transcript-sized memory.
 Anything that speaks MCP can therefore use the memory — you do not build
 something per model.
 
+`search_thoughts` returns a `trace_id` (and the same value as `request_id` for
+older clients). Once the answer is complete, the client should send that
+`trace_id` to `report_memory_usage` together with the returned memory ids it
+used and ignored. Without that receipt, the search appears as **awaiting report**
+and becomes overdue after ten minutes.
+
 ---
 
 ## The two addresses

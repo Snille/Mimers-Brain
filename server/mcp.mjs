@@ -10,6 +10,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
+import { recallReference } from "./recall.mjs";
 import {
   CAPTURE_GUIDANCE,
   MEMORY_POLICY,
@@ -90,7 +91,7 @@ export function buildServer(tiers, ctx = {}) {
 
   server.registerTool("search_thoughts", {
     title: "Search the memory",
-    description: `Search the memory by meaning. Use this before answering about Erik, his systems, access, configuration, workflows, preferences, prior decisions, or pending work. ${scope}`,
+    description: `Search the memory by meaning. Use this before answering about Erik, his systems, access, configuration, workflows, preferences, prior decisions, or pending work. After using the results, pass the returned trace_id to report_memory_usage. ${scope}`,
     inputSchema: {
       query: z.string().describe("What you are looking for"),
       // 5, not 10: a search returns whole memories, so every extra hit costs a
@@ -111,7 +112,7 @@ export function buildServer(tiers, ctx = {}) {
       note.count = rows.length;
       if (!rows.length) return text(`Nothing matched "${query}".`);
       const trace = await db.createRecallTrace(tiers, rows, ctx);
-      return text(`Recall trace: ${trace}\n\n${rows.map((row) => render(row, { compact: true })).join("\n\n")}`);
+      return text(`Recall trace_id: ${trace}\n\n${rows.map((row) => render(row, { compact: true })).join("\n\n")}`);
     } catch (e) { return fail(e); }
   }));
 
@@ -291,7 +292,7 @@ export function buildServer(tiers, ctx = {}) {
       note.count = rows.length;
       const trace = rows.length ? await db.createRecallTrace(tiers, rows, ctx) : null;
       return text(JSON.stringify({
-        request_id: trace,
+        ...recallReference(trace),
         results: rows.map((r) => ({
           id: r.id,
           title: r.metadata?.title || r.content.replace(/\s+/g, " ").slice(0, 80),
