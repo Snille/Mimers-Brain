@@ -31,6 +31,21 @@ const KIND_OVERRIDES = new Map(Object.entries({
   "d28e1938-6fb6-4803-b313-d58c4d5919c8": "procedure",
   "9c78f44a-d4af-405b-a0e2-bbec2bf73680": "procedure",
   "9f96b3ef-80d9-48e1-b322-834a901f3446": "task",
+  "1c58a8de-71ed-421d-9c48-67f91f64cae2": "procedure",
+  "ffedefb7-74b8-42a6-b268-22bad0e9ff3c": "procedure",
+  "bb0dda2f-a877-4186-8d25-3e1e308db91e": "procedure",
+}));
+
+const TITLE_OVERRIDES = new Map(Object.entries({
+  "1c58a8de-71ed-421d-9c48-67f91f64cae2": "Home Assistant: current access via SSH, SSHFS, REST and websocket",
+  "ffedefb7-74b8-42a6-b268-22bad0e9ff3c": "Build and flash ESPHome devices from WSL",
+  "bb0dda2f-a877-4186-8d25-3e1e308db91e": "Deploy Mimers Brain safely",
+}));
+
+const SUMMARY_OVERRIDES = new Map(Object.entries({
+  "1c58a8de-71ed-421d-9c48-67f91f64cae2": "Use ssh ha as root for commands on the Home Assistant machine; use H: only for files, REST for states and services, and websocket for registries and recorder APIs.",
+  "ffedefb7-74b8-42a6-b268-22bad0e9ff3c": "Match the WSL ESPHome version to the Home Assistant add-on, compile with esphome-wsl against the real secrets file, then flash from WSL.",
+  "bb0dda2f-a877-4186-8d25-3e1e308db91e": "On valv, update the live git clone with git pull --ff-only and rebuild with docker compose up -d --build; the pinned Compose project name protects the data volume.",
 }));
 
 const NON_PEOPLE = new Map([
@@ -72,6 +87,7 @@ const SYSTEM_RULES = [
 ];
 
 const uniq = (values) => [...new Map(values.filter(Boolean).map((v) => [v.toLowerCase(), v])).values()];
+const replaceDeadRefs = (text) => String(text ?? "").replace(/\bid\s+[0-9a-f]{8}\b/gi, "den tidigare posten");
 
 function projectFor(content, oldMeta) {
   if (oldMeta.project) return String(oldMeta.project);
@@ -85,6 +101,7 @@ function projectFor(content, oldMeta) {
 
 function proposal(row) {
   const old = row.metadata || {};
+  const content = replaceDeadRefs(row.content);
   const movedSystems = [];
   const people = [];
   for (const person of Array.isArray(old.people) ? old.people : []) {
@@ -96,10 +113,17 @@ function proposal(row) {
   const systems = uniq([
     ...(Array.isArray(old.systems) ? old.systems : []),
     ...movedSystems,
-    ...SYSTEM_RULES.filter(([, pattern]) => pattern.test(row.content)).map(([name]) => name),
+    ...SYSTEM_RULES.filter(([, pattern]) => pattern.test(content)).map(([name]) => name),
   ]);
-  const project = projectFor(row.content, old);
-  const meta = normaliseMeta({ ...old, people, systems, project }, row.content);
+  const project = projectFor(content, old);
+  const meta = normaliseMeta({
+    ...old,
+    title: replaceDeadRefs(old.title),
+    summary: replaceDeadRefs(old.summary),
+    people,
+    systems,
+    project,
+  }, content);
 
   if (KIND_OVERRIDES.has(row.id)) {
     meta.kind = KIND_OVERRIDES.get(row.id);
@@ -109,15 +133,15 @@ function proposal(row) {
   if (meta.kind === "task") meta.task_status = "pending";
   else delete meta.task_status;
 
-  const date = row.content.match(/\b(20\d{2}-\d{2}-\d{2})\b/)?.[1];
-  if (!meta.verified_at && date && /verifier|mätt|beslut|genomför|löst|avslutat/i.test(row.content))
-    meta.verified_at = date;
-  const version = row.content.match(/\b(?:version|v)(\d+\.\d+(?:\.\d+)?)\b/i)?.[1];
-  if (!meta.valid_for_version && version) meta.valid_for_version = version;
+  if (TITLE_OVERRIDES.has(row.id)) meta.title = TITLE_OVERRIDES.get(row.id);
+  if (SUMMARY_OVERRIDES.has(row.id)) meta.summary = SUMMARY_OVERRIDES.get(row.id);
+  if (row.id === "a3e65e74-8112-4151-a535-d9c28a49a176") delete meta.project;
 
-  // The predecessors behind these abbreviated ids have already been hard
-  // deleted. Keep the explanation, replace only the dead pseudo-link.
-  const content = row.content.replace(/\bid\s+[0-9a-f]{8}\b/gi, "den tidigare posten");
+  const date = content.match(/\b(20\d{2}-\d{2}-\d{2})\b/)?.[1];
+  if (!meta.verified_at && date && /verifier|mätt|beslut|genomför|löst|avslutat/i.test(content))
+    meta.verified_at = date;
+  const version = content.match(/\b(?:version|v)(\d+\.\d+(?:\.\d+)?)\b/i)?.[1];
+  if (!meta.valid_for_version && version) meta.valid_for_version = version;
   return { content, metadata: meta };
 }
 

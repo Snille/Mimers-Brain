@@ -126,6 +126,13 @@ export async function listThoughts(tiers, {
 export async function searchThoughts(tiers, query, {
   limit = 10, threshold = 0.3, kind, lifecycle = "current", taskStatus, project,
 } = {}) {
+  // A generic semantic query for "what remains" otherwise ranks incident
+  // reports that contain those words above the actual pending tasks. Treat this
+  // common intent as a structured filter unless the caller chose one itself.
+  if (!kind && !taskStatus && /\b(?:todo|pending|återstår|kvar att göra|göra senare|follow[- ]?up)\b/i.test(query)) {
+    kind = "task";
+    taskStatus = "pending";
+  }
   const vector = await embed(query);
   if (!vector) throw new Error("Semantic search needs OPENROUTER_API_KEY");
   const args = [JSON.stringify(vector), query, tiers, threshold];
