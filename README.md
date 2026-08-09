@@ -181,8 +181,12 @@ when you are reading it through the proxy. `LAN_URL` overrides it if you would
 rather see a hostname; until the LAN listener has been opened once, the page says
 so rather than guessing.
 
-**Statistics** answers who uses the memory and how much: calls per day, month and
-year, new memories over the same spans, and a breakdown per client and per tool.
+**Statistics** answers four separate questions: whether the memory is healthy,
+whether recalled memories prove useful, how activity changes over time, and
+whether integrations are operating normally. It therefore combines active and
+historical records, review and metadata quality, provenance, receipt coverage,
+reported usefulness, client/tool activity and MQTT health without turning the
+page into a leaderboard.
 
 Two things worth knowing about those numbers. MCP identifies the **client
 application** — Claude Code, Codex, a ChatGPT connector — and never the model

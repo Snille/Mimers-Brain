@@ -183,9 +183,11 @@ från riktiga besök och sparas, vilket är varför sidan kan namnge LAN-adresse
 när du läser den via proxyn. `LAN_URL` går före om du hellre vill se ett värdnamn;
 innan LAN-lyssnaren öppnats en gång säger sidan det i stället för att gissa.
 
-**Statistik** svarar på vem som använder minnet och hur mycket: anrop per dag,
-månad och år, nya minnen över samma spann, och en uppdelning per klient och per
-verktyg.
+**Statistik** svarar på fyra separata frågor: om minnet mår bra, om återkallade
+minnen faktiskt blir användbara, hur aktiviteten förändras över tid och om
+integrationerna fungerar normalt. Sidan kombinerar därför aktiva och historiska
+poster, gransknings- och metadatakvalitet, proveniens, kvittotäckning, rapporterad
+nytta, klient-/verktygsaktivitet och MQTT-hälsa utan att bli en topplista.
 
 Två saker är värda att veta om de siffrorna. MCP uppger **klientappen** — Claude
 Code, Codex, en ChatGPT-connector — aldrig vilken modell som svarar inuti den;
