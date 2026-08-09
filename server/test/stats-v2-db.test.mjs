@@ -29,7 +29,7 @@ test("statistics v2 separates active records and reported recall usefulness", {
         complete({ review_status: "pending", provenance: "inferred" }),
         complete({ review_status: "evidence_only", can_use_as_evidence: false, reviewed_at: "2026-08-09T10:00:00Z" }),
         complete({ lifecycle: "archived" }),
-        complete({ lifecycle: "superseded" }),
+        complete({ lifecycle: "superseded", review_status: "pending", provenance: "inferred" }),
       ],
     );
     const ids = Object.fromEntries(rows.map((row) => [row.content, row.id]));
@@ -71,6 +71,8 @@ test("statistics v2 separates active records and reported recall usefulness", {
     );
     assert.equal(stats.memoryHealth.reviewStatuses.restricted, 1);
     assert.equal(stats.memoryHealth.reviewsTotal, 1);
+    const queue = await db.reviewQueue(["open", "vault"]);
+    assert.deepEqual(queue.map((row) => row.id), [ids.pending]);
     assert.equal(stats.memoryDaily.reduce((sum, row) => sum + row.active, 0), 3);
     assert.equal(stats.memoryDaily.reduce((sum, row) => sum + row.inactive, 0), 2);
 
@@ -97,6 +99,9 @@ test("statistics v2 separates active records and reported recall usefulness", {
     assert.equal(open.recall.byClient.some((row) => row.client === "client-b"), false);
 
     const live = await db.liveCounters();
+    assert.equal(live.memories_pending_review, 1);
+    assert.equal(live.memories_evidence_only, 1);
+    assert.equal(live.memories_stale, 0);
     assert.equal(live.recall_searches_today, 3);
     assert.equal(live.recall_reports_today, 2);
     assert.equal(live.recall_unreported, 2);

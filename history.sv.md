@@ -6,6 +6,15 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.9.4: historiska minnen lämnar granskningskön
+
+Ett agentminne från 0.9.1 låg kvar som väntande granskning trots att det redan
+var ersatt av 0.9.2 och 0.9.3. Kön, statistikens väntande-KPI och MQTT-räknarna
+filtrerade bara bort `archived` och tog därför felaktigt med `superseded`.
+Samtliga använder nu samma definition: bara `lifecycle: current` kan kräva en
+granskning. Historiska poster behåller sin ursprungliga granskningsstatus för
+spårbarhet men visas inte som något användaren behöver åtgärda.
+
 ## 2026-08-09 — 0.9.3: fetch visar aktualitet före lång minnestext
 
 Claude hämtade ett ersatt serverinventarium vars text var skadad och drog

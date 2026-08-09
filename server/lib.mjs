@@ -402,7 +402,7 @@ export async function reviewQueue(tiers, { limit = 100 } = {}) {
       WHERE tier = ANY($1)
         AND (coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
              OR (metadata->>'review_status' = 'evidence_only' AND NOT metadata ? 'reviewed_at'))
-        AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+        AND coalesce(metadata->>'lifecycle', 'current') = 'current'
       ORDER BY CASE metadata->>'review_status' WHEN 'pending' THEN 0 WHEN 'stale' THEN 1 ELSE 2 END,
                created_at DESC LIMIT $2`,
     [tiers, Math.min(Number(limit) || 100, 500)],
@@ -825,7 +825,7 @@ async function memoryHealth(tiers) {
        SELECT * FROM normalised WHERE lifecycle = 'current' AND review_status <> 'rejected'
      ), pending AS (
        SELECT * FROM normalised
-        WHERE lifecycle <> 'archived'
+        WHERE lifecycle = 'current'
           AND (review_status IN ('pending', 'stale')
                OR (review_status = 'evidence_only' AND NOT metadata ? 'reviewed_at'))
      )
@@ -1089,14 +1089,14 @@ export async function liveCounters(tiers = ALL) {
        (SELECT count(*) FROM thoughts WHERE tier = 'vault')                        AS mem_vault,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND embedding IS NULL)  AS mem_unembedded,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1)
-          AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+          AND coalesce(metadata->>'lifecycle', 'current') = 'current'
           AND (coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
                OR (metadata->>'review_status' = 'evidence_only' AND NOT metadata ? 'reviewed_at'))) AS mem_pending_review,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1)
-          AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+          AND coalesce(metadata->>'lifecycle', 'current') = 'current'
           AND metadata->>'review_status' = 'evidence_only') AS mem_evidence_only,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1)
-          AND coalesce(metadata->>'lifecycle', 'current') <> 'archived'
+          AND coalesce(metadata->>'lifecycle', 'current') = 'current'
           AND metadata->>'review_status' = 'stale') AS mem_stale,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM d)) AS mem_today,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND created_at >= (SELECT v FROM w)) AS mem_week,

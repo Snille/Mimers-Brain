@@ -223,6 +223,9 @@ one:
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, and why |
 | `sensor.mimers_brain_uptime` | seconds since start |
 
+Review queue sensors count current memories only. Superseded and archived
+records retain their historical review metadata but never require action.
+
 The two counter groups carry different `state_class` values on purpose. The
 **growth** counters are `measurement`, because deleting a memory makes them fall
 and a counter that can fall is a gauge — telling Home Assistant otherwise makes

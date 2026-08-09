@@ -6,6 +6,15 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.9.4: historical memories leave the review queue
+
+An agent memory from 0.9.1 remained in pending review even though 0.9.2 and
+0.9.3 had already superseded it. The queue, the Statistics pending KPI and MQTT
+counters excluded only `archived`, so they incorrectly included `superseded`.
+They now share one definition: only `lifecycle: current` can require review.
+Historical records retain their original review status for traceability but no
+longer appear as something the user must act on.
+
 ## 2026-08-09 — 0.9.3: fetch shows freshness before long memory text
 
 Claude fetched a superseded server inventory with damaged text and concluded

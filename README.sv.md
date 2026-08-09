@@ -222,6 +222,9 @@ vad dokumentationen än antyder — så de är ett kontrakt värt att behandla s
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, och varför |
 | `sensor.mimers_brain_uptime` | sekunder sedan start |
 
+Granskningskö-sensorerna räknar endast aktuella minnen. Ersatta och arkiverade
+poster behåller historisk granskningsmetadata men kräver aldrig någon åtgärd.
+
 De två räknargrupperna har olika `state_class` med flit. **Tillväxt**-räknarna är
 `measurement`, eftersom ett raderat minne får dem att sjunka och en räknare som
 kan sjunka är en mätare — säger man något annat till Home Assistant tolkas varje

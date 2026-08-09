@@ -19,3 +19,14 @@ test("review UI exposes all non-destructive resolution choices", async () => {
     "keep_both", "related", "supersede", "merge"])
     assert.match(source, new RegExp(action));
 });
+
+test("review queues and counters only treat current memories as actionable", async () => {
+  const source = await readFile(new URL("../lib.mjs", import.meta.url), "utf8");
+  const queue = source.match(/export async function reviewQueue[\s\S]*?return rows;\n}/)?.[0] || "";
+  assert.match(queue, /lifecycle',[^\n]*\) = 'current'/i);
+  assert.doesNotMatch(queue, /lifecycle',[^\n]*\) <> 'archived'/i);
+
+  const pendingCte = source.match(/pending AS \([\s\S]*?\n     \)/)?.[0] || "";
+  assert.match(pendingCte, /WHERE lifecycle = 'current'/i);
+  assert.match(source, /lifecycle',[^\n]*\) = 'current'[\s\S]*?AS mem_pending_review/i);
+});
