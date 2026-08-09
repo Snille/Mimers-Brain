@@ -30,7 +30,7 @@ Everything else is reachable from anywhere.
 
 ![Mimers Brain thought list with metadata filters and a LAN-only vault entry](assets/screenshots/mimers-brain-thoughts.png)
 
-![Mimers Brain usage statistics with daily and monthly activity charts](assets/screenshots/mimers-brain-statistics.png)
+![Mimers Brain memory health, recall quality and activity statistics](assets/screenshots/mimers-brain-statistics.png)
 
 The web interface ships in English and Swedish, selects the browser language on
 first visit, and remembers a manual choice. New translations are ordinary JSON
@@ -83,6 +83,10 @@ The interface: <http://localhost:8790>
 The **Review** page contains the trust queue, semantically similar duplicate
 candidates, and privacy-preserving recall receipts. Long text entered through
 **New thought** is previewed as atomic memories before anything is saved.
+The **Statistics** page separates active memories from archived and superseded
+records, then shows trust state, provenance, receipt coverage, recalled-memory
+usefulness, client/tool activity and operational MQTT health. Recall charts begin
+with the first 0.8.0 receipt; older calls are never mislabelled as missing reports.
 
 Generate a key:
 ```powershell

@@ -781,14 +781,214 @@ async function usageSeries(listeners, unit, span) {
 
 async function memorySeries(tiers, unit, span) {
   const { rows } = await pool.query(
-    `SELECT date_trunc($2, created_at AT TIME ZONE $4)::date AS bucket, count(*) AS count
+    `SELECT date_trunc($2, created_at AT TIME ZONE $4)::date AS bucket,
+            count(*) AS count,
+            count(*) FILTER (WHERE coalesce(metadata->>'lifecycle', 'current') = 'current'
+                               AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected') AS active,
+            count(*) FILTER (WHERE coalesce(metadata->>'lifecycle', 'current') <> 'current'
+                                OR coalesce(metadata->>'review_status', 'confirmed') = 'rejected') AS inactive
        FROM thoughts
       WHERE tier = ANY($1)
         AND created_at > now() - ($3 || ' days')::interval
       GROUP BY 1 ORDER BY 1`,
     [tiers, BUCKET[unit], String(span), TZ],
   );
-  return rows.map((r) => ({ bucket: r.bucket, count: Number(r.count) }));
+  return rows.map((r) => ({
+    bucket: r.bucket,
+    count: Number(r.count),
+    active: Number(r.active),
+    inactive: Number(r.inactive),
+  }));
+}
+
+async function memoryHealth(tiers) {
+  const { rows } = await pool.query(
+    `WITH base AS (
+       SELECT id, metadata, embedding, created_at
+         FROM thoughts WHERE tier = ANY($1)
+     ), normalised AS (
+       SELECT *,
+              coalesce(nullif(metadata->>'lifecycle', ''), 'current') AS lifecycle,
+              coalesce(nullif(metadata->>'review_status', ''), 'confirmed') AS review_status,
+              coalesce(nullif(metadata->>'origin', ''), 'legacy') AS origin,
+              coalesce(nullif(metadata->>'provenance', ''), 'imported') AS provenance,
+              coalesce(nullif(metadata->>'kind', ''), nullif(metadata->>'type', ''), 'unknown') AS kind,
+              nullif(metadata->>'project', '') AS project,
+              CASE
+                WHEN metadata->>'review_status' = 'evidence_only'
+                 AND metadata->>'can_use_as_evidence' = 'false'
+                  THEN 'restricted'
+                ELSE coalesce(nullif(metadata->>'review_status', ''), 'confirmed')
+              END AS review_bucket
+         FROM base
+     ), active AS (
+       SELECT * FROM normalised WHERE lifecycle = 'current' AND review_status <> 'rejected'
+     ), pending AS (
+       SELECT * FROM normalised
+        WHERE lifecycle <> 'archived'
+          AND (review_status IN ('pending', 'stale')
+               OR (review_status = 'evidence_only' AND NOT metadata ? 'reviewed_at'))
+     )
+     SELECT
+       (SELECT count(*) FROM normalised) AS records,
+       (SELECT count(*) FROM active) AS active,
+       (SELECT count(*) FROM normalised WHERE lifecycle <> 'current' OR review_status = 'rejected') AS inactive,
+       (SELECT count(*) FROM normalised WHERE lifecycle = 'archived') AS archived,
+       (SELECT count(*) FROM normalised WHERE lifecycle = 'superseded') AS superseded,
+       (SELECT count(*) FROM pending) AS pending_review,
+       (SELECT min(created_at) FROM pending) AS oldest_pending,
+       (SELECT count(*) FROM active WHERE embedding IS NULL) AS unembedded,
+       (SELECT count(*) FROM active
+         WHERE coalesce(metadata->>'title', '') = ''
+            OR coalesce(metadata->>'summary', '') = ''
+            OR coalesce(metadata->>'kind', '') = ''
+            OR coalesce(metadata->>'origin', '') = ''
+            OR coalesce(metadata->>'provenance', '') = ''
+            OR coalesce(metadata->>'review_status', '') = '') AS incomplete,
+       (SELECT count(DISTINCT n.id) FROM normalised n
+         WHERE n.lifecycle = 'archived' AND EXISTS (
+           SELECT 1 FROM thought_relations r
+            WHERE r.to_id = n.id AND r.relation = 'derived_from')) AS archived_sources,
+       (SELECT count(*) FROM memory_review_events e JOIN thoughts t ON t.id = e.thought_id
+         WHERE t.tier = ANY($1)) AS reviews_total,
+       (SELECT count(*) FROM memory_review_events e JOIN thoughts t ON t.id = e.thought_id
+         WHERE t.tier = ANY($1)
+           AND e.reviewed_at >= date_trunc('week', now() AT TIME ZONE $2) AT TIME ZONE $2) AS reviews_week,
+       (SELECT count(*) FROM duplicate_resolutions d
+          JOIN thoughts l ON l.id = d.left_id JOIN thoughts r ON r.id = d.right_id
+         WHERE l.tier = ANY($1) AND r.tier = ANY($1)) AS duplicate_decisions,
+       (SELECT jsonb_object_agg(review_bucket, c) FROM (
+          SELECT review_bucket, count(*) AS c FROM normalised GROUP BY review_bucket
+        ) x) AS review_statuses,
+       (SELECT jsonb_object_agg(lifecycle, c) FROM (
+          SELECT lifecycle, count(*) AS c FROM normalised GROUP BY lifecycle
+        ) x) AS lifecycles,
+       (SELECT jsonb_object_agg(origin, c) FROM (
+          SELECT origin, count(*) AS c FROM normalised GROUP BY origin
+        ) x) AS origins,
+       (SELECT jsonb_object_agg(provenance, c) FROM (
+          SELECT provenance, count(*) AS c FROM normalised GROUP BY provenance
+        ) x) AS provenance,
+       (SELECT jsonb_object_agg(kind, c) FROM (
+          SELECT kind, count(*) AS c FROM normalised GROUP BY kind
+        ) x) AS kinds,
+       (SELECT jsonb_object_agg(project, c) FROM (
+          SELECT project, count(*) AS c FROM normalised WHERE project IS NOT NULL GROUP BY project
+        ) x) AS projects`,
+    [tiers, TZ],
+  );
+  const r = rows[0];
+  return {
+    records: Number(r.records),
+    active: Number(r.active),
+    inactive: Number(r.inactive),
+    archived: Number(r.archived),
+    superseded: Number(r.superseded),
+    pendingReview: Number(r.pending_review),
+    oldestPending: r.oldest_pending || null,
+    unembedded: Number(r.unembedded),
+    incomplete: Number(r.incomplete),
+    archivedSources: Number(r.archived_sources),
+    reviewsTotal: Number(r.reviews_total),
+    reviewsWeek: Number(r.reviews_week),
+    duplicateDecisions: Number(r.duplicate_decisions),
+    reviewStatuses: r.review_statuses || {},
+    lifecycles: r.lifecycles || {},
+    origins: r.origins || {},
+    provenance: r.provenance || {},
+    kinds: r.kinds || {},
+    projects: r.projects || {},
+  };
+}
+
+async function recallStats(listeners, days) {
+  const [summary, daily, clients] = await Promise.all([
+    pool.query(
+      `WITH scoped AS (SELECT * FROM recall_traces WHERE listener = ANY($1))
+       SELECT
+         count(*) AS searches,
+         count(*) FILTER (WHERE reported_at IS NOT NULL) AS reports,
+         count(*) FILTER (WHERE reported_at IS NULL AND created_at < now() - interval '10 minutes') AS overdue,
+         coalesce(sum(cardinality(result_ids)), 0) AS returned,
+         coalesce(sum(cardinality(result_ids)) FILTER (WHERE reported_at IS NOT NULL), 0) AS reported_returned,
+         coalesce(sum(cardinality(used_ids)), 0) AS used,
+         coalesce(sum(cardinality(ignored_ids)), 0) AS ignored,
+         min(created_at) AS first,
+         max(created_at) AS last,
+         count(*) FILTER (WHERE created_at >= date_trunc('day', now() AT TIME ZONE $2) AT TIME ZONE $2) AS today_searches,
+         count(*) FILTER (WHERE created_at >= date_trunc('day', now() AT TIME ZONE $2) AT TIME ZONE $2
+                           AND reported_at IS NOT NULL) AS today_reports,
+         count(*) FILTER (WHERE created_at >= date_trunc('week', now() AT TIME ZONE $2) AT TIME ZONE $2) AS week_searches,
+         count(*) FILTER (WHERE created_at >= date_trunc('week', now() AT TIME ZONE $2) AT TIME ZONE $2
+                           AND reported_at IS NOT NULL) AS week_reports
+       FROM scoped`,
+      [listeners, TZ],
+    ),
+    pool.query(
+      `SELECT date_trunc('day', created_at AT TIME ZONE $3)::date AS bucket,
+              count(*) FILTER (WHERE reported_at IS NOT NULL) AS reported,
+              count(*) FILTER (WHERE reported_at IS NULL) AS unreported,
+              coalesce(sum(cardinality(used_ids)), 0) AS used,
+              greatest(coalesce(sum(cardinality(result_ids)) FILTER (WHERE reported_at IS NOT NULL), 0)
+                       - coalesce(sum(cardinality(used_ids)), 0), 0) AS unused
+         FROM recall_traces
+        WHERE listener = ANY($1) AND created_at > now() - ($2 || ' days')::interval
+        GROUP BY 1 ORDER BY 1`,
+      [listeners, String(days), TZ],
+    ),
+    pool.query(
+      `SELECT client, max(client_version) AS version,
+              count(*) AS searches,
+              count(*) FILTER (WHERE reported_at IS NOT NULL) AS reports,
+              count(*) FILTER (WHERE reported_at IS NULL AND created_at < now() - interval '10 minutes') AS overdue,
+              coalesce(sum(cardinality(result_ids)) FILTER (WHERE reported_at IS NOT NULL), 0) AS reported_returned,
+              coalesce(sum(cardinality(used_ids)), 0) AS used,
+              max(created_at) AS last
+         FROM recall_traces WHERE listener = ANY($1)
+        GROUP BY client ORDER BY searches DESC LIMIT 25`,
+      [listeners],
+    ),
+  ]);
+  const r = summary.rows[0];
+  const searches = Number(r.searches);
+  const reports = Number(r.reports);
+  const reportedReturned = Number(r.reported_returned);
+  const used = Number(r.used);
+  const percent = (part, whole) => whole ? Math.round(part * 1000 / whole) / 10 : null;
+  return {
+    searches,
+    reports,
+    overdue: Number(r.overdue),
+    returned: Number(r.returned),
+    reportedReturned,
+    used,
+    ignored: Number(r.ignored),
+    reportingPercent: percent(reports, searches),
+    usePercent: percent(used, reportedReturned),
+    first: r.first || null,
+    last: r.last || null,
+    today: { searches: Number(r.today_searches), reports: Number(r.today_reports) },
+    week: { searches: Number(r.week_searches), reports: Number(r.week_reports) },
+    daily: daily.rows.map((row) => ({
+      bucket: row.bucket,
+      reported: Number(row.reported),
+      unreported: Number(row.unreported),
+      used: Number(row.used),
+      unused: Number(row.unused),
+    })),
+    byClient: clients.rows.map((row) => ({
+      client: row.client,
+      version: row.version,
+      searches: Number(row.searches),
+      reports: Number(row.reports),
+      overdue: Number(row.overdue),
+      reportedReturned: Number(row.reported_returned),
+      used: Number(row.used),
+      reportingPercent: percent(Number(row.reports), Number(row.searches)),
+      usePercent: percent(Number(row.used), Number(row.reported_returned)),
+      last: row.last,
+    })),
+  };
 }
 
 // Counts since the start of the current local day / week / month / year, plus
@@ -815,7 +1015,7 @@ async function windowCounts(sql, args, column) {
 export async function usageStats(tiers, { days = 60, months = 24 } = {}) {
   const listeners = listenersFor(tiers);
 
-  const [daily, monthly, yearly, memDaily, memMonthly, calls, memories, byClient, byTool, byAction] =
+  const [daily, monthly, yearly, memDaily, memMonthly, calls, memories, health, recall, byClient, byTool, byAction] =
     await Promise.all([
       usageSeries(listeners, "day", days),
       usageSeries(listeners, "month", months * 31),
@@ -824,6 +1024,8 @@ export async function usageStats(tiers, { days = 60, months = 24 } = {}) {
       memorySeries(tiers, "month", months * 31),
       windowCounts("usage_events WHERE listener = ANY($1)", [listeners], "at"),
       windowCounts("thoughts WHERE tier = ANY($1)", [tiers], "created_at"),
+      memoryHealth(tiers),
+      recallStats(listeners, days),
       pool.query(
         `SELECT client,
                 max(client_version)                       AS version,
@@ -838,7 +1040,10 @@ export async function usageStats(tiers, { days = 60, months = 24 } = {}) {
         [listeners],
       ),
       pool.query(
-        `SELECT tool, count(*) AS calls, round(avg(ms)) AS avg_ms
+        `SELECT tool, count(*) AS calls,
+                count(*) FILTER (WHERE NOT ok) AS errors,
+                round(avg(ms)) AS avg_ms,
+                (percentile_cont(0.95) WITHIN GROUP (ORDER BY ms))::integer AS p95_ms
            FROM usage_events WHERE listener = ANY($1)
           GROUP BY tool ORDER BY calls DESC`,
         [listeners],
@@ -858,11 +1063,13 @@ export async function usageStats(tiers, { days = 60, months = 24 } = {}) {
     retentionDays: RETENTION_DAYS,
     calls,
     memories,
+    memoryHealth: health,
+    recall,
     daily, monthly, yearly,
     memoryDaily: memDaily,
     memoryMonthly: memMonthly,
     byClient: num(byClient.rows, "calls", "reads", "writes", "deletes", "errors"),
-    byTool: num(byTool.rows, "calls", "avg_ms"),
+    byTool: num(byTool.rows, "calls", "errors", "avg_ms", "p95_ms"),
     byAction: Object.fromEntries(byAction.rows.map((r) => [r.action, Number(r.calls)])),
   };
 }
@@ -902,10 +1109,13 @@ export async function liveCounters(tiers = ALL) {
           AND created_at >= (SELECT v FROM d) AND reported_at IS NOT NULL) AS recall_reports_today,
        (SELECT coalesce(sum(cardinality(result_ids)), 0) FROM recall_traces
           WHERE listener = ANY($2) AND created_at >= (SELECT v FROM d)) AS recall_returned_today,
+       (SELECT coalesce(sum(cardinality(result_ids)), 0) FROM recall_traces
+          WHERE listener = ANY($2) AND created_at >= (SELECT v FROM d)
+            AND reported_at IS NOT NULL) AS recall_reported_returned_today,
        (SELECT coalesce(sum(cardinality(used_ids)), 0) FROM recall_traces
           WHERE listener = ANY($2) AND created_at >= (SELECT v FROM d)) AS recall_used_today,
        (SELECT count(*) FROM recall_traces WHERE listener = ANY($2)
-          AND created_at >= (SELECT v FROM d) AND created_at < now() - interval '10 minutes'
+          AND created_at < now() - interval '10 minutes'
           AND reported_at IS NULL) AS recall_unreported,
        (SELECT max(created_at) FROM recall_traces WHERE listener = ANY($2)) AS recall_last,
        (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM d)) AS calls_today,
@@ -943,8 +1153,8 @@ export async function liveCounters(tiers = ALL) {
     recall_unreported: n(r.recall_unreported),
     recall_reporting_percent_today: n(r.recall_searches_today)
       ? Math.round(n(r.recall_reports_today) * 1000 / n(r.recall_searches_today)) / 10 : null,
-    recall_use_percent_today: n(r.recall_returned_today)
-      ? Math.round(n(r.recall_used_today) * 1000 / n(r.recall_returned_today)) / 10 : null,
+    recall_use_percent_today: n(r.recall_reported_returned_today)
+      ? Math.round(n(r.recall_used_today) * 1000 / n(r.recall_reported_returned_today)) / 10 : null,
     last_recall: r.recall_last ? new Date(r.recall_last).toISOString() : null,
     calls_today: n(r.calls_today),
     calls_week: n(r.calls_week),

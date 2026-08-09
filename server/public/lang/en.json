@@ -125,6 +125,32 @@
   },
   "stats": {
     "counting": "Counting …",
+    "noData": "No data yet.",
+    "age": {
+      "hours": "{count} h",
+      "day": "{count} day",
+      "days": "{count} days",
+      "month": "{count} month",
+      "months": "{count} months"
+    },
+    "sections": {
+      "health": {
+        "title": "Memory health",
+        "description": "What can be trusted and used now, separated from historical and archived records."
+      },
+      "recall": {
+        "title": "Recall quality",
+        "description": "Privacy-safe receipts show whether clients report their searches and whether returned memories helped."
+      },
+      "activity": {
+        "title": "Activity",
+        "description": "Calls, clients and created records. No query, answer or memory content is logged."
+      },
+      "operations": {
+        "title": "Operations",
+        "description": "Publishing and integration health for the service around the memory."
+      }
+    },
     "kpi": {
       "memoriesTotal": "memories total",
       "newThisYear": "new this year",
@@ -135,7 +161,21 @@
       "thisMonth": "{count} this month",
       "thisWeek": "{count} this week",
       "callsTotal": "{count} total",
-      "calls": "{count} calls"
+      "calls": "{count} calls",
+      "activeMemories": "active memories",
+      "recordsTotal": "{count} records including history",
+      "pendingReview": "awaiting review",
+      "oldestPending": "oldest has waited {age}",
+      "queueClear": "review queue is clear",
+      "unembedded": "active without embedding",
+      "incomplete": "{count} active with incomplete metadata",
+      "receiptCoverage": "receipt coverage",
+      "receiptsOfSearches": "{reports} receipts from {searches} searches",
+      "useRate": "recalled memories used",
+      "usedOfReturned": "{used} used of {returned} reported results",
+      "overdueReceipts": "overdue receipts",
+      "needsClientAttention": "client reporting needs attention",
+      "noneOverdue": "no receipt older than ten minutes"
     },
     "chart": {
       "noActivity": "No activity during this period.",
@@ -147,6 +187,16 @@
       "lastMonths": "last {count} months",
       "calls": "Calls",
       "newMemories": "New memories",
+      "createdRecords": "Created records",
+      "createdRecordsPerDay": "Created memory records per day",
+      "activeRecords": "still active",
+      "inactiveRecords": "now inactive",
+      "receiptsPerDay": "Recall receipts per day",
+      "reported": "reported",
+      "unreported": "not reported",
+      "reportedResultsPerDay": "Use of reported results per day",
+      "used": "used",
+      "unused": "not used",
       "reads": "reads",
       "writes": "writes",
       "deletes": "deletes",
@@ -168,7 +218,76 @@
       "title": "By tool",
       "tool": "Tool",
       "calls": "Calls",
-      "average": "Average"
+      "errors": "Errors",
+      "average": "Average",
+      "p95": "P95"
+    },
+    "breakdowns": {
+      "reviewStatus": "Trust and review state",
+      "lifecycle": "Lifecycle",
+      "origin": "Origin",
+      "provenance": "Provenance",
+      "kind": "Memory kind",
+      "project": "Project"
+    },
+    "values": {
+      "confirmed": "confirmed",
+      "pending": "pending",
+      "evidence_only": "evidence only",
+      "restricted": "restricted",
+      "stale": "stale",
+      "rejected": "rejected",
+      "current": "current",
+      "superseded": "superseded",
+      "archived": "archived",
+      "user": "user",
+      "agent": "agent",
+      "import": "import",
+      "system": "system",
+      "legacy": "legacy",
+      "observed": "observed",
+      "inferred": "inferred",
+      "user_confirmed": "user confirmed",
+      "imported": "imported",
+      "generated": "generated",
+      "disputed": "disputed",
+      "fact": "fact",
+      "reference": "reference",
+      "procedure": "procedure",
+      "decision": "decision",
+      "lesson": "lesson",
+      "incident": "incident",
+      "task": "task",
+      "idea": "idea",
+      "preference": "preference",
+      "profile": "profile",
+      "observation": "observation",
+      "project": "project",
+      "person_note": "person note",
+      "unknown": "unknown"
+    },
+    "health": {
+      "auditTitle": "Governance activity",
+      "archivedSources": "Archived ingest sources",
+      "reviewsWeek": "Reviews this week",
+      "reviewsTotal": "Reviews total",
+      "duplicateDecisions": "Duplicate decisions",
+      "superseded": "Superseded records"
+    },
+    "recall": {
+      "clientsTitle": "Receipt coverage by client",
+      "clientsDescription": "Only client identity, counts and UUID receipt completion are recorded — never the query or answer.",
+      "empty": "No recall receipts yet.",
+      "client": "Client",
+      "searches": "Searches",
+      "receipts": "Receipts",
+      "coverage": "Coverage",
+      "used": "Used / returned",
+      "useRate": "Use rate",
+      "overdue": "Overdue",
+      "last": "Last",
+      "since": "Recall statistics start on {date}, when privacy-safe receipts were introduced. Earlier calls are deliberately not treated as missing receipts.",
+      "noData": "Recall statistics begin with the first privacy-safe receipt. Earlier calls are deliberately not treated as missing receipts."
     },
     "mqtt": {
       "title": "MQTT to Home Assistant",
@@ -189,7 +308,7 @@
       "published": "Published {when}.",
       "publishFailed": "Could not publish — the broker is not connected."
     },
-    "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events are retained for {days} days and never contain queries or memory content — only who called which tool and whether it succeeded."
+    "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events and recall receipts are retained for {days} days and never contain queries, answers or memory content — only aggregate activity and UUID receipt state."
   },
   "connect": {
     "loading": "Loading …",

@@ -125,6 +125,32 @@
   },
   "stats": {
     "counting": "Räknar …",
+    "noData": "Ingen data ännu.",
+    "age": {
+      "hours": "{count} h",
+      "day": "{count} dag",
+      "days": "{count} dagar",
+      "month": "{count} månad",
+      "months": "{count} månader"
+    },
+    "sections": {
+      "health": {
+        "title": "Minneshälsa",
+        "description": "Vad som går att lita på och använda nu, skilt från historiska och arkiverade poster."
+      },
+      "recall": {
+        "title": "Återkallningskvalitet",
+        "description": "Integritetssäkra kvitton visar om klienterna rapporterar sina sökningar och om de återkallade minnena hjälpte."
+      },
+      "activity": {
+        "title": "Aktivitet",
+        "description": "Anrop, klienter och skapade poster. Inga frågor, svar eller minnesinnehåll loggas."
+      },
+      "operations": {
+        "title": "Drift",
+        "description": "Publicerings- och integrationshälsa för tjänsterna runt minnet."
+      }
+    },
     "kpi": {
       "memoriesTotal": "minnen totalt",
       "newThisYear": "nya i år",
@@ -135,7 +161,21 @@
       "thisMonth": "{count} den här månaden",
       "thisWeek": "{count} den här veckan",
       "callsTotal": "{count} totalt",
-      "calls": "{count} anrop"
+      "calls": "{count} anrop",
+      "activeMemories": "aktiva minnen",
+      "recordsTotal": "{count} poster inklusive historik",
+      "pendingReview": "väntar på granskning",
+      "oldestPending": "äldsta har väntat {age}",
+      "queueClear": "granskningskön är tom",
+      "unembedded": "aktiva utan embedding",
+      "incomplete": "{count} aktiva med ofullständig metadata",
+      "receiptCoverage": "kvittotäckning",
+      "receiptsOfSearches": "{reports} kvitton från {searches} sökningar",
+      "useRate": "återkallade minnen som användes",
+      "usedOfReturned": "{used} använda av {returned} rapporterade träffar",
+      "overdueReceipts": "försenade kvitton",
+      "needsClientAttention": "klientrapporteringen behöver ses över",
+      "noneOverdue": "inget kvitto är äldre än tio minuter"
     },
     "chart": {
       "noActivity": "Ingen aktivitet i perioden.",
@@ -147,6 +187,16 @@
       "lastMonths": "senaste {count} månaderna",
       "calls": "Anrop",
       "newMemories": "Nya minnen",
+      "createdRecords": "Skapade poster",
+      "createdRecordsPerDay": "Skapade minnesposter per dag",
+      "activeRecords": "fortfarande aktiva",
+      "inactiveRecords": "nu inaktiva",
+      "receiptsPerDay": "Återkallningskvitton per dag",
+      "reported": "rapporterade",
+      "unreported": "inte rapporterade",
+      "reportedResultsPerDay": "Användning av rapporterade träffar per dag",
+      "used": "använda",
+      "unused": "inte använda",
       "reads": "läsningar",
       "writes": "skrivningar",
       "deletes": "raderingar",
@@ -168,7 +218,76 @@
       "title": "Per verktyg",
       "tool": "Verktyg",
       "calls": "Anrop",
-      "average": "Snitt"
+      "errors": "Fel",
+      "average": "Snitt",
+      "p95": "P95"
+    },
+    "breakdowns": {
+      "reviewStatus": "Tillit och granskningsstatus",
+      "lifecycle": "Livscykel",
+      "origin": "Ursprung",
+      "provenance": "Proveniens",
+      "kind": "Minnestyp",
+      "project": "Projekt"
+    },
+    "values": {
+      "confirmed": "bekräftade",
+      "pending": "väntande",
+      "evidence_only": "endast evidens",
+      "restricted": "begränsade",
+      "stale": "inaktuella",
+      "rejected": "avvisade",
+      "current": "aktuella",
+      "superseded": "ersatta",
+      "archived": "arkiverade",
+      "user": "användare",
+      "agent": "agent",
+      "import": "import",
+      "system": "system",
+      "legacy": "äldre format",
+      "observed": "observerade",
+      "inferred": "slutsatser",
+      "user_confirmed": "användarbekräftade",
+      "imported": "importerade",
+      "generated": "genererade",
+      "disputed": "ifrågasatta",
+      "fact": "fakta",
+      "reference": "referenser",
+      "procedure": "procedurer",
+      "decision": "beslut",
+      "lesson": "lärdomar",
+      "incident": "incidenter",
+      "task": "uppgifter",
+      "idea": "idéer",
+      "preference": "preferenser",
+      "profile": "profiler",
+      "observation": "observationer",
+      "project": "projekt",
+      "person_note": "personnoteringar",
+      "unknown": "okända"
+    },
+    "health": {
+      "auditTitle": "Styrningsaktivitet",
+      "archivedSources": "Arkiverade importkällor",
+      "reviewsWeek": "Granskningar denna vecka",
+      "reviewsTotal": "Granskningar totalt",
+      "duplicateDecisions": "Dubblettbeslut",
+      "superseded": "Ersatta poster"
+    },
+    "recall": {
+      "clientsTitle": "Kvittotäckning per klient",
+      "clientsDescription": "Bara klientidentitet, antal och UUID-kvittonas status sparas — aldrig frågan eller svaret.",
+      "empty": "Inga återkallningskvitton ännu.",
+      "client": "Klient",
+      "searches": "Sökningar",
+      "receipts": "Kvitton",
+      "coverage": "Täckning",
+      "used": "Använda / returnerade",
+      "useRate": "Användningsgrad",
+      "overdue": "Försenade",
+      "last": "Senast",
+      "since": "Återkallningsstatistiken börjar {date}, när integritetssäkra kvitton infördes. Äldre anrop räknas medvetet inte som saknade kvitton.",
+      "noData": "Återkallningsstatistiken börjar med det första integritetssäkra kvittot. Äldre anrop räknas medvetet inte som saknade kvitton."
     },
     "mqtt": {
       "title": "MQTT till Home Assistant",
@@ -189,7 +308,7 @@
       "published": "Publicerat {when}.",
       "publishFailed": "Kunde inte publicera — brokern är inte ansluten."
     },
-    "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningsloggen sparas i {days} dagar och innehåller aldrig sökfrågor eller minnesinnehåll — bara vem som anropade vad, och hur det gick."
+    "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningshändelser och återkallningskvitton sparas i {days} dagar och innehåller aldrig frågor, svar eller minnesinnehåll — bara samlad aktivitet och UUID-kvittonas status."
   },
   "connect": {
     "loading": "Hämtar …",

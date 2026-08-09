@@ -6,6 +6,35 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.9.0: statistics measure memory health, not just traffic
+
+The Statistics page now leads with what can safely be used: active memories,
+the review queue, missing embeddings and metadata, recall receipt coverage and
+overdue client reports. Raw rows remain visible as records including history,
+so an archived ingest source, rejected memory or superseded predecessor no
+longer inflates a KPI labelled as usable memory. Creation charts split records
+by whether they are still active or are now inactive for the same reason.
+
+Privacy-safe recall traces now have their own daily charts and per-client table.
+Receipt coverage is reports divided by searches; usefulness is used ids divided
+only by returned ids on traces that were actually reported, so an unknown result
+is not silently called unused. The page explicitly starts this history with the
+first 0.8.0 receipt and never treats older calls as missing reports. Queries,
+answers and memory content remain absent from both the database telemetry and
+the UI.
+
+The existing activity, client, tool and MQTT views remain, grouped below memory
+health and recall quality. Tool statistics add errors and p95 latency. MQTT's
+overdue-receipt health now covers all retained open traces rather than forgetting
+a missing receipt at midnight. The layout was rendered in a real browser and the
+SQL exercised against an isolated pgvector database, including proof that the
+open listener cannot aggregate vault records or full-listener receipts. A load
+fixture with 20,000 memories, 150,000 usage events and 10,000 recall traces
+returned the complete Statistics v2 payload in about 235 ms on the development
+machine. All 24 Node tests and all 55 write-enabled container smoke checks pass.
+
+---
+
 ## 2026-08-09 — 0.8.0: agent memory becomes governed memory
 
 Memories now record where they came from, how certain they are and what a model
@@ -34,7 +63,7 @@ ratio without exposing queries or memory text.
 
 The smoke test is read-only by default, emits clean JSON on request and requires
 `-Write` for its 48 canary checks. Canary rows are cleaned in a `finally` block.
-Together with 20 Node tests, the new flows were exercised against a real
+Together with 21 Node tests, the new flows were exercised against a real
 temporary pgvector database before release.
 
 ---

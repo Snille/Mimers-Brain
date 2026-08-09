@@ -31,7 +31,7 @@ varifrån som helst.
 
 ![Mimers Brains tankelista med metadatafilter och en LAN-skyddad valvpost](assets/screenshots/mimers-brain-thoughts.png)
 
-![Mimers Brains användningsstatistik med aktivitetsdiagram per dag och månad](assets/screenshots/mimers-brain-statistics.png)
+![Mimers Brains minneshälsa, återkallningskvalitet och aktivitetsstatistik](assets/screenshots/mimers-brain-statistics.png)
 
 Webbgränssnittet finns på engelska och svenska, väljer webbläsarens språk vid
 första besöket och minns ett manuellt val. Nya översättningar är vanliga
@@ -85,6 +85,10 @@ Gränssnittet: <http://localhost:8790>
 Sidan **Granska** innehåller tillitskön, semantiskt liknande dubblettförslag och
 integritetssäkra återkallningskvitton. Längre text i **Ny tanke** visas först som
 atomära minnesförslag innan något sparas.
+Sidan **Statistik** skiljer aktiva minnen från arkiverade och ersatta poster och
+visar sedan tillitsstatus, proveniens, kvittotäckning, nyttan av återkallade
+minnen, klient-/verktygsaktivitet och MQTT-drift. Återkallningsdiagrammen börjar
+med det första 0.8.0-kvittot; äldre anrop märks aldrig felaktigt som saknade svar.
 
 Generera en nyckel:
 ```powershell

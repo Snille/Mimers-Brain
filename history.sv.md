@@ -6,6 +6,37 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.9.0: statistik mäter minnets hälsa, inte bara trafiken
+
+Statistiksidan börjar nu med det som faktiskt går att använda: aktiva minnen,
+granskningskön, saknade embeddings och metadata, kvittotäckning och försenad
+klientrapportering. Alla databasrader redovisas separat som poster inklusive
+historik, så en arkiverad importkälla, ett avvisat minne eller en ersatt
+föregångare blåser inte längre upp ett KPI som påstår sig visa användbara minnen.
+Diagrammen över skapade poster delas av samma skäl upp efter om posten fortfarande
+är aktiv eller nu är inaktiv.
+
+De integritetssäkra återkallningsspåren har fått egna dagsdiagram och en tabell
+per klient. Kvittotäckning är rapporter delat med sökningar; nytta är använda
+UUID:n delat enbart med returnerade UUID:n från spår som verkligen rapporterats,
+så ett okänt resultat kallas inte tyst oanvänt. Sidan börjar uttryckligen denna
+historik med det första 0.8.0-kvittot och behandlar aldrig äldre anrop som saknade
+rapporter. Frågor, svar och minnesinnehåll saknas fortfarande helt i både
+telemetridatabasen och gränssnittet.
+
+De befintliga vyerna för aktivitet, klienter, verktyg och MQTT finns kvar, nu
+grupperade efter minneshälsa och återkallningskvalitet. Verktygsstatistiken visar
+även fel och p95-svarstid. MQTT-hälsan för försenade kvitton omfattar nu alla
+bevarade öppna spår i stället för att glömma ett saknat kvitto vid midnatt.
+Layouten renderades i en riktig webbläsare och SQL:en kördes mot en isolerad
+pgvector-databas, inklusive bevis för att den öppna lyssnaren inte kan summera
+valvposter eller full-lyssnarens kvitton. Ett lastprov med 20 000 minnen,
+150 000 användningshändelser och 10 000 återkallningsspår returnerade hela
+Statistik v2-svaret på cirka 235 ms på utvecklingsmaskinen. Samtliga 24
+Node-tester och alla 55 skrivande smoke-kontroller i container passerar.
+
+---
+
 ## 2026-08-09 — 0.8.0: agentminnet blir ett styrt minne
 
 Minnen lagrar nu varifrån de kommer, hur säkra de är och vad en modell får göra
@@ -35,7 +66,7 @@ frågor eller minnestext.
 
 Smoke-testet är skrivskyddat som standard, kan lämna ren JSON och kräver
 `-Write` för sina 48 canary-kontroller. Canary-rader städas i ett `finally`-block.
-Tillsammans med 20 Node-tester kördes de nya flödena mot en riktig tillfällig
+Tillsammans med 21 Node-tester kördes de nya flödena mot en riktig tillfällig
 pgvector-databas före releasen.
 
 ---
