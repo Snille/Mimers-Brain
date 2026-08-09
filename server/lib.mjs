@@ -49,6 +49,14 @@ export function fingerprint(content) {
     .digest("hex");
 }
 
+export function searchTerms(query) {
+  const stop = new Set(["hur", "jag", "man", "kan", "vilka", "saker", "vad", "att", "och", "med", "the", "how", "do", "does", "to", "is"]);
+  return [...new Set(String(query).toLowerCase().split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word.length > 2 && !stop.has(word))
+    .map((word) => word.replace(/(?:ar|er|a)$/u, ""))
+    .filter((word) => word.length > 2))];
+}
+
 export async function embed(text) {
   if (!EMBED_KEY) return null;
   const r = await fetch(EMBED_URL, {
@@ -135,7 +143,8 @@ export async function searchThoughts(tiers, query, {
   }
   const vector = await embed(query);
   if (!vector) throw new Error("Semantic search needs OPENROUTER_API_KEY");
-  const args = [JSON.stringify(vector), query, tiers, threshold];
+  const terms = searchTerms(query);
+  const args = [JSON.stringify(vector), query, tiers, threshold, terms];
   let filters = `tier = ANY($3)`;
   if (lifecycle && lifecycle !== "all")
     filters += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
@@ -153,11 +162,14 @@ export async function searchThoughts(tiers, query, {
                 setweight(to_tsvector('simple', content), 'C'),
                 websearch_to_tsquery('simple', $2)
               ) AS lexical_score
+              ,(SELECT count(*)::double precision / greatest(cardinality($5::text[]), 1)
+                  FROM unnest($5::text[]) AS term
+                 WHERE lower(coalesce(metadata->>'title', '')) LIKE '%' || term || '%') AS title_score
          FROM thoughts
         WHERE ${filters}
      )
      SELECT *, semantic_score AS similarity,
-            semantic_score * 0.78 + least(lexical_score, 1) * 0.22 +
+            semantic_score * 0.65 + least(title_score, 1) * 0.30 + least(lexical_score, 1) * 0.05 +
             CASE WHEN coalesce(metadata->>'title', '') ILIKE '%' || $2 || '%' THEN 0.15 ELSE 0 END
             AS rank_score
        FROM ranked

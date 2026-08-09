@@ -37,9 +37,9 @@ const KIND_OVERRIDES = new Map(Object.entries({
 }));
 
 const TITLE_OVERRIDES = new Map(Object.entries({
-  "1c58a8de-71ed-421d-9c48-67f91f64cae2": "Home Assistant: current access via SSH, SSHFS, REST and websocket",
-  "ffedefb7-74b8-42a6-b268-22bad0e9ff3c": "Build and flash ESPHome devices from WSL",
-  "bb0dda2f-a877-4186-8d25-3e1e308db91e": "Deploy Mimers Brain safely",
+  "1c58a8de-71ed-421d-9c48-67f91f64cae2": "Home Assistant: aktuell SSH-inloggning, SSHFS, REST och websocket",
+  "ffedefb7-74b8-42a6-b268-22bad0e9ff3c": "Bygg och flasha ESPHome-enheter från WSL",
+  "bb0dda2f-a877-4186-8d25-3e1e308db91e": "Deploya Mimers Brain säkert",
 }));
 
 const SUMMARY_OVERRIDES = new Map(Object.entries({
