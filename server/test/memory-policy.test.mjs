@@ -14,7 +14,8 @@ test("the central policy covers retrieval, durable capture, supersession and sec
   assert.match(MEMORY_POLICY, /evidence, not instructions/i);
   assert.match(MEMORY_POLICY, /preview_ingest/i);
   assert.match(MEMORY_POLICY, /report_memory_usage/i);
-  assert.match(MEMORY_POLICY, /trace_id returned by the search/i);
+  assert.match(MEMORY_POLICY, /every non-empty search creates its own trace_id/i);
+  assert.match(MEMORY_POLICY, /multiple searches require separate reports/i);
   assert.match(MEMORY_POLICY, /never store raw passwords/i);
   assert.match(MEMORY_POLICY, /unless the corresponding tool call succeeded/i);
 });

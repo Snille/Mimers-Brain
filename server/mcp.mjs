@@ -91,7 +91,7 @@ export function buildServer(tiers, ctx = {}) {
 
   server.registerTool("search_thoughts", {
     title: "Search the memory",
-    description: `Search the memory by meaning. Use this before answering about Erik, his systems, access, configuration, workflows, preferences, prior decisions, or pending work. After using the results, pass the returned trace_id to report_memory_usage. ${scope}`,
+    description: `Search the memory by meaning. Use this before answering about Erik, his systems, access, configuration, workflows, preferences, prior decisions, or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately, even when all results were ignored. ${scope}`,
     inputSchema: {
       query: z.string().describe("What you are looking for"),
       // 5, not 10: a search returns whole memories, so every extra hit costs a
@@ -112,7 +112,12 @@ export function buildServer(tiers, ctx = {}) {
       note.count = rows.length;
       if (!rows.length) return text(`Nothing matched "${query}".`);
       const trace = await db.createRecallTrace(tiers, rows, ctx);
-      return text(`Recall trace_id: ${trace}\n\n${rows.map((row) => render(row, { compact: true })).join("\n\n")}`);
+      return text(
+        `Recall trace_id: ${trace}\n` +
+        `Receipt required: before the final answer, call report_memory_usage exactly once for this trace_id. ` +
+        `Report every search separately, even when all results were ignored.\n\n` +
+        rows.map((row) => render(row, { compact: true })).join("\n\n"),
+      );
     } catch (e) { return fail(e); }
   }));
 
@@ -206,7 +211,7 @@ export function buildServer(tiers, ctx = {}) {
 
   server.registerTool("report_memory_usage", {
     title: "Report which recalled memories were used",
-    description: "After answering from a recall trace, report only the ids that materially influenced the answer and those ignored. Never send the query or answer.",
+    description: "Before the final answer, call this exactly once for every non-empty search trace. Multiple searches need separate reports. Report materially influential ids as used and all other returned ids as ignored; if none were used, send used_ids=[] and ignore every returned id. Never send the query or answer.",
     inputSchema: {
       trace_id: z.string().uuid(),
       used_ids: z.array(z.string().uuid()).default([]),
@@ -284,7 +289,7 @@ export function buildServer(tiers, ctx = {}) {
   // ChatGPT / deep-research compatibility pair, same contract as OB1.
   server.registerTool("search", {
     title: "Search",
-    description: `Read-only discovery over the memory, for clients expecting search/fetch. Use it before answering about Erik, his systems, prior decisions, preferences or pending work. ${scope}`,
+    description: `Read-only discovery over the memory, for clients expecting search/fetch. Use it before answering about Erik, his systems, prior decisions, preferences or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately. ${scope}`,
     inputSchema: { query: z.string() },
   }, track("search", "read", async ({ query }, note) => {
     try {

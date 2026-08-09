@@ -44,10 +44,21 @@ test("the OpenAPI document exposes v2 filters", () => {
 
 test("recall searches expose trace_id with a backwards-compatible request_id alias", () => {
   const id = "123e4567-e89b-12d3-a456-426614174000";
-  assert.deepEqual(recallReference(id), { trace_id: id, request_id: id });
+  const reference = recallReference(id);
+  assert.equal(reference.trace_id, id);
+  assert.equal(reference.request_id, id);
+  assert.equal(reference.receipt_required, true);
+  assert.match(reference.receipt_instruction, /every search separately/i);
+  assert.deepEqual(recallReference(null), {
+    trace_id: null,
+    request_id: null,
+    receipt_required: false,
+    receipt_instruction: null,
+  });
 
   const search = toolsFor(["open"]).find((tool) => tool.name === "search_thoughts");
   const report = toolsFor(["open"]).find((tool) => tool.name === "report_memory_usage");
-  assert.match(search.description, /returned trace_id/i);
+  assert.match(search.description, /every non-empty search/i);
+  assert.match(report.description, /multiple searches need separate reports/i);
   assert.deepEqual(report.schema.required, ["trace_id"]);
 });

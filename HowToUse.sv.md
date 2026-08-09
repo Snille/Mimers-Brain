@@ -42,8 +42,10 @@ modell.
 `search_thoughts` returnerar ett `trace_id` (samt samma värde som
 `request_id` för äldre klienter). När svaret är färdigt ska klienten skicka
 `trace_id` till `report_memory_usage` tillsammans med de returnerade minnes-ID:n
-som användes respektive ignorerades. Utan det kvittot visas sökningen som
-**väntar på rapport** och räknas som försenad efter tio minuter.
+som användes respektive ignorerades. **Varje sökning med träffar får ett eget
+kvitto:** gör klienten tre sökningar krävs tre separata rapporter, även för en
+sökning där alla träffar ignorerades. Utan kvittot visas sökningen som **väntar
+på rapport** och räknas som försenad efter tio minuter.
 
 ---
 

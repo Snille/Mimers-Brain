@@ -6,6 +6,16 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.9.2: varje sökning kräver ett eget kvitto
+
+Ett test med Claude Code visade ett nytt gränsfall: modellen gjorde två
+sökningar men rapporterade bara den sista. Minnespolicyn och båda verktygsytorna
+säger därför nu uttryckligen att varje icke-tom sökning ska rapporteras exakt en
+gång före slutsvaret, att flera sökningar kräver separata rapporter och att även
+helt ignorerade resultat ska kvitteras. JSON-svar innehåller dessutom
+`receipt_required` och en konkret `receipt_instruction`; MCP-svaret upprepar
+kravet direkt efter varje `trace_id`.
+
 ## 2026-08-09 — 0.9.1: sökning och kvitto använder samma ID
 
 OpenAPI-sökningen returnerar nu `trace_id`, exakt det fältnamn som

@@ -6,6 +6,16 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.9.2: every search requires its own receipt
+
+A Claude Code test exposed another edge case: the model ran two searches but
+reported only the last one. The memory policy and both tool surfaces now state
+explicitly that every non-empty search must be reported exactly once before the
+final answer, multiple searches need separate reports, and fully ignored results
+still need a receipt. JSON responses also include `receipt_required` and a
+concrete `receipt_instruction`; MCP repeats the requirement immediately after
+each `trace_id`.
+
 ## 2026-08-09 — 0.9.1: search and receipts use the same ID
 
 OpenAPI search now returns `trace_id`, the exact field name accepted by

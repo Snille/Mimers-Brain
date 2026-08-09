@@ -92,7 +92,8 @@ export function toolsFor(tiers, ctx = {}) {
       description:
         `Search the memory by meaning. Use this before answering about Erik, his systems, ` +
         `access, configuration, workflows, preferences, prior decisions, or pending work. ` +
-        `After using the results, pass the returned trace_id to report_memory_usage. ` +
+        `Every non-empty search must be reported exactly once with report_memory_usage before ` +
+        `the final answer; report multiple searches separately, even when all results were ignored. ` +
         `request_id is the same value and remains only as a compatibility alias. ${scope}`,
       schema: {
         type: "object",
@@ -234,7 +235,7 @@ export function toolsFor(tiers, ctx = {}) {
       name: "report_memory_usage",
       action: "write",
       summary: "Report recalled memory usage",
-      description: "Report which ids from a recall trace influenced the answer. Never include the query or answer.",
+      description: "Before the final answer, call this exactly once for every non-empty search trace. Multiple searches need separate reports. Report materially influential ids as used and all other returned ids as ignored; if none were used, send used_ids=[] and ignore every returned id. Never include the query or answer.",
       schema: {
         type: "object", required: ["trace_id"],
         properties: {
