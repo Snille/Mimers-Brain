@@ -8,6 +8,7 @@ import {
   applyReview,
   deriveSummary,
   deriveTitle,
+  memoryFreshness,
   normaliseMeta,
 } from "../memory-model.mjs";
 
@@ -26,6 +27,24 @@ test("legacy replacement prose is omitted from display titles", () => {
     deriveTitle("Löst nuläge. KOMPLETTERAR id abcdef12 med slutresultatet."),
     "Löst nuläge.",
   );
+});
+
+test("fetch freshness tells clients to follow a superseded memory before reading long content", () => {
+  assert.deepEqual(memoryFreshness({ lifecycle: "current" }), {
+    lifecycle: "current",
+    superseded_by: null,
+    is_current: true,
+    freshness_instruction: null,
+  });
+  assert.deepEqual(memoryFreshness({
+    lifecycle: "superseded",
+    superseded_by: "2fe69676-0862-4256-9e37-5ea87655f769",
+  }), {
+    lifecycle: "superseded",
+    superseded_by: "2fe69676-0862-4256-9e37-5ea87655f769",
+    is_current: false,
+    freshness_instruction: "Historical memory: fetch superseded_by before treating this as current knowledge.",
+  });
 });
 
 test("normalises topic aliases and keeps the legacy type", () => {

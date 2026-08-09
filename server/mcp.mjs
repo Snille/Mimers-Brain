@@ -16,6 +16,7 @@ import {
   MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
+  memoryFreshness,
   OPEN_SCOPE,
   REVIEW_ACTIONS,
   SMART_INGEST_THRESHOLD,
@@ -310,19 +311,21 @@ export function buildServer(tiers, ctx = {}) {
 
   server.registerTool("fetch", {
     title: "Fetch",
-    description: "Fetch the full content and relations of one memory by id after search when the compact result is not enough.",
+    description: "Fetch one memory by id after search when the compact result is not enough. The requested id may be historical: inspect lifecycle, is_current and superseded_by before using the text, and follow superseded_by when present.",
     inputSchema: { id: z.string() },
   }, track("fetch", "read", async ({ id }, note) => {
     try {
       const t = await db.getThought(tiers, id);
       if (!t) return fail(new Error("Not found"));
       note.count = 1;
+      const relations = await db.thoughtRelations(tiers, id);
       return text(JSON.stringify({
         id: t.id,
         title: t.metadata?.title || t.content.replace(/\s+/g, " ").slice(0, 80),
-        text: t.content,
+        ...memoryFreshness(t.metadata),
+        relations,
         metadata: t.metadata,
-        relations: await db.thoughtRelations(tiers, id),
+        text: t.content,
         url: `${process.env.CITATION_BASE_URL || "http://localhost:8790/thoughts"}/${t.id}`,
       }));
     } catch (e) { return fail(e); }

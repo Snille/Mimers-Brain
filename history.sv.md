@@ -6,6 +6,17 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-09 — 0.9.3: fetch visar aktualitet före lång minnestext
+
+Claude hämtade ett ersatt serverinventarium vars text var skadad och drog
+slutsatsen att ingen intakt kopia fanns. Historiken innehöll i själva verket den
+fullständiga formuleringen, men `fetch` lade den långa texten före livscykel och
+relationer; en avkortad verktygsvisning kunde därför dölja både
+`lifecycle: superseded` och `superseded_by`. `fetch` och `fetch_thought` placerar
+nu `lifecycle`, `is_current`, `superseded_by`, aktualitetsinstruktion och
+relationer före innehållet. Ett historiskt ID säger uttryckligen åt klienten att
+hämta ersättaren innan posten används som aktuell kunskap.
+
 ## 2026-08-09 — 0.9.2: varje sökning kräver ett eget kvitto
 
 Ett test med Claude Code visade ett nytt gränsfall: modellen gjorde två

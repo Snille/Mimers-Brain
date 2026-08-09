@@ -47,6 +47,11 @@ kvitto:** gör klienten tre sökningar krävs tre separata rapporter, även för
 sökning där alla träffar ignorerades. Utan kvittot visas sökningen som **väntar
 på rapport** och räknas som försenad efter tio minuter.
 
+`fetch` och `fetch_thought` kan medvetet hämta ett historiskt ID. Därför kommer
+`lifecycle`, `is_current`, `superseded_by` och en eventuell aktualitetsvarning
+före den långa minnestexten i svaret. Om `superseded_by` finns ska klienten hämta
+det ID:t innan den använder posten som aktuell kunskap.
+
 ---
 
 ## De två adresserna

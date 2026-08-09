@@ -22,6 +22,7 @@ import {
   MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
+  memoryFreshness,
   OPEN_SCOPE,
   REVIEW_ACTIONS,
   SMART_INGEST_THRESHOLD,
@@ -264,7 +265,7 @@ export function toolsFor(tiers, ctx = {}) {
       name: "fetch_thought",
       action: "read",
       summary: "Fetch one memory",
-      description: "Fetch the full content and relations of one memory by id after search when the compact result is not enough.",
+      description: "Fetch one memory by id after search when the compact result is not enough. The requested id may be historical: inspect lifecycle, is_current and superseded_by before using the content, and follow superseded_by when present.",
       schema: {
         type: "object",
         required: ["id"],
@@ -273,7 +274,14 @@ export function toolsFor(tiers, ctx = {}) {
       async run({ id }) {
         const t = await db.getThought(tiers, uuid(id));
         if (!t) throw new BadRequest("No memory with that id on this tier");
-        return { ...memory(t), relations: await db.thoughtRelations(tiers, t.id) };
+        const item = memory(t);
+        return {
+          id: item.id,
+          title: item.title,
+          ...memoryFreshness(t.metadata),
+          relations: await db.thoughtRelations(tiers, t.id),
+          ...item,
+        };
       },
     },
   ];

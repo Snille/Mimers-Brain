@@ -6,6 +6,17 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-09 — 0.9.3: fetch shows freshness before long memory text
+
+Claude fetched a superseded server inventory with damaged text and concluded
+that no intact copy existed. The history did contain the complete wording, but
+`fetch` placed the long text before lifecycle and relations; a truncated tool
+view could therefore hide both `lifecycle: superseded` and `superseded_by`.
+`fetch` and `fetch_thought` now place `lifecycle`, `is_current`,
+`superseded_by`, a freshness instruction and relations before content. A
+historical id explicitly tells the client to fetch its replacement before using
+the record as current knowledge.
+
 ## 2026-08-09 — 0.9.2: every search requires its own receipt
 
 A Claude Code test exposed another edge case: the model ran two searches but

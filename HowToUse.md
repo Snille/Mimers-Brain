@@ -47,6 +47,11 @@ searches require three separate reports, including a search whose results were
 all ignored. Without that receipt, the search appears as **awaiting report** and
 becomes overdue after ten minutes.
 
+`fetch` and `fetch_thought` may deliberately retrieve a historical id. Their
+responses therefore place `lifecycle`, `is_current`, `superseded_by` and any
+freshness warning before the long memory text. When `superseded_by` is present,
+the client should fetch that id before using the record as current knowledge.
+
 ---
 
 ## The two addresses

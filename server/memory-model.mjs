@@ -106,6 +106,22 @@ export const MEMORY_POLICY = [
 
 const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 
+export function memoryFreshness(metadata = {}) {
+  const lifecycle = clean(metadata.lifecycle) || "current";
+  const supersededBy = clean(metadata.superseded_by) || null;
+  const isCurrent = lifecycle === "current";
+  return {
+    lifecycle,
+    superseded_by: supersededBy,
+    is_current: isCurrent,
+    freshness_instruction: isCurrent
+      ? null
+      : supersededBy
+        ? "Historical memory: fetch superseded_by before treating this as current knowledge."
+        : `Historical memory (${lifecycle}): do not treat this as current knowledge.`,
+  };
+}
+
 function dedupe(list, { lower = false } = {}) {
   const seen = new Set();
   const kept = [];
