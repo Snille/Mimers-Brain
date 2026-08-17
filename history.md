@@ -6,6 +6,26 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-17 — 0.9.7: a translation is not a foreign title
+
+The 0.9.5 sanity check measured plain word overlap, and the first honest audit
+showed what that costs: 32 rows flagged, of which the sampled one was a correct
+English summary of a Swedish memory. A faithful translation shares almost no
+words with its source, and this database is deliberately bilingual, so the check
+would have replaced good summaries with mechanical ones across 28 rows.
+
+The check now compares anchors instead — product names, identifiers, paths,
+numbers and words of eight characters or more, which is what survives
+translation. `ESPHome`, `WSL2` and `Docker` appear in both languages; `Wi-Fi`
+and `mesh` appear in neither the Swedish nor the English wording of a memory
+about the people facet. A candidate carrying anchors but none of the memory's
+own is about something else. A candidate with no anchors at all is left alone,
+because there is nothing to judge it by.
+
+The lesson is worth keeping: a guard added to catch one observed failure was
+calibrated on that single case, and the first full run over real data was what
+exposed its blind spot. Run the audit before trusting the guard.
+
 ## 2026-08-17 — 0.9.6: the audit tells the truth again
 
 `npm run audit` ran the completed v2 migration in dry-run mode. It was meant to

@@ -245,19 +245,33 @@ export function resolvePeople(people, systems, content = "") {
 
 // The extraction model has returned a title and summary belonging to a
 // completely different text, which makes the memory unfindable even though the
-// content is correct. Metadata that shares no vocabulary with the memory is
-// discarded in favour of the deterministic derivation below.
+// content is correct. Such metadata is discarded in favour of the deterministic
+// derivation below.
+//
+// Plain word overlap cannot decide this, because a faithful English summary of
+// a Swedish memory shares almost no words with it and this database is
+// deliberately bilingual. Anchors are what survive translation: product names,
+// identifiers, paths, numbers and long technical terms. A title or summary that
+// carries anchors but none of the memory's own is about something else.
 const SANITY_MIN_CONTENT_TOKENS = 12;
-const SANITY_MIN_WORDS = 3;
-const SANITY_MIN_OVERLAP = 0.2;
+
+function anchors(value) {
+  const text = String(value ?? "");
+  const raw = text.match(/[\p{L}\p{N}][\p{L}\p{N}_-]*/gu) || [];
+  return [...new Set(raw
+    // The first word is capitalised by sentence case alone, so it proves nothing.
+    .filter((word, index) => index > 0 || /\d/.test(word))
+    .filter((word) => /\d/.test(word) || /\p{Lu}/u.test(word) || word.length >= 8)
+    .map((word) => word.toLowerCase()))];
+}
 
 export function describesContent(candidate, content) {
   const contentTokens = tokenSet(content);
   if (contentTokens.size < SANITY_MIN_CONTENT_TOKENS) return true;
-  const words = [...tokenSet(candidate)].filter((word) => word.length >= 4);
-  if (words.length < SANITY_MIN_WORDS) return true;
-  const shared = words.filter((word) => contentTokens.has(word)).length;
-  return shared / words.length >= SANITY_MIN_OVERLAP;
+  const candidateAnchors = anchors(candidate);
+  if (!candidateAnchors.length) return true;
+  return candidateAnchors.some((anchor) =>
+    contentTokens.has(anchor) || [...contentTokens].some((token) => token.includes(anchor)));
 }
 
 export function deriveTitle(content) {

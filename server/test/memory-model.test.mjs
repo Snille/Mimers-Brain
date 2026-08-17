@@ -139,6 +139,30 @@ test("short content gives no signal, so proposed metadata is trusted", () => {
   assert.equal(describesContent("Anything at all here", "Too short."), true);
 });
 
+test("a faithful summary in the other language is kept, because anchors survive translation", () => {
+  const content = [
+    "Eriks ESPHome-miljö. Repot C:\\Users\\eripet\\Coding\\ESPHome redigeras på Windows.",
+    "",
+    "WSL2 (Ubuntu-24.04) är byggvägen för allt som ska hamna på hårdvara, och Docker är reservvägen.",
+  ].join("\n");
+  const english = "This document outlines the best practices for building and flashing devices"
+    + " in an ESPHome environment using WSL2 and Docker.";
+  assert.equal(describesContent(english, content), true);
+
+  const meta = normaliseMeta({ summary: english }, content);
+  assert.equal(meta.summary, english);
+});
+
+test("a summary whose anchors are absent belongs to another text", () => {
+  const content = [
+    "Eriks ESPHome-miljö. Repot redigeras på Windows.",
+    "",
+    "WSL2 är byggvägen för allt som ska hamna på hårdvara.",
+  ].join("\n");
+  const foreign = "Chatt om strategier för att förbättra Wi-Fi-täckning hemma, inklusive mesh-system.";
+  assert.equal(describesContent(foreign, content), false);
+});
+
 test("non-task memories cannot carry a task status", () => {
   const meta = normaliseMeta({ kind: "procedure", task_status: "pending" }, "Deploy safely.");
   assert.equal(meta.task_status, undefined);

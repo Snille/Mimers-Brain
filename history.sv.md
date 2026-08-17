@@ -6,6 +6,27 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-17 — 0.9.7: en översättning är inte en främmande titel
+
+Kontrollen i 0.9.5 mätte rakt ordöverlapp, och den första ärliga revisionen
+visade vad det kostar: 32 rader flaggade, och den som stickprovades var en
+korrekt ENGELSK sammanfattning av ett svenskt minne. En trogen översättning
+delar nästan inga ord med sin källa, och den här databasen är tvåspråkig med
+flit, så kontrollen hade bytt ut bra sammanfattningar mot mekaniska på 28 rader.
+
+Kontrollen jämför nu ankare i stället — produktnamn, identifierare, sökvägar,
+siffror och ord på åtta tecken eller mer, alltså det som överlever en
+översättning. `ESPHome`, `WSL2` och `Docker` finns på båda språken; `Wi-Fi` och
+`mesh` finns varken i den svenska eller engelska formuleringen av ett minne om
+people-facetten. Ett förslag som bär ankare men inget av minnets egna handlar om
+något annat. Ett förslag utan ankare lämnas i fred, eftersom det inte finns
+något att bedöma det på.
+
+Lärdomen är värd att behålla: en vakt som infördes för att fånga ett observerat
+fel kalibrerades på just det fallet, och det var första fulla körningen mot
+verklig data som avslöjade dess blinda fläck. Kör revisionen innan du litar på
+vakten.
+
 ## 2026-08-17 — 0.9.6: revisionen talar sanning igen
 
 `npm run audit` körde den avslutade v2-migreringen i torrkörningsläge. Den var
