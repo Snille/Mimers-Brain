@@ -153,6 +153,14 @@ test("a faithful summary in the other language is kept, because anchors survive 
   assert.equal(meta.summary, english);
 });
 
+test("a hyphenated name matches the content it was split from", () => {
+  const content = "Eriks ESPHome-miljö byggs i WSL2 och redigeras på Windows-laptopen.";
+  assert.equal(
+    describesContent("Eriks ESPHome-setup: best practices for flashing devices", content),
+    true,
+  );
+});
+
 test("a summary whose anchors are absent belongs to another text", () => {
   const content = [
     "Eriks ESPHome-miljö. Repot redigeras på Windows.",

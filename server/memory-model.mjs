@@ -255,14 +255,20 @@ export function resolvePeople(people, systems, content = "") {
 // carries anchors but none of the memory's own is about something else.
 const SANITY_MIN_CONTENT_TOKENS = 12;
 
+const SANITY_MIN_ANCHOR_LENGTH = 3;
+
 function anchors(value) {
   const text = String(value ?? "");
-  const raw = text.match(/[\p{L}\p{N}][\p{L}\p{N}_-]*/gu) || [];
-  return [...new Set(raw
+  // Hyphenated compounds are judged whole, because "ESPHome-setup" is one name.
+  const compounds = text.match(/[\p{L}\p{N}][\p{L}\p{N}_-]*/gu) || [];
+  const picked = compounds
     // The first word is capitalised by sentence case alone, so it proves nothing.
     .filter((word, index) => index > 0 || /\d/.test(word))
-    .filter((word) => /\d/.test(word) || /\p{Lu}/u.test(word) || word.length >= 8)
-    .map((word) => word.toLowerCase()))];
+    .filter((word) => /\d/.test(word) || /\p{Lu}/u.test(word) || word.length >= 8);
+  // They are matched in parts, because the content side is split on hyphens too.
+  return [...new Set(picked
+    .flatMap((word) => word.toLowerCase().split(/[-_]+/))
+    .filter((part) => part.length >= SANITY_MIN_ANCHOR_LENGTH))];
 }
 
 export function describesContent(candidate, content) {
@@ -270,8 +276,7 @@ export function describesContent(candidate, content) {
   if (contentTokens.size < SANITY_MIN_CONTENT_TOKENS) return true;
   const candidateAnchors = anchors(candidate);
   if (!candidateAnchors.length) return true;
-  return candidateAnchors.some((anchor) =>
-    contentTokens.has(anchor) || [...contentTokens].some((token) => token.includes(anchor)));
+  return candidateAnchors.some((anchor) => contentTokens.has(anchor));
 }
 
 export function deriveTitle(content) {

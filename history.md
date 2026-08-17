@@ -26,6 +26,17 @@ The lesson is worth keeping: a guard added to catch one observed failure was
 calibrated on that single case, and the first full run over real data was what
 exposed its blind spot. Run the audit before trusting the guard.
 
+## 2026-08-17 — 0.9.8: hyphens split on one side only
+
+The anchor check kept hyphenated compounds whole while the content side was
+tokenised on hyphens, so `ESPHome-setup` could never match a memory that says
+`ESPHome-miljö`. Eleven titles were flagged for that reason alone. Compounds are
+still judged whole when deciding what counts as an anchor — `ESPHome-setup` is
+one name — but they are matched in parts, and parts shorter than three
+characters are dropped so that `Wi-Fi` cannot match on `wi`. The substring
+fallback is gone with them; an anchor now matches a whole content token or not
+at all.
+
 ## 2026-08-17 — 0.9.6: the audit tells the truth again
 
 `npm run audit` ran the completed v2 migration in dry-run mode. It was meant to

@@ -27,6 +27,16 @@ fel kalibrerades på just det fallet, och det var första fulla körningen mot
 verklig data som avslöjade dess blinda fläck. Kör revisionen innan du litar på
 vakten.
 
+## 2026-08-17 — 0.9.8: bindestreck delades bara på ena sidan
+
+Ankarkontrollen behöll sammansättningar med bindestreck hela, medan innehållet
+delades vid bindestrecken. `ESPHome-setup` kunde därför aldrig matcha ett minne
+som säger `ESPHome-miljö`. Elva titlar flaggades av just det skälet.
+Sammansättningar bedöms fortfarande hela när det avgörs vad som är ett ankare —
+`ESPHome-setup` är ett namn — men matchas i delar, och delar kortare än tre
+tecken kastas så att `Wi-Fi` inte kan matcha på `wi`. Delsträngsjämförelsen är
+borta med dem; ett ankare matchar nu ett helt innehållsord eller inget alls.
+
 ## 2026-08-17 — 0.9.6: revisionen talar sanning igen
 
 `npm run audit` körde den avslutade v2-migreringen i torrkörningsläge. Den var
