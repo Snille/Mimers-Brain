@@ -26,6 +26,20 @@ The lesson is worth keeping: a guard added to catch one observed failure was
 calibrated on that single case, and the first full run over real data was what
 exposed its blind spot. Run the audit before trusting the guard.
 
+## 2026-08-17 — 0.9.9: decide the language before judging the subject
+
+Anchors carry a translation across languages only when the memory happens to
+name a product or a path. An accurate English summary of a Swedish memory that
+names neither still looked foreign, which is what the remaining audit findings
+turned out to be. The check now determines the language of the candidate and of
+the content from function words and Swedish diacritics, and stands down when
+they differ. Same language, same subject: a Swedish summary about Wi-Fi coverage
+on a Swedish memory about the people facet is still rejected.
+
+This is the third correction to one guard in one day, and every one of them was
+found by running the audit over real data rather than by reasoning about the
+code. That is the argument for having an audit that reports zero when it should.
+
 ## 2026-08-17 — 0.9.8: hyphens split on one side only
 
 The anchor check kept hyphenated compounds whole while the content side was

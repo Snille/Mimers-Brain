@@ -27,6 +27,21 @@ fel kalibrerades på just det fallet, och det var första fulla körningen mot
 verklig data som avslöjade dess blinda fläck. Kör revisionen innan du litar på
 vakten.
 
+## 2026-08-17 — 0.9.9: avgör språket innan ämnet bedöms
+
+Ankare bär en översättning mellan språk bara när minnet råkar nämna en produkt
+eller en sökväg. En korrekt engelsk sammanfattning av ett svenskt minne som inte
+nämner någon av dem såg fortfarande främmande ut, och det var precis vad de
+återstående revisionsfynden visade sig vara. Kontrollen avgör nu språket hos
+förslaget och hos innehållet med hjälp av funktionsord och svenska diakriter, och
+står tillbaka när de skiljer sig. Samma språk, samma ämne: en svensk
+sammanfattning om Wi-Fi-täckning på ett svenskt minne om people-facetten avvisas
+fortfarande.
+
+Detta är tredje rättelsen av samma vakt på en dag, och varje enskild hittades av
+att köra revisionen mot verklig data — inte av att resonera om koden. Det är
+argumentet för att ha en revision som rapporterar noll när den ska.
+
 ## 2026-08-17 — 0.9.8: bindestreck delades bara på ena sidan
 
 Ankarkontrollen behöll sammansättningar med bindestreck hela, medan innehållet

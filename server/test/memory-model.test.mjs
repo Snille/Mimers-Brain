@@ -153,6 +153,17 @@ test("a faithful summary in the other language is kept, because anchors survive 
   assert.equal(meta.summary, english);
 });
 
+test("an English summary of a Swedish memory is trusted even without a shared name", () => {
+  const content = [
+    "EN NOTIS TAR SLOT 0 — andra slots överlever. Verifierat mot hårdvara.",
+    "",
+    "Håll egna scener borta från slot 0, eftersom scenen där förstörs och inte kommer tillbaka.",
+  ].join("\n");
+  const english = "Testing revealed that only the first slot is destroyed by notifications,"
+    + " and that a decision was made not to implement a cache for this.";
+  assert.equal(describesContent(english, content), true);
+});
+
 test("a hyphenated name matches the content it was split from", () => {
   const content = "Eriks ESPHome-miljö byggs i WSL2 och redigeras på Windows-laptopen.";
   assert.equal(

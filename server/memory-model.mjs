@@ -257,6 +257,23 @@ const SANITY_MIN_CONTENT_TOKENS = 12;
 
 const SANITY_MIN_ANCHOR_LENGTH = 3;
 
+// Anchors carry a faithful translation across languages only when the memory
+// happens to name a product or a path. A summary written in the other language
+// about a memory that names none would otherwise look foreign. Deciding the
+// language first keeps the check where it works: same language, same subject.
+const LANGUAGE_MARKERS = {
+  sv: /[åäö]|\b(och|som|för|inte|att|den|det|är|med|till|från|när|kan|ska|men|här)\b/giu,
+  en: /\b(the|and|of|to|is|are|that|with|for|from|when|can|should|not|this|these)\b/giu,
+};
+
+function languageOf(text) {
+  const scores = Object.entries(LANGUAGE_MARKERS)
+    .map(([code, pattern]) => [code, (String(text ?? "").match(pattern) || []).length])
+    .sort((a, b) => b[1] - a[1]);
+  const [[code, best], [, runnerUp]] = scores;
+  return best >= 2 && best > runnerUp ? code : null;
+}
+
 function anchors(value) {
   const text = String(value ?? "");
   // Hyphenated compounds are judged whole, because "ESPHome-setup" is one name.
@@ -274,6 +291,9 @@ function anchors(value) {
 export function describesContent(candidate, content) {
   const contentTokens = tokenSet(content);
   if (contentTokens.size < SANITY_MIN_CONTENT_TOKENS) return true;
+  const candidateLanguage = languageOf(candidate);
+  const contentLanguage = languageOf(content);
+  if (candidateLanguage && contentLanguage && candidateLanguage !== contentLanguage) return true;
   const candidateAnchors = anchors(candidate);
   if (!candidateAnchors.length) return true;
   return candidateAnchors.some((anchor) => contentTokens.has(anchor));
