@@ -6,6 +6,30 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-17 — 0.9.6: revisionen talar sanning igen
+
+`npm run audit` körde den avslutade v2-migreringen i torrkörningsläge. Den var
+tänkt att rapportera noll och gjorde det efter 0.7.1, men hade glidit till 185
+av 255 rader och gick inte längre att lita på. Tre skäl, alla inbyggda: den
+härleder `verified_at` ur valfritt datum nära ett nyckelord och
+`valid_for_version` ur valfri versionssträng, så nya minnen ger alltid nya
+förslag; den bär hårdkodade titel-, sammanfattnings- och kind-överstyrningar
+för tretton ID:n, varav flera nu är superseded historik; och den normaliserar om
+legacy-rader utan origin, vilket stämplar dem `legacy` och därmed ger
+`can_use_as_instruction`. En revision får inte tyst befordra 86 minnen till
+instruktioner.
+
+Migreringen är genomförd och finns kvar i git-historiken, så filen är borttagen.
+`npm run audit` är nu `renormalise.mjs --all --dry-run`, som svarar på den enda
+fråga som är värd att ställa — vilka rader skrevs före dagens vakter — och är
+idempotent av konstruktion, eftersom den bara kör om de fyra visningsfacetterna
+och inte härleder något ur att tiden går.
+
+Värt att notera: det borttagna skriptet visste redan att Claude, Luba, Mimer och
+Snille inte är personer. Den kunskapen låg i en engångsmigrering i stället för i
+`memory-model.mjs`, där varje skrivning passerar. En regel på fel plats är samma
+sak som ingen regel.
+
 ## 2026-08-17 — 0.9.5: servern avgör vem som är en person, och titeln måste stämma
 
 Två fel i metadata-extraktionen kom fram under en städning av hela minnet.

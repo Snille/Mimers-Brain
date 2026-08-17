@@ -6,6 +6,29 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-17 — 0.9.6: the audit tells the truth again
+
+`npm run audit` ran the completed v2 migration in dry-run mode. It was meant to
+report zero and did so after 0.7.1, but it had drifted to 185 of 255 rows and
+was no longer safe to act on. Three reasons, all inherent: it infers
+`verified_at` from any date next to a keyword and `valid_for_version` from any
+version string, so new memories always produce new proposals; it carries
+hardcoded title, summary and kind overrides for thirteen ids, several of which
+are now superseded history; and it re-normalises legacy rows without an origin,
+which stamps them `legacy` and thereby grants `can_use_as_instruction`. An
+audit must not quietly promote 86 memories to instruction-capable.
+
+The migration is finished and remains in the git history, so the file is gone.
+`npm run audit` is now `renormalise.mjs --all --dry-run`, which answers the one
+question worth asking — which rows were written before the current guards — and
+is idempotent by construction, because it only re-runs the four display facets
+and infers nothing from the passage of time.
+
+Worth recording: the deleted script already knew that Claude, Luba, Mimer and
+Snille are not people. That knowledge sat in a one-shot migration instead of in
+`memory-model.mjs`, where every write passes. A rule in the wrong place is the
+same as no rule.
+
 ## 2026-08-17 — 0.9.5: the server decides who is a person, and titles must match
 
 Two extraction faults surfaced during a cleanup pass over the whole memory.

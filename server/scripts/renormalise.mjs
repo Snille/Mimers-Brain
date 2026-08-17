@@ -1,8 +1,14 @@
 // Re-run the display and index facets of normaliseMeta over named memories.
 //
+//   node scripts/renormalise.mjs --all --dry-run          (npm run audit)
 //   node scripts/renormalise.mjs --only <id>[,<id>...] --dry-run
 //   node scripts/renormalise.mjs --only <id>[,<id>...] --apply --expected-count N
 //   node scripts/renormalise.mjs --only <id> --set '{"topics":["mimers-brain"]}' --dry-run
+//
+// --all --dry-run is the standing audit: it answers "which rows were written
+// before the current guards?" and should normally report zero. It is idempotent
+// by construction because it only re-runs the four display facets below and
+// never infers anything from the passage of time.
 //
 // Use this when a server-side guard is added and existing rows were written
 // before it. It rewrites only title, summary, people and systems, and leaves
@@ -34,7 +40,10 @@ const valueOf = (flag) => {
 const ids = (valueOf("--only") || "").split(",").map((id) => id.trim()).filter(Boolean);
 const expectedCount = Number(valueOf("--expected-count"));
 
-if (!ids.length) throw new Error("--only <id>[,<id>...] is required");
+const all = args.has("--all");
+
+if (!all && !ids.length) throw new Error("Choose --all or --only <id>[,<id>...]");
+if (all && ids.length) throw new Error("Choose either --all or --only, not both");
 if (!apply && !args.has("--dry-run")) throw new Error("Choose --dry-run or --apply");
 if (apply && (!Number.isInteger(expectedCount) || expectedCount < 1)) {
   throw new Error("--apply requires --expected-count N, the number of rows the dry run reported as changed");
@@ -46,11 +55,15 @@ const SETTABLE = ["kind", "project", "topics"];
 const overrides = JSON.parse(valueOf("--set") || "{}");
 const unknown = Object.keys(overrides).filter((key) => !SETTABLE.includes(key));
 if (unknown.length) throw new Error(`--set only accepts ${SETTABLE.join(", ")}; got ${unknown.join(", ")}`);
+// A stated facet describes one memory, so it must never be sprayed over the database.
+if (all && Object.keys(overrides).length) throw new Error("--set states a value for named memories; use it with --only");
 
-const { rows } = await pool.query(
-  "SELECT id, content, metadata FROM thoughts WHERE id = ANY($1::uuid[])",
-  [ids],
-);
+const { rows } = all
+  ? await pool.query("SELECT id, content, metadata FROM thoughts ORDER BY created_at")
+  : await pool.query(
+    "SELECT id, content, metadata FROM thoughts WHERE id = ANY($1::uuid[])",
+    [ids],
+  );
 
 const missing = ids.filter((id) => !rows.some((row) => row.id === id));
 if (missing.length) throw new Error(`Unknown memory ids: ${missing.join(", ")}`);
@@ -72,7 +85,8 @@ const proposed = rows.map((row) => {
 const changed = proposed.filter((item) => item.fields.length);
 const report = {
   mode: apply ? "apply" : "dry-run",
-  requested: ids.length,
+  scope: all ? "all" : "named",
+  requested: rows.length,
   changed: changed.length,
   changes: changed.map(({ row, fields }) => ({ id: row.id, fields })),
 };
