@@ -86,12 +86,14 @@ export async function extractMetadata(text) {
           role: "user",
           content:
             `Extract long-term-memory metadata as JSON. Return only these keys:\n` +
-            `- "title": a factual title, at most 180 characters\n` +
-            `- "summary": the current conclusion, at most 500 characters\n` +
+            `- "title": a factual title for THIS text, at most 180 characters\n` +
+            `- "summary": the current conclusion of THIS text, at most 500 characters\n` +
             `- "kind": one of ${MEMORY_KINDS.join(", ")}\n` +
             `- "task_status": "pending" or "done", only when kind is task\n` +
             `- "project": one lower-kebab-case owning project, or empty\n` +
-            `- "people": human people only; Luba/Sleipner is a robot mower, not a person\n` +
+            `- "people": named human beings only, and only names written in the text.\n` +
+            `  Tools, services, apps, accounts, companies and devices are NOT people;\n` +
+            `  Luba/Sleipner is a robot mower. Never derive a name from surrounding prose.\n` +
             `- "systems": software, services, tools, machines, devices and named robots\n` +
             `- "topics": 1-3 values chosen only from: ${CANONICAL_TOPICS.join(", ")}\n` +
             `- "verified_at": YYYY-MM-DD when the text states a verification date, or empty\n` +

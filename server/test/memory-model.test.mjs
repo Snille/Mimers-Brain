@@ -8,8 +8,10 @@ import {
   applyReview,
   deriveSummary,
   deriveTitle,
+  describesContent,
   memoryFreshness,
   normaliseMeta,
+  resolvePeople,
 } from "../memory-model.mjs";
 
 test("derives a compact title and summary without losing the content", () => {
@@ -69,6 +71,72 @@ test("classifies Luba and Sleipner as systems, never people", () => {
     "Luba is Erik's Mammotion mower and is named Sleipner in Home Assistant.");
   assert.deepEqual(meta.people, ["Erik"]);
   assert.deepEqual(meta.systems, ["Home Assistant", "Luba", "Sleipner"]);
+});
+
+test("tools and services proposed as people are moved to the systems facet", () => {
+  const content = "Claude Code and Mimers Brain are two different MCP clients that Erik runs.";
+  const meta = normaliseMeta(
+    { people: ["Erik", "Claude Code", "Mimers Brain", "Snille"], systems: ["Docker"] },
+    content,
+  );
+  assert.deepEqual(meta.people, ["Erik"]);
+  assert.deepEqual(meta.systems, ["Docker", "Claude Code", "Mimers Brain", "Snille"]);
+});
+
+test("a name invented from prose never reaches the people facet", () => {
+  // "Erik Bildmak" was extracted out of the Swedish phrase "Eriks bildsmak".
+  const content = "ERIKS BILDSMAK för YouTube-kanalen: DIY-elektronik, inte polerade produktbilder.";
+  const meta = normaliseMeta({ people: ["Erik Bildmak"] }, content);
+  assert.deepEqual(meta.people, []);
+});
+
+test("a real name written in the memory survives even when it is unknown", () => {
+  const content = "Anna Svensson på Spectrogon äger mätriggen och bokar tid i den.";
+  const meta = normaliseMeta({ people: ["Anna Svensson"] }, content);
+  assert.deepEqual(meta.people, ["Anna Svensson"]);
+});
+
+test("relationship labels are stored as the actual name", () => {
+  const { people } = resolvePeople(["Eriks dotter", "Erik's brother"], [], "");
+  assert.deepEqual(people, ["Louise", "Timo"]);
+});
+
+test("a name indexed as a system in the same memory is not also a person", () => {
+  const { people, systems } = resolvePeople(["Sonos"], ["Sonos"], "Sonos speakers went unavailable.");
+  assert.deepEqual(people, []);
+  assert.deepEqual(systems, ["Sonos"]);
+});
+
+test("a title and summary about a different text are replaced by derived ones", () => {
+  const content = [
+    "SÅ ANVÄNDS PEOPLE- OCH SYSTEMS-FACETTERNA I MIMERS BRAIN.",
+    "",
+    "People är reserverat för människor och ska aldrig innehålla namngivna tekniska enheter.",
+  ].join("\n");
+  const meta = normaliseMeta({
+    title: "Mäta och optimera Wi-Fi-nätverket hemma",
+    summary: "Chatt om strategier för att förbättra täckning och hastighet med mesh.",
+  }, content);
+  assert.equal(meta.title, "SÅ ANVÄNDS PEOPLE- OCH SYSTEMS-FACETTERNA I MIMERS BRAIN.");
+  assert.match(meta.summary, /^People är reserverat/);
+});
+
+test("a faithful title and summary are kept exactly as proposed", () => {
+  const content = [
+    "SÅ ANVÄNDS PEOPLE- OCH SYSTEMS-FACETTERNA I MIMERS BRAIN.",
+    "",
+    "People är reserverat för människor och ska aldrig innehålla namngivna tekniska enheter.",
+  ].join("\n");
+  const meta = normaliseMeta({
+    title: "People-facetten i Mimers Brain",
+    summary: "People är reserverat för människor; tekniska enheter hör under systems.",
+  }, content);
+  assert.equal(meta.title, "People-facetten i Mimers Brain");
+  assert.match(meta.summary, /tekniska enheter/);
+});
+
+test("short content gives no signal, so proposed metadata is trusted", () => {
+  assert.equal(describesContent("Anything at all here", "Too short."), true);
 });
 
 test("non-task memories cannot carry a task status", () => {

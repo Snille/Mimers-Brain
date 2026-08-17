@@ -6,6 +6,33 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-17 — 0.9.5: servern avgör vem som är en person, och titeln måste stämma
+
+Två fel i metadata-extraktionen kom fram under en städning av hela minnet.
+
+Facetten `people` hade samlat på sig `Claude Code`, `Mimers Brain`,
+GitHub-kontot `Snille`, relationsetiketterna `Eriks dotter` och
+`Erik's brother`, samt `Erik Bildmak` — ett namn modellen byggt av frasen
+"Eriks bildsmak". Prompten bad redan om enbart människor; modellen struntade i
+det. Den verkliga orsaken var en asymmetri: `topics` valideras mot en
+kontrollerad ordlista i servern, medan `people` bara deduplicerades och togs rakt
+av från modellen, med ett enda hårdkodat undantag för `Luba`. Undantaget är nu
+`resolvePeople()`, som översätter relationsetiketter till riktiga namn, flyttar
+kända tekniska namn till `systems`, tar bort det som redan är indexerat som
+system i samma minne, och kastar varje återstående namn som varken är en känd
+person eller står ordagrant i minnestexten. En kollega som nämns i texten
+överlever.
+
+Extraktionsmodellen returnerade dessutom en titel och sammanfattning som hörde
+till en helt annan text: minnet som definierar people-facetten sparades som
+"Mäta och optimera Wi-Fi-nätverket hemma", med matchande ämne och projekt.
+Innehållet var intakt, men ett minne väljs utifrån titel och sammanfattning, så
+det hade blivit osökbart. `describesContent()` avvisar nu en föreslagen titel
+eller sammanfattning som delar mindre än 20 % av sina betydelsebärande ord med
+minnet, och faller tillbaka på de deterministiska `deriveTitle()` och
+`deriveSummary()` som redan fanns. Kontrollen står tillbaka för korta minnen,
+där signalen är för svag.
+
 ## 2026-08-09 — 0.9.4: historiska minnen lämnar granskningskön
 
 Ett agentminne från 0.9.1 låg kvar som väntande granskning trots att det redan

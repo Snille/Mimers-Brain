@@ -6,6 +6,31 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-17 — 0.9.5: the server decides who is a person, and titles must match
+
+Two extraction faults surfaced during a cleanup pass over the whole memory.
+
+The `people` facet had collected `Claude Code`, `Mimers Brain`, the GitHub
+account `Snille`, the relationship labels `Eriks dotter` and `Erik's brother`,
+and `Erik Bildmak` — a name the model built out of the Swedish phrase "Eriks
+bildsmak". The prompt already asked for humans only; the model ignored it. The
+real cause was asymmetry: `topics` is validated against a controlled vocabulary
+server-side, while `people` was only deduplicated and trusted raw, with a single
+hardcoded exception for `Luba`. That exception is now `resolvePeople()`, which
+maps relationship labels to real names, moves known technical names to
+`systems`, drops anything already indexed as a system in the same memory, and
+discards any remaining name that is neither a known person nor written verbatim
+in the memory text. A colleague named in the text still survives.
+
+The extraction model also returned a title and summary belonging to a
+completely different text: the memory defining the people facet was stored as
+"Mäta och optimera Wi-Fi-nätverket hemma", with matching topic and project. The
+content was intact, but a memory is selected from its title and summary, so it
+had become unfindable. `describesContent()` now rejects a proposed title or
+summary that shares less than 20% of its significant words with the memory, and
+falls back to the existing deterministic `deriveTitle()` and `deriveSummary()`.
+The check stands down for short memories, where there is too little signal.
+
 ## 2026-08-09 — 0.9.4: historical memories leave the review queue
 
 An agent memory from 0.9.1 remained in pending review even though 0.9.2 and

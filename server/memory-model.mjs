@@ -150,6 +150,116 @@ export function cleanTitle(value) {
     .slice(0, 180);
 }
 
+const tokenSet = (value) =>
+  new Set(String(value ?? "").toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
+
+// The people facet is a human index, but the extraction model fills it freely.
+// It has produced tools and services (Claude Code, Mimers Brain), the GitHub
+// account name, relationship labels, and names invented out of Swedish prose
+// ("Erik Bildmak" from "Eriks bildsmak"). The server decides who is a person.
+const KNOWN_PEOPLE = new Map(Object.entries({
+  "erik": "Erik",
+  "erik pettersson": "Erik Pettersson",
+  "camilla": "Camilla",
+  "timo": "Timo",
+  "louise": "Louise",
+}));
+
+// A relationship label carries no index value; store the actual name instead.
+const RELATION_ALIASES = new Map(Object.entries({
+  "eriks fru": "Camilla",
+  "erik's wife": "Camilla",
+  "eriks bror": "Timo",
+  "erik's brother": "Timo",
+  "eriks dotter": "Louise",
+  "erik's daughter": "Louise",
+}));
+
+// Named technical entities that keep turning up in the people facet.
+const NON_HUMAN_NAMES = new Map(Object.entries({
+  "luba": ["Luba", "Sleipner"],
+  "sleipner": ["Sleipner"],
+  "mimer": ["Mimer"],
+  "mimers valv": ["Mimers Valv"],
+  "mimers brain": ["Mimers Brain"],
+  "claude": ["Claude"],
+  "claude code": ["Claude Code"],
+  "claude desktop": ["Claude Desktop"],
+  "codex": ["Codex"],
+  "snille": ["Snille"],
+  "home assistant": ["Home Assistant"],
+  "node-red": ["Node-RED"],
+  "esphome": ["ESPHome"],
+  "magicmirror": ["MagicMirror"],
+  "glance clock": ["Glance Clock"],
+  "music assistant": ["Music Assistant"],
+  "open webui": ["Open WebUI"],
+  "tokentracker": ["Tokentracker"],
+  "immich": ["Immich"],
+  "proxmox": ["Proxmox"],
+  "portainer": ["Portainer"],
+  "authelia": ["Authelia"],
+  "comfyui": ["ComfyUI"],
+  "docker": ["Docker"],
+  "plex": ["Plex"],
+}));
+
+// A person the model invented out of prose never appears verbatim in the text.
+function namedInContent(name, contentTokens) {
+  const tokens = [...tokenSet(name)];
+  return tokens.length > 0 && tokens.every((token) => contentTokens.has(token));
+}
+
+export function resolvePeople(people, systems, content = "") {
+  const contentTokens = tokenSet(content);
+  const systemNames = dedupe(systems);
+  const systemKeys = new Set(systemNames.map((name) => name.toLowerCase()));
+  const keptPeople = [];
+  const addedSystems = [];
+
+  for (const raw of dedupe(people)) {
+    const key = raw.toLowerCase();
+    const name = RELATION_ALIASES.get(key) || KNOWN_PEOPLE.get(key) || raw;
+    const nameKey = name.toLowerCase();
+
+    const nonHuman = NON_HUMAN_NAMES.get(nameKey);
+    if (nonHuman) {
+      addedSystems.push(...nonHuman);
+      continue;
+    }
+    // Already indexed as a system in the same memory, so it is not a person.
+    if (systemKeys.has(nameKey)) continue;
+    if (KNOWN_PEOPLE.has(nameKey)) {
+      keptPeople.push(name);
+      continue;
+    }
+    if (!namedInContent(name, contentTokens)) continue;
+    keptPeople.push(name);
+  }
+
+  return {
+    people: dedupe(keptPeople),
+    systems: dedupe([...systemNames, ...addedSystems]),
+  };
+}
+
+// The extraction model has returned a title and summary belonging to a
+// completely different text, which makes the memory unfindable even though the
+// content is correct. Metadata that shares no vocabulary with the memory is
+// discarded in favour of the deterministic derivation below.
+const SANITY_MIN_CONTENT_TOKENS = 12;
+const SANITY_MIN_WORDS = 3;
+const SANITY_MIN_OVERLAP = 0.2;
+
+export function describesContent(candidate, content) {
+  const contentTokens = tokenSet(content);
+  if (contentTokens.size < SANITY_MIN_CONTENT_TOKENS) return true;
+  const words = [...tokenSet(candidate)].filter((word) => word.length >= 4);
+  if (words.length < SANITY_MIN_WORDS) return true;
+  const shared = words.filter((word) => contentTokens.has(word)).length;
+  return shared / words.length >= SANITY_MIN_OVERLAP;
+}
+
 export function deriveTitle(content) {
   const line = String(content ?? "").split(/\r?\n/).map(clean).find(Boolean) || "Untitled memory";
   return cleanTitle(line);
@@ -190,8 +300,14 @@ function trustDefaults(origin, userConfirmed = false) {
 export function normaliseMeta(meta = {}, content = "", defaults = {}) {
   const out = { ...meta };
 
-  out.title = cleanTitle(out.title) || deriveTitle(content);
-  out.summary = clean(out.summary) || deriveSummary(content);
+  const proposedTitle = cleanTitle(out.title);
+  out.title = proposedTitle && describesContent(proposedTitle, content)
+    ? proposedTitle
+    : deriveTitle(content);
+  const proposedSummary = clean(out.summary);
+  out.summary = proposedSummary && describesContent(proposedSummary, content)
+    ? proposedSummary
+    : deriveSummary(content);
 
   const proposedKind = clean(out.kind).toLowerCase();
   out.kind = MEMORY_KINDS.includes(proposedKind)
@@ -224,14 +340,9 @@ export function normaliseMeta(meta = {}, content = "", defaults = {}) {
   if (legacyTopics.length) out.legacy_topics = legacyTopics;
   else delete out.legacy_topics;
   if (!out.topics.length) out.topics = ["other"];
-  out.people = dedupe(out.people);
-  out.systems = dedupe(out.systems);
-
-  // Luba is a Mammotion robot mower (Sleipner in Home Assistant), not a person.
-  if (out.people.some((person) => person.toLowerCase() === "luba")) {
-    out.people = out.people.filter((person) => person.toLowerCase() !== "luba");
-    out.systems = dedupe([...out.systems, "Luba", "Sleipner"]);
-  }
+  const resolved = resolvePeople(out.people, out.systems, content);
+  out.people = resolved.people;
+  out.systems = resolved.systems;
 
   for (const field of ["verified_at", "valid_for_version"]) {
     const value = clean(out[field]);
