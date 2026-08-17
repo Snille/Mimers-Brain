@@ -27,6 +27,15 @@ fel kalibrerades på just det fallet, och det var första fulla körningen mot
 verklig data som avslöjade dess blinda fläck. Kör revisionen innan du litar på
 vakten.
 
+## 2026-08-17 — 0.9.10: ett omatchat ankare är inget bevis
+
+En kort titel bär för lite text för att språket ska kunna avgöras, så
+`Erik's server inventory at 10.0.0.x` på ett svenskt minne bedömdes på det enda
+ankaret `inventory` och avvisades — till förmån för en härledd titel som var
+uppenbart sämre. Ett avslag kräver nu minst två ankare, varav inget finns i
+minnet. Det ursprungliga felet faller fortfarande, eftersom
+`Mäta och optimera Wi-Fi-nätverket hemma` bär `optimera` och `nätverket`.
+
 ## 2026-08-17 — 0.9.9: avgör språket innan ämnet bedöms
 
 Ankare bär en översättning mellan språk bara när minnet råkar nämna en produkt

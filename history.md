@@ -26,6 +26,15 @@ The lesson is worth keeping: a guard added to catch one observed failure was
 calibrated on that single case, and the first full run over real data was what
 exposed its blind spot. Run the audit before trusting the guard.
 
+## 2026-08-17 — 0.9.10: one unmatched anchor is not evidence
+
+A short title carries too little text to detect its language, so
+`Erik's server inventory at 10.0.0.x` on a Swedish memory was judged on the
+single anchor `inventory` and rejected — in favour of a derived title that was
+plainly worse. Rejection now requires at least two anchors, none of which
+appear in the memory. The original failure still fails, because
+`Mäta och optimera Wi-Fi-nätverket hemma` carries `optimera` and `nätverket`.
+
 ## 2026-08-17 — 0.9.9: decide the language before judging the subject
 
 Anchors carry a translation across languages only when the memory happens to

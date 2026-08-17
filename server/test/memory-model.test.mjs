@@ -153,6 +153,12 @@ test("a faithful summary in the other language is kept, because anchors survive 
   assert.equal(meta.summary, english);
 });
 
+test("a short title with a single unmatched anchor is left alone", () => {
+  const content = "Eriks serverinventarium på 10.0.0.x: Proxmox kör de flesta servrarna som LXC:er,"
+    + " och Nginx Proxy Manager står framför dem.";
+  assert.equal(describesContent("Erik's server inventory at 10.0.0.x", content), true);
+});
+
 test("an English summary of a Swedish memory is trusted even without a shared name", () => {
   const content = [
     "EN NOTIS TAR SLOT 0 — andra slots överlever. Verifierat mot hårdvara.",

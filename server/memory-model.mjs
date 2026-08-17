@@ -256,6 +256,7 @@ export function resolvePeople(people, systems, content = "") {
 const SANITY_MIN_CONTENT_TOKENS = 12;
 
 const SANITY_MIN_ANCHOR_LENGTH = 3;
+const SANITY_MIN_ANCHORS = 2;
 
 // Anchors carry a faithful translation across languages only when the memory
 // happens to name a product or a path. A summary written in the other language
@@ -295,7 +296,10 @@ export function describesContent(candidate, content) {
   const contentLanguage = languageOf(content);
   if (candidateLanguage && contentLanguage && candidateLanguage !== contentLanguage) return true;
   const candidateAnchors = anchors(candidate);
-  if (!candidateAnchors.length) return true;
+  // One unmatched anchor is weak evidence, and a short title carries too little
+  // text to detect its language: "Erik's server inventory" is a good title for a
+  // Swedish memory, and "inventory" alone must not condemn it.
+  if (candidateAnchors.length < SANITY_MIN_ANCHORS) return true;
   return candidateAnchors.some((anchor) => contentTokens.has(anchor));
 }
 
