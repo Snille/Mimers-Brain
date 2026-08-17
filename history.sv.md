@@ -27,6 +27,20 @@ fel kalibrerades på just det fallet, och det var första fulla körningen mot
 verklig data som avslöjade dess blinda fläck. Kör revisionen innan du litar på
 vakten.
 
+## 2026-08-17 — 0.9.12: Erik har ett namn
+
+People-facetten listade `Erik` och `Erik Pettersson` som olika människor, och
+`Snille` som en tredje sak. Allt är Erik, vilket gjorde det meningslöst att
+filtrera på person. De tre översätts nu till `Erik`, liksom YouTube-handtaget
+`MrSnille`. Fullständiga namnet och handtagen står kvar i minnestexten, så inget
+går förlorat av att indexeras under ett namn.
+
+`Snille` behövde en åtskillnad snarare än en regel: det är ett handtag, ett
+GitHub-konto och en del av sökvägar som `Snille/glance_clock_ha`. Facetten
+avgör. I `people` betyder det människan och blir Erik; i `systems` betyder det
+kontot och lämnas i fred. Tidigare flyttades det från people till systems,
+vilket dolde att det är han.
+
 ## 2026-08-17 — 0.9.11: en ersättare ärver förtroendet den ersätter
 
 `supersede_thought` skickade `userConfirmed: true` villkorslöst, på både

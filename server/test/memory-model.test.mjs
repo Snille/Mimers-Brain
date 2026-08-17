@@ -77,11 +77,22 @@ test("classifies Luba and Sleipner as systems, never people", () => {
 test("tools and services proposed as people are moved to the systems facet", () => {
   const content = "Claude Code and Mimers Brain are two different MCP clients that Erik runs.";
   const meta = normaliseMeta(
-    { people: ["Erik", "Claude Code", "Mimers Brain", "Snille"], systems: ["Docker"] },
+    { people: ["Erik", "Claude Code", "Mimers Brain"], systems: ["Docker"] },
     content,
   );
   assert.deepEqual(meta.people, ["Erik"]);
-  assert.deepEqual(meta.systems, ["Docker", "Claude Code", "Mimers Brain", "Snille"]);
+  assert.deepEqual(meta.systems, ["Docker", "Claude Code", "Mimers Brain"]);
+});
+
+test("Erik has one name, and his handles resolve to it", () => {
+  const content = "Repot Snille/storagesystem-ha ägs av Erik Pettersson, som heter MrSnille på YouTube.";
+  const meta = normaliseMeta(
+    { people: ["Erik Pettersson", "Snille", "MrSnille", "Erik"], systems: ["Snille"] },
+    content,
+  );
+  assert.deepEqual(meta.people, ["Erik"]);
+  // In the systems facet the same word means the GitHub account, and stays.
+  assert.deepEqual(meta.systems, ["Snille"]);
 });
 
 test("a name invented from prose never reaches the people facet", () => {

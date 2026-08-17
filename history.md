@@ -26,6 +26,20 @@ The lesson is worth keeping: a guard added to catch one observed failure was
 calibrated on that single case, and the first full run over real data was what
 exposed its blind spot. Run the audit before trusting the guard.
 
+## 2026-08-17 — 0.9.12: Erik has one name
+
+The people facet listed `Erik` and `Erik Pettersson` as different humans, and
+`Snille` as a third thing entirely. They are all Erik, which made filtering by
+person useless. The three now resolve to `Erik`, along with the YouTube handle
+`MrSnille`. The full name and the handles remain in the memory text, so nothing
+is lost by indexing them under one name.
+
+`Snille` needed a distinction rather than a rule: it is a handle, a GitHub
+account, and part of repository paths like `Snille/glance_clock_ha`. The facet
+decides. In `people` it means the human and resolves to Erik; in `systems` it
+means the account and is left alone. It was previously moved from people to
+systems, which hid the fact that it is him.
+
 ## 2026-08-17 — 0.9.11: a replacement inherits the trust it replaces
 
 `supersede_thought` passed `userConfirmed: true` unconditionally, on both the

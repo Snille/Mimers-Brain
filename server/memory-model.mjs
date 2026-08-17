@@ -157,9 +157,20 @@ const tokenSet = (value) =>
 // It has produced tools and services (Claude Code, Mimers Brain), the GitHub
 // account name, relationship labels, and names invented out of Swedish prose
 // ("Erik Bildmak" from "Eriks bildsmak"). The server decides who is a person.
+// Erik has one name in this facet. "Erik Pettersson" is the same human, and so
+// are the handles "Snille" and "MrSnille"; splitting them made it impossible to
+// filter by person. The full name and the handles stay in the memory text, so
+// nothing is lost by indexing them under one name.
+//
+// "Snille" is also a GitHub account and part of repository paths such as
+// Snille/glance_clock_ha. The facet decides which it is: in people it means the
+// human, and in systems it means the account, which is correct there and is
+// left alone.
 const KNOWN_PEOPLE = new Map(Object.entries({
   "erik": "Erik",
-  "erik pettersson": "Erik Pettersson",
+  "erik pettersson": "Erik",
+  "snille": "Erik",
+  "mrsnille": "Erik",
   "camilla": "Camilla",
   "timo": "Timo",
   "louise": "Louise",
@@ -186,7 +197,6 @@ const NON_HUMAN_NAMES = new Map(Object.entries({
   "claude code": ["Claude Code"],
   "claude desktop": ["Claude Desktop"],
   "codex": ["Codex"],
-  "snille": ["Snille"],
   "home assistant": ["Home Assistant"],
   "node-red": ["Node-RED"],
   "esphome": ["ESPHome"],
