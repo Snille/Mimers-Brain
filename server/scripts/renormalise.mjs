@@ -2,11 +2,18 @@
 //
 //   node scripts/renormalise.mjs --only <id>[,<id>...] --dry-run
 //   node scripts/renormalise.mjs --only <id>[,<id>...] --apply --expected-count N
+//   node scripts/renormalise.mjs --only <id> --set '{"topics":["mimers-brain"]}' --dry-run
 //
 // Use this when a server-side guard is added and existing rows were written
 // before it. It rewrites only title, summary, people and systems, and leaves
 // every other metadata key byte-identical, so lifecycle, trust and review
 // state are never touched by a cleanup pass.
+//
+// --set additionally applies explicit values for kind, project and topics to
+// every named id. Those facets cannot be derived from the text, so a wrong one
+// written by the extraction model can only be corrected by stating it. The
+// result still passes through normaliseMeta, so the controlled vocabularies
+// apply and a typo cannot enter the database.
 //
 // title and summary are part of embeddingText(), so a changed row is embedded
 // again; a stale vector would otherwise keep matching the wrong wording.
@@ -34,6 +41,11 @@ if (apply && (!Number.isInteger(expectedCount) || expectedCount < 1)) {
 }
 
 const FACETS = ["title", "summary", "people", "systems"];
+const SETTABLE = ["kind", "project", "topics"];
+
+const overrides = JSON.parse(valueOf("--set") || "{}");
+const unknown = Object.keys(overrides).filter((key) => !SETTABLE.includes(key));
+if (unknown.length) throw new Error(`--set only accepts ${SETTABLE.join(", ")}; got ${unknown.join(", ")}`);
 
 const { rows } = await pool.query(
   "SELECT id, content, metadata FROM thoughts WHERE id = ANY($1::uuid[])",
@@ -47,10 +59,13 @@ const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 const proposed = rows.map((row) => {
   const old = row.metadata || {};
-  const normalised = normaliseMeta(old, row.content);
+  const normalised = normaliseMeta({ ...old, ...overrides }, row.content);
   const next = { ...old };
-  for (const facet of FACETS) next[facet] = normalised[facet];
-  const fields = FACETS.filter((facet) => !same(old[facet], next[facet]));
+  const touched = [...FACETS, ...Object.keys(overrides)];
+  for (const facet of touched) next[facet] = normalised[facet];
+  // normaliseMeta drops an empty project entirely, so mirror that here.
+  if (next.project === undefined) delete next.project;
+  const fields = touched.filter((facet) => !same(old[facet], next[facet]));
   return { row, next, fields };
 });
 
