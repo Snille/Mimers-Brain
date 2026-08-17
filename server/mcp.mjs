@@ -248,23 +248,28 @@ export function buildServer(tiers, ctx = {}) {
       title: "Replace one or more memories",
       description:
         "Create a current replacement and preserve the old memories as navigable superseded history. " +
-        CAPTURE_GUIDANCE,
+        "The replacement inherits the trust of what it replaces, so rewriting a memory that is pending " +
+        "review leaves the replacement pending too. " + CAPTURE_GUIDANCE,
       inputSchema: {
         old_ids: z.array(z.string().uuid()).min(1),
         content: z.string(),
         tier: z.enum(["open", "vault"]).default("open"),
+        user_confirmed: z.boolean().default(false).describe(
+          "True only when the user directly confirmed or requested this exact replacement"),
       },
-    }, track("supersede_thought", "write", async ({ old_ids, content, tier }, note) => {
+    }, track("supersede_thought", "write", async ({ old_ids, content, tier, user_confirmed }, note) => {
       try {
         await db.validateSupersession(tiers, old_ids, tier);
+        const inherited = await db.supersessionTrust(tiers, old_ids);
         const saved = await db.captureThought(tiers, content, {
-          tier, origin: "agent", userConfirmed: true,
+          tier, origin: "agent", userConfirmed: user_confirmed || inherited,
         });
         const linked = await db.linkSupersession(tiers, saved.id, old_ids);
         note.tier = saved.tier;
         note.count = old_ids.length + 1;
         publishSoon();
-        return text(`Saved replacement ${saved.id}; preserved ${linked.superseded_ids.length} superseded memories.`);
+        return text(`Saved replacement ${saved.id}; preserved ${linked.superseded_ids.length} superseded memories.` +
+          (saved.metadata.review_status === "confirmed" ? "" : " The replacement is pending review, because what it replaces was."));
       } catch (e) { return fail(e); }
     }));
   }

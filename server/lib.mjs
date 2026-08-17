@@ -12,6 +12,7 @@ import {
   SMART_INGEST_THRESHOLD,
   applyReview,
   embeddingText,
+  inheritsConfirmedTrust,
   normaliseMeta,
 } from "./memory-model.mjs";
 import { fallbackAtoms, normalisePreviewCandidates } from "./smart-ingest.mjs";
@@ -273,6 +274,19 @@ export async function validateSupersession(tiers, oldIds, replacementTier) {
   if (rows.some((row) => row.tier === "vault") && replacementTier !== "vault")
     throw new Error("A vault memory may only be superseded by another vault memory");
   return ids;
+}
+
+// Whether a replacement for these memories may be treated as user-confirmed.
+// See inheritsConfirmedTrust: a rewrite must not promote a pending memory.
+export async function supersessionTrust(tiers, oldIds) {
+  const ids = [...new Set((Array.isArray(oldIds) ? oldIds : []).map(String))];
+  if (!ids.length) return false;
+  const { rows } = await pool.query(
+    `SELECT metadata FROM thoughts WHERE id = ANY($1::uuid[]) AND tier = ANY($2)`,
+    [ids, tiers],
+  );
+  if (rows.length !== ids.length) return false;
+  return inheritsConfirmedTrust(rows.map((row) => row.metadata));
 }
 
 export async function linkSupersession(tiers, replacementId, oldIds) {

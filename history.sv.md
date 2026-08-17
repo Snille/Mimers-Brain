@@ -27,6 +27,27 @@ fel kalibrerades på just det fallet, och det var första fulla körningen mot
 verklig data som avslöjade dess blinda fläck. Kör revisionen innan du litar på
 vakten.
 
+## 2026-08-17 — 0.9.11: en ersättare ärver förtroendet den ersätter
+
+`supersede_thought` skickade `userConfirmed: true` villkorslöst, på både
+MCP-ytan och OpenAPI-ytan. Att skriva om ett minne som låg som pending och
+evidence-only befordrade det därför till en användarbekräftad instruktion som
+användaren aldrig läst, och tog bort det ur granskningskön i samma skrivning.
+Erik märkte att kön var tom och frågade varför.
+
+Förtroendet ärvs nu: en ersättare är bekräftad bara när varje minne den ersätter
+var bekräftat och fick användas som instruktion. En svag källa räcker för att
+hålla ersättaren pending. Båda ytorna har fått en uttrycklig `user_confirmed`, för
+fallet då användaren verkligen godkänt just den texten, och båda rapporterar nu
+den resulterande granskningsstatusen så att anroparen inte behöver gissa.
+
+Minnen som skrevs före ändringen behåller sin bekräftade status enligt Eriks
+beslut, eftersom han godkände den städningen steg för steg. Regeln gäller framåt.
+
+Samma form som revisionsfelet i 0.9.6: en skrivväg som tyst delar ut
+instruktionsrätt. Värt att granska varje annat ställe som sätter förtroende utan
+att bli tillsagt.
+
 ## 2026-08-17 — 0.9.10: ett omatchat ankare är inget bevis
 
 En kort titel bär för lite text för att språket ska kunna avgöras, så

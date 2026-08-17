@@ -340,6 +340,19 @@ function trustDefaults(origin, userConfirmed = false) {
   };
 }
 
+// A replacement must never be more trusted than what it replaces. Superseding a
+// pending, evidence-only memory used to hand it user_confirmed trust, so a
+// rewrite silently promoted it to an instruction the user had never seen and
+// removed it from the review queue at the same time. Trust is inherited, and
+// only an explicit user_confirmed may raise it.
+export function inheritsConfirmedTrust(metadatas = []) {
+  const list = (Array.isArray(metadatas) ? metadatas : []).filter(Boolean);
+  if (!list.length) return false;
+  return list.every((meta) =>
+    clean(meta.review_status).toLowerCase() === "confirmed"
+    && meta.can_use_as_instruction !== false);
+}
+
 export function normaliseMeta(meta = {}, content = "", defaults = {}) {
   const out = { ...meta };
 

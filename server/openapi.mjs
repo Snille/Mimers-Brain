@@ -315,7 +315,8 @@ export function toolsFor(tiers, ctx = {}) {
       summary: "Replace one or more memories",
       description:
         "Create a current replacement and preserve the old memories as navigable superseded history. " +
-        CAPTURE_GUIDANCE,
+        "The replacement inherits the trust of what it replaces, so rewriting a memory that is pending " +
+        "review leaves the replacement pending too. " + CAPTURE_GUIDANCE,
       schema: {
         type: "object",
         required: ["old_ids", "content"],
@@ -323,19 +324,30 @@ export function toolsFor(tiers, ctx = {}) {
           old_ids: { type: "array", minItems: 1, items: str("A full memory uuid") },
           content: str("The replacement memory as a standalone statement"),
           tier: { type: "string", enum: ["open", "vault"], default: "open" },
+          user_confirmed: {
+            type: "boolean",
+            default: false,
+            description: "True only when the user directly confirmed or requested this exact replacement",
+          },
         },
       },
-      async run({ old_ids, content, tier = "open" }) {
+      async run({ old_ids, content, tier = "open", user_confirmed = false }) {
         if (!Array.isArray(old_ids) || !old_ids.length) throw new BadRequest("old_ids is required");
         const ids = old_ids.map(uuid);
         if (!String(content || "").trim()) throw new BadRequest("content is required");
         await db.validateSupersession(tiers, ids, tier);
+        const inherited = await db.supersessionTrust(tiers, ids);
         const saved = await db.captureThought(tiers, String(content).trim(), {
-          tier, origin: "agent", userConfirmed: true,
+          tier, origin: "agent", userConfirmed: Boolean(user_confirmed) || inherited,
         });
         const linked = await db.linkSupersession(tiers, saved.id, ids);
         publishSoon();
-        return { id: saved.id, tier: saved.tier, superseded_ids: linked.superseded_ids };
+        return {
+          id: saved.id,
+          tier: saved.tier,
+          review_status: saved.metadata.review_status,
+          superseded_ids: linked.superseded_ids,
+        };
       },
     });
 

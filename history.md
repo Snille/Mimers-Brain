@@ -26,6 +26,27 @@ The lesson is worth keeping: a guard added to catch one observed failure was
 calibrated on that single case, and the first full run over real data was what
 exposed its blind spot. Run the audit before trusting the guard.
 
+## 2026-08-17 — 0.9.11: a replacement inherits the trust it replaces
+
+`supersede_thought` passed `userConfirmed: true` unconditionally, on both the
+MCP and the OpenAPI surface. Rewriting a memory that was pending and
+evidence-only therefore promoted it to a user-confirmed instruction that the
+user had never read, and removed it from the review queue in the same write.
+Erik noticed the queue was empty and asked why.
+
+Trust is now inherited: a replacement is confirmed only when every memory it
+replaces was confirmed and instructable. One weak source keeps the replacement
+pending. Both surfaces gained an explicit `user_confirmed` flag for the case
+where the user really did approve this exact text, and both now report the
+resulting review status so the caller cannot assume it.
+
+The memories written before this change keep their confirmed status by Erik's
+decision, since he approved that cleanup step by step. The rule applies forward.
+
+Same shape as the audit fault in 0.9.6: a write path that quietly grants
+instruction rights. Worth checking any other place that sets trust without being
+told to.
+
 ## 2026-08-17 — 0.9.10: one unmatched anchor is not evidence
 
 A short title carries too little text to detect its language, so

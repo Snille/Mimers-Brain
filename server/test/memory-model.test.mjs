@@ -9,6 +9,7 @@ import {
   deriveSummary,
   deriveTitle,
   describesContent,
+  inheritsConfirmedTrust,
   memoryFreshness,
   normaliseMeta,
   resolvePeople,
@@ -207,6 +208,21 @@ test("agent memories start as evidence while user-confirmed memories may instruc
   assert.equal(confirmed.provenance, "user_confirmed");
   assert.equal(confirmed.review_status, "confirmed");
   assert.equal(confirmed.can_use_as_instruction, true);
+});
+
+test("a replacement inherits trust and cannot promote a pending memory", () => {
+  const pending = normaliseMeta({}, "A model inferred this.", { origin: "agent" });
+  const confirmed = normaliseMeta({}, "Erik confirmed this.", { origin: "agent", userConfirmed: true });
+
+  assert.equal(inheritsConfirmedTrust([confirmed]), true);
+  assert.equal(inheritsConfirmedTrust([confirmed, confirmed]), true);
+  // One weak source is enough to keep the replacement in the review queue.
+  assert.equal(inheritsConfirmedTrust([confirmed, pending]), false);
+  assert.equal(inheritsConfirmedTrust([pending]), false);
+  assert.equal(inheritsConfirmedTrust([]), false);
+
+  const restricted = applyReview(confirmed, "evidence_only");
+  assert.equal(inheritsConfirmedTrust([restricted]), false);
 });
 
 test("review actions deterministically control allowed use", () => {
