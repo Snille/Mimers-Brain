@@ -321,6 +321,13 @@ regler för tillåten användning, `source_refs` och `artifact_refs`. Äldre kli
 `type`, `topics` och `people`. Migrerade specialetiketter bevaras under
 `legacy_topics` i stället för att försvinna.
 
+`topics` har en sluten ordlista, så ett värde utanför den når aldrig databasen,
+och `other` erbjuds extraheringen som sista utväg i stället för som ett val bland
+likvärdiga. `project` är fritt med flit — ett nytt projekt måste kunna döpa sig
+självt — så extraheringen får i stället se de projektnamn som redan används, och
+uppmanas återanvända ett när texten hör dit. Utan den listan hittade den på ett
+namn varje gång, och ett strönamn är osynligt för varje projektfilter.
+
 `thought_relations` lagrar fullständiga UUID-länkar mellan ersättare och minnena
 de ersätter, samt `derived_from`, relaterade, konflikt-, sammanslagnings- och
 källrelationer. En överspelad rad döljs från sökningar efter aktuellt innehåll

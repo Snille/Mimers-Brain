@@ -318,6 +318,14 @@ allowed-use flags, `source_refs` and `artifact_refs`. The old `type`, `topics` a
 fields remain readable for older clients. Non-canonical migrated tags are kept
 under `legacy_topics` instead of disappearing.
 
+`topics` has a closed vocabulary, so a value outside it never reaches the
+database, and `other` is offered to the extraction as a last resort rather than
+as one option among equals. `project` is deliberately free-form — a new project
+must be able to name itself — so the extraction is instead shown the project
+names already in use and told to reuse one when the text belongs to it. Without
+that list it invented a name every time, and a stray name is invisible to every
+project filter.
+
 `thought_relations` stores full UUID links between replacements and the memories
 they supersede, as well as `derived_from`, `related_to`, conflict, merge and
 source relationships. A superseded row is hidden from current-only searches,

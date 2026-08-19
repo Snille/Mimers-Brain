@@ -6,6 +6,44 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-19 — 0.9.13: the extraction can only reuse what it can see
+
+Filtering by project missed memories that were plainly about the project. Ten
+Glance Clock memories sat under three spellings besides `glance-clock`, and the
+same drift had produced `token-tracker`, `photo-frame`, `server-inventarium` and
+four `snille/`-prefixed names. Eighteen rows, and every project filter was
+quietly incomplete.
+
+`topics` never drifts that way, because it has a closed vocabulary and a bad
+value cannot reach the database. `project` is free-form on purpose: a genuinely
+new project has to be able to name itself. But the model was naming projects
+without being shown the ones already in use, so a new name was the default
+outcome rather than a decision. `extractMetadata` now lists the existing project
+names, ordered by how common they are, and says a new name is for when none of
+them owns the text. The lookup is cached for five minutes because it sits on the
+save path, and a failed lookup falls back to the plain instruction so a save is
+never blocked by it.
+
+The proof arrived before the fix did. A memory written during the cleanup landed
+under the project `docker` — a topic word, not a project. That is the rule the
+prompt now states outright.
+
+`other` had the opposite problem: a closed vocabulary that offered it as one of
+twenty-six equal options, so the model reached for it whenever it hesitated. It
+had spread to 158 of 290 memories, and 98 of those carried nothing else, which
+puts a memory beyond the reach of any topic filter. Sixty more carried `other`
+beside a topic that already fit. The list now offers the twenty-five real
+subjects, and a separate sentence names `other` as the fallback — never beside a
+value that applies.
+
+The database was reconciled to match: 148 rows relabelled, 18 renamed, five
+filed under the wrong project. `npm run audit` reports zero. Ten memories keep
+`other` on purpose — favourite colour, family, hometown, employer — because the
+vocabulary has no personal subject and forcing one would make search worse.
+
+A closed vocabulary stops bad values. It does not stop a lazy one, and it says
+nothing at all about the facet next to it.
+
 ## 2026-08-17 — 0.9.7: a translation is not a foreign title
 
 The 0.9.5 sanity check measured plain word overlap, and the first honest audit

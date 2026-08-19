@@ -6,6 +6,45 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-19 — 0.9.13: extraheringen kan bara återanvända det den ser
+
+Att filtrera på projekt missade minnen som uppenbart handlade om projektet. Tio
+Glance Clock-minnen låg under tre andra stavningar än `glance-clock`, och samma
+glidning hade gett `token-tracker`, `photo-frame`, `server-inventarium` och fyra
+namn med `snille/`-prefix. Arton rader, och varje projektfilter var tyst
+ofullständigt.
+
+`topics` glider aldrig på det sättet, eftersom den har en sluten ordlista och ett
+felaktigt värde inte kan nå databasen. `project` är fritt med flit: ett verkligt
+nytt projekt måste kunna döpa sig självt. Men modellen döpte projekt utan att få
+se dem som redan fanns, så ett nytt namn blev standardutfallet i stället för ett
+val. `extractMetadata` listar nu de befintliga projektnamnen, sorterade efter hur
+vanliga de är, och säger att ett nytt namn är till för när inget av dem äger
+texten. Uppslaget cachas i fem minuter eftersom det ligger i sparvägen, och ett
+misslyckat uppslag faller tillbaka till den enkla raden så att en sparning aldrig
+blockeras av det.
+
+Beviset kom före fixen. Ett minne som skrevs mitt under städningen hamnade under
+projektet `docker` — ett ämnesord, inte ett projekt. Det är regeln som prompten
+nu säger rakt ut.
+
+`other` hade motsatt problem: en sluten ordlista som erbjöd den som ett av
+tjugosex likvärdiga val, så modellen tog den när den tvekade. Den hade spridit
+sig till 158 av 290 minnen, och 98 av dem bar ingenting annat, vilket ställer ett
+minne utom räckhåll för varje ämnesfilter. Ytterligare sextio bar `other` bredvid
+ett ämne som redan passade. Listan erbjuder nu de tjugofem riktiga ämnena, och en
+egen mening pekar ut `other` som sista utväg — aldrig bredvid ett värde som
+passar.
+
+Databasen städades i samma veva: 148 rader ometiketterade, 18 omdöpta, fem
+felplacerade projekt rättade. `npm run audit` rapporterar noll. Tio minnen
+behåller `other` med flit — favoritfärg, familj, bostadsort, arbetsgivare —
+eftersom ordlistan saknar personligt ämne och att tvinga in ett hade gjort
+sökningen sämre.
+
+En sluten ordlista stoppar felaktiga värden. Den stoppar inte ett lättjefullt
+värde, och den säger ingenting alls om facetten bredvid.
+
 ## 2026-08-17 — 0.9.7: en översättning är inte en främmande titel
 
 Kontrollen i 0.9.5 mätte rakt ordöverlapp, och den första ärliga revisionen
