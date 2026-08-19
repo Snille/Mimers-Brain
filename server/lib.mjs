@@ -102,6 +102,20 @@ export async function knownProjects() {
   return knownProjectsCache.names;
 }
 
+// "other" was one of twenty-six equal options, so the model reached for it
+// whenever it hesitated - 158 of 290 memories carried it, 98 of them with
+// nothing else, which makes a memory invisible to a topic filter. Offering the
+// real subjects first and naming "other" as the last resort states what the
+// closed vocabulary alone cannot: that it is a fallback, not a choice. The
+// second sentence covers the other half of the mess, "other" added beside a
+// value that already fits.
+export function topicRule() {
+  const subjects = CANONICAL_TOPICS.filter((topic) => topic !== "other");
+  return `- "topics": 1-3 values chosen only from: ${subjects.join(", ")}\n` +
+    `  Use "other" only when not one of those values applies to the text, and never\n` +
+    `  beside a value that does apply.\n`;
+}
+
 // project is the one facet with no closed vocabulary, so the rule carries its own
 // guard rails: reuse what exists, and never reach for a topic word - which is
 // where a memory landed under the project "docker" on 2026-08-19.
@@ -139,7 +153,7 @@ export async function extractMetadata(text) {
             `  Tools, services, apps, accounts, companies and devices are NOT people;\n` +
             `  Luba/Sleipner is a robot mower. Never derive a name from surrounding prose.\n` +
             `- "systems": software, services, tools, machines, devices and named robots\n` +
-            `- "topics": 1-3 values chosen only from: ${CANONICAL_TOPICS.join(", ")}\n` +
+            topicRule() +
             `- "verified_at": YYYY-MM-DD when the text states a verification date, or empty\n` +
             `Do not invent facts. lifecycle is always set by the server.\n\n` +
             text,
