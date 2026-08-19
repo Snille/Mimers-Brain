@@ -72,10 +72,53 @@ export async function embed(text) {
   return (await r.json()).data[0].embedding;
 }
 
+// The model invents a project name whenever it cannot see the ones already in
+// use, and a stray name is invisible to every project filter. "topics" has a
+// closed vocabulary that protects it; "project" is free-form by design, because
+// a genuinely new project must be able to name itself. Showing the names that
+// already exist makes a new one a decision rather than an accident. Cached: this
+// runs on the save path, and the set of projects changes far more slowly.
+const KNOWN_PROJECTS_TTL_MS = 5 * 60 * 1000;
+const KNOWN_PROJECTS_LIMIT = 80;
+let knownProjectsCache = { at: 0, names: [] };
+
+export async function knownProjects() {
+  if (Date.now() - knownProjectsCache.at < KNOWN_PROJECTS_TTL_MS) return knownProjectsCache.names;
+  try {
+    const { rows } = await pool.query(
+      `SELECT metadata->>'project' AS project, count(*) AS n
+         FROM thoughts
+        WHERE coalesce(metadata->>'project', '') <> ''
+        GROUP BY 1
+        ORDER BY n DESC, project
+        LIMIT $1`,
+      [KNOWN_PROJECTS_LIMIT],
+    );
+    knownProjectsCache = { at: Date.now(), names: rows.map((row) => row.project) };
+  } catch {
+    // A failed lookup must never block a save; the prompt then simply omits the list.
+    knownProjectsCache = { at: Date.now(), names: [] };
+  }
+  return knownProjectsCache.names;
+}
+
+// project is the one facet with no closed vocabulary, so the rule carries its own
+// guard rails: reuse what exists, and never reach for a topic word - which is
+// where a memory landed under the project "docker" on 2026-08-19.
+export function projectRule(existing) {
+  const line = `- "project": one lower-kebab-case owning project, or empty\n`;
+  if (!existing.length) return line;
+  return line +
+    `  Reuse an existing project name when the text belongs to one of these: ${existing.join(", ")}\n` +
+    `  Invent a new name only when none of them owns the text. A topic word such as ` +
+    `${CANONICAL_TOPICS.slice(0, 6).join(", ")} names a subject, never a project.\n`;
+}
+
 // The model proposes metadata, but memory-model.mjs owns the vocabulary and
 // validation. Free-form output is never written directly.
 export async function extractMetadata(text) {
   if (!EMBED_KEY) return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
+  const existingProjects = await knownProjects();
   try {
     const r = await fetch(META_URL, {
       method: "POST",
@@ -91,7 +134,7 @@ export async function extractMetadata(text) {
             `- "summary": the current conclusion of THIS text, at most 500 characters\n` +
             `- "kind": one of ${MEMORY_KINDS.join(", ")}\n` +
             `- "task_status": "pending" or "done", only when kind is task\n` +
-            `- "project": one lower-kebab-case owning project, or empty\n` +
+            projectRule(existingProjects) +
             `- "people": named human beings only, and only names written in the text.\n` +
             `  Tools, services, apps, accounts, companies and devices are NOT people;\n` +
             `  Luba/Sleipner is a robot mower. Never derive a name from surrounding prose.\n` +
