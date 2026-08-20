@@ -104,6 +104,7 @@
       "keep_right": "Keep right",
       "merge": "Merge"
     },
+    "capturedBy": "via {client}",
     "mergePrompt": "Edit the merged memory:",
     "recalls": {
       "title": "Recall receipts",
@@ -307,6 +308,11 @@
       "lastError": "Last error",
       "published": "Published {when}.",
       "publishFailed": "Could not publish — the broker is not connected."
+    },
+    "retention": {
+      "label": "Keep usage events and recall receipts for",
+      "days": "{days} days",
+      "forever": "Keep everything"
     },
     "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events and recall receipts are retained for {days} days and never contain queries, answers or memory content — only aggregate activity and UUID receipt state."
   },

@@ -22,7 +22,8 @@ function memorySummary(row, prefix = "") {
   return `<div class="review-memory">
     <b>${esc(meta.title || content.slice(0, 120))}</b>
     <div class="summary">${esc(meta.summary || content.slice(0, 400))}</div>
-    <div class="sub">${esc(meta.origin || "legacy")} · ${esc(meta.provenance || "imported")} · ${esc(meta.review_status || "confirmed")}</div>
+    <div class="sub">${esc(meta.origin || "legacy")} · ${esc(meta.provenance || "imported")} · ${esc(meta.review_status || "confirmed")}${
+      meta.captured_by ? ` · ${esc(tr("review.capturedBy", { client: meta.captured_by }))}` : ""}</div>
   </div>`;
 }
 

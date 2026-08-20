@@ -404,7 +404,7 @@ export async function linkRelations(tiers, fromId, toIds, relation = "related_to
 
 export async function captureThought(tiers, content, {
   tier = "open", metadata, origin = "agent", userConfirmed = false,
-  sourceRefs = [], artifactRefs = [],
+  sourceRefs = [], artifactRefs = [], client = "",
 } = {}) {
   if (!tiers.includes(tier))
     throw new Error(`This endpoint may not write to tier "${tier}"`);
@@ -419,15 +419,22 @@ export async function captureThought(tiers, content, {
   // Trust is assigned by the authenticated route, never by model-extracted or
   // caller-supplied metadata. Otherwise an extractor could accidentally promote
   // its own inference to a user instruction by returning extra JSON keys.
+  //
+  // `captured_by` is on the same footing: it answers "which agent wrote this",
+  // so it has to come from the authenticated handshake rather than from
+  // whatever the caller typed. `origin: agent` alone is not enough when several
+  // harnesses write to the same brain at once.
   for (const field of [
     "provenance", "review_status", "can_use_as_instruction", "can_use_as_evidence",
-    "requires_user_confirmation", "reviewed_at", "reviewed_by",
+    "requires_user_confirmation", "reviewed_at", "reviewed_by", "captured_by",
   ]) delete proposed[field];
   const meta = normaliseMeta(
     proposed,
     content,
     { origin, userConfirmed },
   );
+  const capturedBy = String(client || "").trim().slice(0, 80);
+  if (capturedBy) meta.captured_by = capturedBy;
   const vector = await embed(embeddingText(content, meta)).catch(() => null);
 
   const { rows } = await pool.query(
@@ -503,6 +510,7 @@ export async function previewIngest(content, { metadata = {}, origin = "user" } 
 
 export async function applyIngest(tiers, {
   source_content, candidates, tier = "open", origin = "user", user_confirmed = false,
+  client = "",
 } = {}) {
   if (!tiers.includes(tier)) throw new Error(`This endpoint may not write to tier "${tier}"`);
   const source = String(source_content || "").trim();
@@ -530,7 +538,7 @@ export async function applyIngest(tiers, {
       source_refs: [...new Set([...(atom.metadata?.source_refs || []), `memory:${sourceId}`])],
     };
     const row = await captureThought(tiers, atom.content, {
-      tier, metadata, origin, userConfirmed: origin === "user" || user_confirmed,
+      tier, metadata, origin, userConfirmed: origin === "user" || user_confirmed, client,
     });
     await linkRelations(tiers, row.id, [sourceId], "derived_from");
     saved.push(row);
@@ -781,6 +789,27 @@ export async function setSetting(key, value) {
 const TZ = process.env.STATS_TZ || "Europe/Stockholm";
 const RETENTION_DAYS = Number(process.env.USAGE_RETENTION_DAYS || 730);
 
+// How long telemetry is kept is an operational choice, not a deployment
+// constant, so it lives in app_settings and the Statistics page can change it
+// without an edit to .env and a restart. The env value is the fallback for a
+// brain that has never been asked. 0 means "keep everything" - a deliberate
+// choice too, and the only value that makes pruning do nothing at all.
+export const RETENTION_CHOICES = [0, 30, 90, 180, 365, 730, 1825];
+
+export async function getRetentionDays() {
+  const stored = Number(await getSetting("usage_retention_days").catch(() => null));
+  if (Number.isFinite(stored) && RETENTION_CHOICES.includes(stored)) return stored;
+  return RETENTION_DAYS;
+}
+
+export async function setRetentionDays(days) {
+  const value = Number(days);
+  if (!RETENTION_CHOICES.includes(value))
+    throw new Error(`Retention must be one of ${RETENTION_CHOICES.join(", ")} days`);
+  await setSetting("usage_retention_days", String(value));
+  return value;
+}
+
 // Fire-and-forget: a statistics row must never be able to fail a real call, and
 // must never delay one either. Note what is *not* passed in - no query text, no
 // content, no results. See the table comment in db/init.sql.
@@ -808,6 +837,8 @@ export function logUsage(ev = {}) {
 }
 
 export async function pruneUsage() {
+  const days = await getRetentionDays();
+  if (!days) return 0;
   const { rows } = await pool.query(
     `WITH usage AS (
        DELETE FROM usage_events WHERE at < now() - ($1 || ' days')::interval RETURNING 1
@@ -815,7 +846,7 @@ export async function pruneUsage() {
        DELETE FROM recall_traces WHERE created_at < now() - ($1 || ' days')::interval RETURNING 1
      )
      SELECT (SELECT count(*) FROM usage) + (SELECT count(*) FROM traces) AS count`,
-    [String(RETENTION_DAYS)],
+    [String(days)],
   );
   return Number(rows[0].count);
 }
@@ -1133,7 +1164,8 @@ export async function usageStats(tiers, { days = 60, months = 24 } = {}) {
 
   return {
     tz: TZ,
-    retentionDays: RETENTION_DAYS,
+    retentionDays: await getRetentionDays(),
+    retentionChoices: RETENTION_CHOICES,
     calls,
     memories,
     memoryHealth: health,

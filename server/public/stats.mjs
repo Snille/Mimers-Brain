@@ -282,7 +282,33 @@ export async function render(element) {
     ${sectionHead(t("stats.sections.operations.title"), t("stats.sections.operations.description"))}
     ${mqttCard(mqtt)}
     <p class="sub">${t("stats.footer", { timezone: esc(usage.tz), days: usage.retentionDays })}</p>
+    <p class="sub"><label>${esc(t("stats.retention.label"))}
+      <select id="retention">${(usage.retentionChoices || [usage.retentionDays]).map((days) =>
+        `<option value="${days}"${days === usage.retentionDays ? " selected" : ""}>${
+          esc(days ? t("stats.retention.days", { days }) : t("stats.retention.forever"))}</option>`).join("")}</select>
+    </label> <span id="retention-msg"></span></p>
   </section>`;
+
+  const retention = root.querySelector("#retention");
+  if (retention) retention.onchange = async () => {
+    const message = root.querySelector("#retention-msg");
+    retention.disabled = true;
+    message.textContent = t("common.loading");
+    try {
+      const result = await fetch("/api/usage/retention", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: Number(retention.value) }),
+      }).then((response) => response.json());
+      if (result.error) throw new Error(result.error);
+      // Re-rendered rather than patched, because the footer sentence, the
+      // charts and the receipt counts all move when rows are pruned.
+      await render(root);
+    } catch (error) {
+      message.textContent = error.message;
+      retention.disabled = false;
+    }
+  };
 
   const publish = root.querySelector("#mqtt-now");
   if (publish) publish.onclick = async () => {

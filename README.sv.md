@@ -317,7 +317,7 @@ låt projektet ligga vilande ett tag som fallback.
 Basen är fortfarande OB1:s `thoughts`-tabell plus `tier`, men metadata v2 lägger
 till `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
 `verified_at`, `valid_for_version`, `origin`, `provenance`, `review_status`,
-regler för tillåten användning, `source_refs` och `artifact_refs`. Äldre klienter kan fortfarande läsa
+`captured_by`, regler för tillåten användning, `source_refs` och `artifact_refs`. Äldre klienter kan fortfarande läsa
 `type`, `topics` och `people`. Migrerade specialetiketter bevaras under
 `legacy_topics` i stället för att försvinna.
 
@@ -335,9 +335,15 @@ men raderas inte. Permanent radering är fortfarande en separat, bekräftad hand
 
 Agentens egna minnen blir som standard väntande evidens och får inte behandlas
 som användarinstruktioner. `review_memory` eller sidan Granska kan bekräfta,
-begränsa, markera gammalt, behålla som evidens eller avvisa dem.
+begränsa, markera gammalt, behålla som evidens eller avvisa dem. `captured_by`
+registrerar vilken klient som skrev minnet — hämtat ur MCP-handskakningen, aldrig
+ur anroparens egen metadata — och granskningskön visar det, så en hjärna som
+flera harnesses skriver till samtidigt ändå kan säga vem som skrev vad.
 `recall_traces` sparar bara klienten och returnerade/använda minnes-UUID:n —
-aldrig sökfrågan, svaret eller innehållet.
+aldrig sökfrågan, svaret eller innehållet. En harness som kraschar lämnar sitt
+kvitto orapporterat för alltid: spåret är en logg, så den ärliga uppgiften är att
+ingen rapport kom. Användningshändelser och kvitton gallras dagligen enligt den
+tid som väljs på sidan Statistik — `Spara allt` stänger av gallringen.
 
 En detalj i `upsert_thought`: en post kan **befordras** till valvet men aldrig
 tyst falla ur det. Fångar samma innehåll upp igen med `tier='open'` behåller

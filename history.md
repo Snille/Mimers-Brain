@@ -6,6 +6,38 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-20 — 0.9.14: who wrote it, and how long the receipts stay
+
+Three small things a brain with several writers needs.
+
+The Thoughts page did not reload when you came back to it. Review and Statistics
+re-render on every visit; Thoughts only toggled a CSS class, so a memory you had
+just confirmed still wore its `pending` tag until the page was reloaded by hand.
+It calls `refresh()` now, which reruns the current query — the search text and
+the filters survive the trip.
+
+A memory said `origin: agent` and nothing more. That is enough when one agent
+writes to the brain, and useless when Claude Code, Codex and a third harness all
+write to the same one. `captured_by` now records the client from the MCP
+handshake, and the review queue shows it. It is taken from the authenticated
+handshake and stripped from caller-supplied metadata for the same reason the
+trust fields are: an agent must not be able to name itself something else. The
+handshake knows the *application*, never the model, which is the honest limit
+here — `claude-code`, not `opus-5`. Only new memories carry it.
+
+Retention was an env variable and a restart. It is a dropdown on the Statistics
+page now, stored in `app_settings`, with `USAGE_RETENTION_DAYS` demoted to the
+value a brain starts with. Shortening the window prunes immediately rather than
+waiting for tomorrow's daily pass, and `Keep everything` turns pruning off
+altogether. Only the full listener may set it: the open listener cannot see the
+rows the policy governs.
+
+One question this session raised and deliberately did not fix: a harness that
+crashes mid-answer leaves its recall receipt unreported forever. That is the
+right outcome. The trace is a log of what influenced an answer, and a report
+reconstructed afterwards from a lost trace id would be a guess written down as a
+fact. An unreported receipt costs nothing and now ages out with the rest.
+
 ## 2026-08-19 — 0.9.13: the extraction can only reuse what it can see
 
 Filtering by project missed memories that were plainly about the project. Ten

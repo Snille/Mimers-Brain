@@ -171,7 +171,7 @@ export function toolsFor(tiers, ctx = {}) {
           throw new BadRequest("Long source text must go through preview_ingest before it is saved");
         const r = await db.captureThought(tiers, String(content).trim(), {
           tier, origin: "agent", userConfirmed: user_confirmed,
-          sourceRefs: source_refs, artifactRefs: artifact_refs,
+          sourceRefs: source_refs, artifactRefs: artifact_refs, client: ctx.client,
         });
         publishSoon();
         return {
@@ -227,6 +227,7 @@ export function toolsFor(tiers, ctx = {}) {
         if (approved !== true) throw new BadRequest("The preview must be approved first");
         const out = await db.applyIngest(tiers, {
           source_content, candidates, tier, origin: "agent", user_confirmed: true,
+          client: ctx.client,
         });
         publishSoon();
         return out;
@@ -339,6 +340,7 @@ export function toolsFor(tiers, ctx = {}) {
         const inherited = await db.supersessionTrust(tiers, ids);
         const saved = await db.captureThought(tiers, String(content).trim(), {
           tier, origin: "agent", userConfirmed: Boolean(user_confirmed) || inherited,
+          client: ctx.client,
         });
         const linked = await db.linkSupersession(tiers, saved.id, ids);
         publishSoon();

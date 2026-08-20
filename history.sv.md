@@ -6,6 +6,39 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-20 — 0.9.14: vem som skrev det, och hur länge kvittona ligger kvar
+
+Tre små saker som en hjärna med flera skrivare behöver.
+
+Sidan Tankar laddade inte om när man kom tillbaka till den. Granska och Statistik
+ritas om vid varje besök; Tankar bytte bara en CSS-klass, så ett minne du just
+bekräftat bar kvar sin `pending`-etikett tills sidan laddades om för hand. Den
+anropar nu `refresh()`, som kör om den aktuella frågan — söktexten och filtren
+överlever resan.
+
+Ett minne sa `origin: agent` och inget mer. Det räcker när en agent skriver till
+hjärnan, och säger ingenting när Claude Code, Codex och en tredje harness skriver
+till samma. `captured_by` registrerar nu klienten från MCP-handskakningen, och
+granskningskön visar den. Värdet tas ur den autentiserade handskakningen och
+rensas bort ur anroparens egen metadata av samma skäl som tillitsfälten: en agent
+ska inte kunna döpa sig till något annat. Handskakningen känner *programmet*,
+aldrig modellen, vilket är den ärliga gränsen här — `claude-code`, inte `opus-5`.
+Bara nya minnen bär fältet.
+
+Gallringstiden var en miljövariabel och en omstart. Nu är den en rullgardin på
+sidan Statistik, sparad i `app_settings`, med `USAGE_RETENTION_DAYS` nedflyttad
+till det värde en hjärna startar med. Att korta tiden gallrar direkt i stället
+för att vänta på morgondagens dagliga pass, och `Spara allt` stänger av
+gallringen helt. Bara den fulla lyssnaren får ställa den: den öppna lyssnaren ser
+inte raderna som regeln gäller.
+
+En fråga som ställdes den här sessionen och medvetet inte åtgärdades: en harness
+som kraschar mitt i ett svar lämnar sitt återkallningskvitto orapporterat för
+alltid. Det är rätt utfall. Spåret är en logg över vad som påverkade ett svar,
+och en rapport som återskapas i efterhand ur ett förlorat spår-ID vore en gissning
+nedskriven som ett faktum. Ett orapporterat kvitto kostar ingenting och åldras nu
+ut med resten.
+
 ## 2026-08-19 — 0.9.13: extraheringen kan bara återanvända det den ser
 
 Att filtrera på projekt missade minnen som uppenbart handlade om projektet. Tio

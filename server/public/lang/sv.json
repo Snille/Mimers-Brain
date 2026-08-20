@@ -104,6 +104,7 @@
       "keep_right": "Behåll höger",
       "merge": "Slå ihop"
     },
+    "capturedBy": "via {client}",
     "mergePrompt": "Redigera det sammanslagna minnet:",
     "recalls": {
       "title": "Återkallningskvitton",
@@ -307,6 +308,11 @@
       "lastError": "Senaste fel",
       "published": "Publicerat {when}.",
       "publishFailed": "Kunde inte publicera — brokern är inte ansluten."
+    },
+    "retention": {
+      "label": "Spara användningshändelser och återkallningskvitton i",
+      "days": "{days} dagar",
+      "forever": "Spara allt"
     },
     "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningshändelser och återkallningskvitton sparas i {days} dagar och innehåller aldrig frågor, svar eller minnesinnehåll — bara samlad aktivitet och UUID-kvittonas status."
   },

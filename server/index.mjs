@@ -296,12 +296,18 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
     // A cookie or a forward-auth header means a browser really is on the other
     // end; a bearer token on /api means a script is. Calling both "web-ui" would
     // file every curl and every backup job under a person sitting at the page.
-    const note = (tool, action, extra = {}) => {
+    //
+    // The same answer names the writer on a captured memory, so `whoIs` is
+    // shared rather than computed twice with a chance of drifting apart.
+    const whoIs = () => {
       const auth = authMode(req, url, { allowAuthelia, allowUrlKey });
       const browser = auth === "cookie" || auth === "authelia";
-      const who = browser ? { name: "web-ui", version: VERSION } : clientOf(req);
+      return browser ? { name: "web-ui", version: VERSION } : clientOf(req);
+    };
+    const note = (tool, action, extra = {}) => {
+      const who = whoIs();
       db.logUsage({
-        tool, action, listener: label, auth,
+        tool, action, listener: label, auth: authMode(req, url, { allowAuthelia, allowUrlKey }),
         client: who.name, clientVersion: who.version, ...extra,
       });
     };
@@ -445,6 +451,23 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
             days: Math.min(Number(url.searchParams.get("days")) || 60, 400),
           }));
 
+        // Retention is a vault-listener decision. The open listener may read the
+        // number in the statistics footer, but must not set the policy for rows
+        // it is not allowed to see in the first place.
+        if (path === "/api/usage/retention" && req.method === "POST") {
+          if (!tiers.includes("vault"))
+            return json(res, 403, { error: "Retention is set on the full listener" });
+          const { days } = await body(req);
+          if (!db.RETENTION_CHOICES.includes(Number(days)))
+            return json(res, 400, { error: "Unsupported retention" });
+          const retentionDays = await db.setRetentionDays(days);
+          // Applied at once, so shortening the window visibly shortens the list
+          // instead of waiting for tomorrow's scheduled prune.
+          const pruned = await db.pruneUsage();
+          note("ui.retention", "write", { results: pruned });
+          return json(res, 200, { retentionDays, pruned });
+        }
+
         if (path === "/api/review" && req.method === "GET")
           return json(res, 200, {
             pending: await db.reviewQueue(tiers, {
@@ -470,7 +493,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
           if (payload.approved !== true)
             return json(res, 400, { error: "The preview must be approved first" });
           const out = await db.applyIngest(tiers, {
-            ...payload, origin: "user", user_confirmed: true,
+            ...payload, origin: "user", user_confirmed: true, client: whoIs().name,
           });
           note("ui.ingest.apply", "write", { tier: payload.tier || "open", results: out.count + 1 });
           publishSoon();
@@ -524,7 +547,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
           const { content, tier, metadata } = await body(req);
           if (!content?.trim()) return json(res, 400, { error: "Empty memory" });
           const saved = await db.captureThought(tiers, content.trim(), {
-            tier, metadata, origin: "user", userConfirmed: true,
+            tier, metadata, origin: "user", userConfirmed: true, client: whoIs().name,
           });
           note("ui.capture", "write", { tier: saved.tier, results: 1 });
           publishSoon();
@@ -548,7 +571,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
           if (!content?.trim()) return json(res, 400, { error: "Empty replacement memory" });
           await db.validateSupersession(tiers, old_ids, tier);
           const saved = await db.captureThought(tiers, content.trim(), {
-            tier, metadata, origin: "user", userConfirmed: true,
+            tier, metadata, origin: "user", userConfirmed: true, client: whoIs().name,
           });
           const linked = await db.linkSupersession(tiers, saved.id, old_ids);
           note("ui.supersede", "write", { tier: saved.tier, results: old_ids.length + 1 });

@@ -648,6 +648,13 @@ async function show(name) {
   $("#new").style.display = name === "thoughts" ? "" : "none";
   $("#headstat").style.display = name === "thoughts" ? "" : "none";
 
+  // Coming back to the list means reloading it. Review and Statistics already
+  // re-render on every visit; Thoughts only toggled a class, so a memory
+  // confirmed or rejected on the Review page still showed its old review tag
+  // here until the page was reloaded by hand. refresh() reruns the current
+  // query, so the search text and the filters survive.
+  if (name === "thoughts") await refresh();
+
   for (const [key, v] of Object.entries(views)) {
     const el = $(v.el);
     el.classList.toggle("on", key === name);

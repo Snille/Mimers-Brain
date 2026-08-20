@@ -164,7 +164,7 @@ export function buildServer(tiers, ctx = {}) {
         throw new Error(`Long source text must go through preview_ingest before it is saved`);
       const r = await db.captureThought(tiers, content, {
         tier, origin: "agent", userConfirmed: user_confirmed,
-        sourceRefs: source_refs, artifactRefs: artifact_refs,
+        sourceRefs: source_refs, artifactRefs: artifact_refs, client: ctx.client,
       });
       note.tier = r.tier;
       note.count = 1;
@@ -203,6 +203,7 @@ export function buildServer(tiers, ctx = {}) {
       if (approved !== true) throw new Error("The preview must be approved before apply_ingest");
       const out = await db.applyIngest(tiers, {
         source_content, candidates, tier, origin: "agent", user_confirmed: true,
+        client: ctx.client,
       });
       note.count = out.count + 1;
       note.tier = tier;
@@ -263,6 +264,7 @@ export function buildServer(tiers, ctx = {}) {
         const inherited = await db.supersessionTrust(tiers, old_ids);
         const saved = await db.captureThought(tiers, content, {
           tier, origin: "agent", userConfirmed: user_confirmed || inherited,
+          client: ctx.client,
         });
         const linked = await db.linkSupersession(tiers, saved.id, old_ids);
         note.tier = saved.tier;

@@ -314,7 +314,7 @@ database — which an image cannot do.
 The base remains OB1's `thoughts` table plus `tier`, but metadata v2 adds
 `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
 `verified_at`, `valid_for_version`, `origin`, `provenance`, `review_status`,
-allowed-use flags, `source_refs` and `artifact_refs`. The old `type`, `topics` and `people`
+`captured_by`, allowed-use flags, `source_refs` and `artifact_refs`. The old `type`, `topics` and `people`
 fields remain readable for older clients. Non-canonical migrated tags are kept
 under `legacy_topics` instead of disappearing.
 
@@ -333,8 +333,15 @@ not deleted. Permanent deletion remains a separate confirmed operation.
 
 Agent-authored memories default to pending evidence and cannot be treated as
 user instructions. `review_memory` or the Review page can confirm, restrict,
-mark stale, retain as evidence, or reject them. `recall_traces` records only the
-client and returned/used memory UUIDs — never the query, answer, or content.
+mark stale, retain as evidence, or reject them. `captured_by` records the client
+that wrote the memory — taken from the MCP handshake, never from the caller's
+own metadata — and the review queue shows it, so a brain written to by several
+harnesses at once can still say which one wrote a given memory. `recall_traces` records only the
+client and returned/used memory UUIDs — never the query, answer, or content. A
+crashed harness leaves its receipt unreported for good: the trace is a log, so
+the honest record is that no report ever arrived. Usage events and receipts are
+pruned daily to the retention chosen on the Statistics page — `Keep everything`
+turns pruning off.
 
 One detail in `upsert_thought`: a row can be **promoted** into the vault but
 never silently fall out of it. Capturing the same content again with
