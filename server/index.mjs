@@ -457,9 +457,13 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
         if (path === "/api/usage/retention" && req.method === "POST") {
           if (!tiers.includes("vault"))
             return json(res, 403, { error: "Retention is set on the full listener" });
-          const { days } = await body(req);
+          const { days, apply } = await body(req);
           if (!db.RETENTION_CHOICES.includes(Number(days)))
             return json(res, 400, { error: "Unsupported retention" });
+          // Without `apply` this only answers what the change would cost, so the
+          // page can warn with a real number instead of a vague "some rows".
+          if (apply !== true)
+            return json(res, 200, { days: Number(days), wouldDelete: await db.countBeyondRetention(days) });
           const retentionDays = await db.setRetentionDays(days);
           // Applied at once, so shortening the window visibly shortens the list
           // instead of waiting for tomorrow's scheduled prune.

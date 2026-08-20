@@ -313,6 +313,8 @@
     "retention": {
       "label": "Keep usage events and recall receipts for",
       "days": "{days} days",
+      "confirm": "{count} usage events and recall receipts are older than this and will be deleted permanently. Statistics for that period disappear with them. Continue?",
+      "note": "Only affects the usage log and the recall receipts. Memories are never pruned.",
       "forever": "Keep everything"
     },
     "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events and recall receipts are retained for {days} days and never contain queries, answers or memory content — only aggregate activity and UUID receipt state."

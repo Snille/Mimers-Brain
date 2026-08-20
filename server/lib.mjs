@@ -836,6 +836,22 @@ export function logUsage(ev = {}) {
     .catch((e) => console.error("usage log:", e.message));
 }
 
+// What a shorter retention would cost, asked before anything is deleted. The
+// pruning itself is irreversible - telemetry is not in the backup path the way
+// memories are - so the page states the number of rows first and lets the reader
+// change their mind.
+export async function countBeyondRetention(days) {
+  const value = Number(days);
+  if (!value) return 0;
+  const { rows } = await pool.query(
+    `SELECT (SELECT count(*) FROM usage_events WHERE at < now() - ($1 || ' days')::interval)
+          + (SELECT count(*) FROM recall_traces WHERE created_at < now() - ($1 || ' days')::interval)
+       AS count`,
+    [String(value)],
+  );
+  return Number(rows[0].count);
+}
+
 export async function pruneUsage() {
   const days = await getRetentionDays();
   if (!days) return 0;

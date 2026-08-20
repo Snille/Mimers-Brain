@@ -313,6 +313,8 @@
     "retention": {
       "label": "Spara användningshändelser och återkallningskvitton i",
       "days": "{days} dagar",
+      "confirm": "{count} användningshändelser och återkallningskvitton är äldre än så och raderas permanent. Statistiken för den tiden försvinner med dem. Fortsätt?",
+      "note": "Gäller bara användningsloggen och återkallningskvittona. Minnen gallras aldrig.",
       "forever": "Spara allt"
     },
     "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningshändelser och återkallningskvitton sparas i {days} dagar och innehåller aldrig frågor, svar eller minnesinnehåll — bara samlad aktivitet och UUID-kvittonas status."

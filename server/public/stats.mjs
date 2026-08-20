@@ -286,20 +286,34 @@ export async function render(element) {
       <select id="retention">${(usage.retentionChoices || [usage.retentionDays]).map((days) =>
         `<option value="${days}"${days === usage.retentionDays ? " selected" : ""}>${
           esc(days ? t("stats.retention.days", { days }) : t("stats.retention.forever"))}</option>`).join("")}</select>
-    </label> <span id="retention-msg"></span></p>
+    </label> <span id="retention-msg"></span><br>${esc(t("stats.retention.note"))}</p>
   </section>`;
 
   const retention = root.querySelector("#retention");
   if (retention) retention.onchange = async () => {
     const message = root.querySelector("#retention-msg");
+    const post = (days, apply) => fetch("/api/usage/retention", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ days, apply }),
+    }).then((response) => response.json());
+
+    const days = Number(retention.value);
     retention.disabled = true;
     message.textContent = t("common.loading");
     try {
-      const result = await fetch("/api/usage/retention", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days: Number(retention.value) }),
-      }).then((response) => response.json());
+      // Ask first, delete second. Pruning cannot be undone, so the reader gets
+      // the real number of rows rather than a general warning - and a shorter
+      // window that removes nothing asks nothing.
+      const preview = await post(days, false);
+      if (preview.error) throw new Error(preview.error);
+      if (preview.wouldDelete && !confirm(t("stats.retention.confirm", { count: preview.wouldDelete }))) {
+        retention.value = String(usage.retentionDays);
+        message.textContent = "";
+        retention.disabled = false;
+        return;
+      }
+      const result = await post(days, true);
       if (result.error) throw new Error(result.error);
       // Re-rendered rather than patched, because the footer sentence, the
       // charts and the receipt counts all move when rows are pruned.

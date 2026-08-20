@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-20 — 0.9.16: säg vad det kostar innan det kostar
+
+En rullgardin som tyst raderar rader är en fälla, hur bra etiketten än låter. Att
+korta gallringstiden gallrar direkt — det var meningen — men sidan sa ingenting
+om vad som var på väg att försvinna, och telemetrin ligger inte i backupvägen på
+samma sätt som minnena gör.
+
+Att ändra tiden frågar nu servern vad ändringen skulle kosta, och säger det rakt
+ut: hur många användningshändelser och återkallningskvitton som är äldre än det
+nya fönstret, att de försvinner permanent, och att statistiken för den perioden
+går med dem. Avbryter man ställs rullgardinen tillbaka. Ett kortare fönster som
+inte tar bort något frågar ingenting. En fast rad under väljaren säger vad som
+över huvud taget berörs — användningsloggen och kvittona, aldrig ett minne.
+
+Endpointen bär samma uppdelning: `POST /api/usage/retention` utan `apply: true`
+räknar bara, och skriver aldrig.
+
 ## 2026-08-20 — 0.9.15: kvittologgen läses, den granskas inte
 
 Rullgardinen för gallringstid i 0.9.14 svarade på en fråga ingen hade ställt. Det

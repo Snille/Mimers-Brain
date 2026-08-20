@@ -6,6 +6,23 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-20 — 0.9.16: say what it costs before it costs it
+
+A dropdown that silently deletes rows is a trap, however well the label reads.
+Shortening retention prunes immediately — that was the point — but the page said
+nothing about what was about to disappear, and telemetry is not in the backup
+path the way memories are.
+
+Changing the retention now asks the server what the change would cost, then
+states it: how many usage events and recall receipts are older than the new
+window, that they go permanently, and that the statistics for that period go
+with them. Cancelling puts the dropdown back. A shorter window that removes
+nothing asks nothing. A standing line under the picker says what is in scope at
+all — the usage log and the receipts, never a memory.
+
+The endpoint carries the same split: `POST /api/usage/retention` without
+`apply: true` only counts, and never writes.
+
 ## 2026-08-20 — 0.9.15: the receipt log is read, not audited
 
 The retention dropdown in 0.9.14 answered a question nobody had asked. What was
