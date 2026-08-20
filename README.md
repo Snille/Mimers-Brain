@@ -320,7 +320,11 @@ under `legacy_topics` instead of disappearing.
 
 `topics` has a closed vocabulary, so a value outside it never reaches the
 database, and `other` is offered to the extraction as a last resort rather than
-as one option among equals. `project` is deliberately free-form — a new project
+as one option among equals. On a long text that rule alone is not enough - only
+`supersede_thought` can hand the extraction a whole body, since capture routes
+anything from 1500 characters upwards through `preview_ingest` - so the text is
+delimited and the closed list and the last-resort sentence are repeated after
+it, next to the decision. `project` is deliberately free-form — a new project
 must be able to name itself — so the extraction is instead shown the project
 names already in use and told to reuse one when the text belongs to it. Without
 that list it invented a name every time, and a stray name is invisible to every

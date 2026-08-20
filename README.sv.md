@@ -323,7 +323,11 @@ till `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems
 
 `topics` har en sluten ordlista, så ett värde utanför den når aldrig databasen,
 och `other` erbjuds extraheringen som sista utväg i stället för som ett val bland
-likvärdiga. `project` är fritt med flit — ett nytt projekt måste kunna döpa sig
+likvärdiga. På en lång text räcker inte den regeln ensam — bara
+`supersede_thought` kan lämna extraheringen en hel text, eftersom capture
+skickar allt från 1500 tecken och uppåt genom `preview_ingest` — så texten
+avgränsas och den slutna listan och meningen om sista utväg upprepas efter
+den, intill beslutet. `project` är fritt med flit — ett nytt projekt måste kunna döpa sig
 självt — så extraheringen får i stället se de projektnamn som redan används, och
 uppmanas återanvända ett när texten hör dit. Utan den listan hittade den på ett
 namn varje gång, och ett strönamn är osynligt för varje projektfilter.
