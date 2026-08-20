@@ -110,10 +110,31 @@ export async function knownProjects() {
 // second sentence covers the other half of the mess, "other" added beside a
 // value that already fits.
 export function topicRule() {
-  const subjects = CANONICAL_TOPICS.filter((topic) => topic !== "other");
-  return `- "topics": 1-3 values chosen only from: ${subjects.join(", ")}\n` +
+  return `- "topics": 1-3 values chosen only from: ${topicSubjects().join(", ")}\n` +
     `  Use "other" only when not one of those values applies to the text, and never\n` +
     `  beside a value that does apply.\n`;
+}
+
+function topicSubjects() {
+  return CANONICAL_TOPICS.filter((topic) => topic !== "other");
+}
+
+// The rule above sits at the top of the prompt, which holds while the text is
+// short. supersede_thought is the one write path with no length guard: capture
+// refuses anything from SMART_INGEST_THRESHOLD characters upwards and sends it
+// through preview_ingest, which yields atoms, so supersede is the only way a
+// 4500-character body reaches the extraction whole. Two such Swedish memories
+// about Mimers Brain itself came back as topics ["other"] on 2026-08-20 with
+// project correctly set to "mimers-brain", so the subject was never in doubt -
+// the closed list had simply scrolled thousands of characters out of reach by
+// the time the answer was written. Repeating the list and the last-resort
+// sentence after the text puts them back beside the decision, and the last line
+// closes the gap those two rows fell through.
+export function topicReminder() {
+  return `Choose "topics" only from this list: ${topicSubjects().join(", ")}\n` +
+    `"other" is the last resort: use it only when no value on that list applies to\n` +
+    `the text above, and never beside a value that does apply. When "project" names\n` +
+    `a subject that is on the list, that subject belongs in "topics".\n`;
 }
 
 // project is the one facet with no closed vocabulary, so the rule carries its own
@@ -156,7 +177,8 @@ export async function extractMetadata(text) {
             topicRule() +
             `- "verified_at": YYYY-MM-DD when the text states a verification date, or empty\n` +
             `Do not invent facts. lifecycle is always set by the server.\n\n` +
-            text,
+            `<<<TEXT\n${text}\nTEXT>>>\n\n` +
+            topicReminder(),
         }],
       }),
     });

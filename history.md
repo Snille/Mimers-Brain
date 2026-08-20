@@ -6,6 +6,32 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-20 — 0.9.17: the vocabulary has to still be there at the end
+
+0.9.13 named `other` a last resort instead of the twenty-sixth equal option, and
+that held - on short memories. Two Swedish memories about Mimers Brain itself,
+about 4500 characters each, were saved on 2026-08-20 with topics `["other"]`
+while `project` read `mimers-brain` correctly. The subject was never in doubt.
+The closed list had simply scrolled thousands of characters out of reach by the
+time the answer was written.
+
+`supersede_thought` is the one write path with no length guard. Capture refuses
+anything from 1500 characters upwards and sends it through `preview_ingest`,
+which yields short atoms, so supersede is the only way a body that size reaches
+the extraction whole. That is why the fix looked fine everywhere it was tested.
+
+The text now sits inside a delimited block, so long prose cannot read as
+instructions, and the closed list and the last-resort sentence are repeated
+after it, next to the decision. One new line closes the gap those two rows fell
+through: when `project` names a subject that is on the list, that subject
+belongs in `topics`.
+
+Measured against the two real rows on the live server, sixteen runs per prompt:
+the old shape put `mimers-brain` in the topics four times and returned a bare
+`["other"]` five times, with `node-red` and `powershell` among the misses. The
+new shape got it right sixteen times out of sixteen and never reached for
+`other`.
+
 ## 2026-08-20 — 0.9.16: say what it costs before it costs it
 
 A dropdown that silently deletes rows is a trap, however well the label reads.

@@ -6,6 +6,29 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-20 — 0.9.17: ordförrådet måste finnas kvar på slutet
+
+0.9.13 utnämnde `other` till sista utväg i stället för det tjugosjätte likvärdiga
+alternativet, och det höll — på korta minnen. Två svenska minnen om Mimers Brain
+självt, ungefär 4500 tecken vardera, sparades 2026-08-20 med topics `["other"]`
+medan `project` stod rätt som `mimers-brain`. Ämnet var aldrig oklart. Den
+slutna listan hade helt enkelt rullat tusentals tecken bort när svaret skrevs.
+
+`supersede_thought` är den enda skrivvägen utan längdspärr. Capture vägrar allt
+från 1500 tecken och uppåt och skickar det genom `preview_ingest`, som ger korta
+atomer, så supersede är enda sättet en text i den storleken når extraktionen hel.
+Det är därför rättningen såg felfri ut överallt där den provades.
+
+Texten ligger nu i ett avgränsat block, så lång prosa kan inte läsas som
+instruktioner, och den slutna listan och meningen om sista utväg upprepas efter
+den, intill beslutet. En ny rad täpper till gapet som de två raderna föll genom:
+när `project` namnger ett ämne som står på listan hör det ämnet hemma i `topics`.
+
+Mätt mot de två riktiga raderna på liveservern, sexton körningar per prompt: den
+gamla formen fick med `mimers-brain` fyra gånger och svarade blankt `["other"]`
+fem gånger, med `node-red` och `powershell` bland missarna. Den nya formen fick
+rätt sexton gånger av sexton och grep aldrig efter `other`.
+
 ## 2026-08-20 — 0.9.16: säg vad det kostar innan det kostar
 
 En rullgardin som tyst raderar rader är en fälla, hur bra etiketten än låter. Att
