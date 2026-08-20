@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-20 — 0.9.15: the receipt log is read, not audited
+
+The retention dropdown in 0.9.14 answered a question nobody had asked. What was
+wanted was to make the receipt table on the Review page shorter to read, not to
+delete rows from the database. Two different things, and only one of them is
+reversible.
+
+The receipt list now has its own `Show` picker — 10, 25, 50, 100 or 200 rows,
+remembered per browser in `localStorage` and sent to `/api/review` as a query
+parameter. The default drops from 50 to 25. Nothing is deleted; the log is read
+newest-first, and how far back it reaches is a reading choice.
+
+The retention dropdown from 0.9.14 stays where it is. It answers the other
+question — how long the rows live — and that one belongs on the Statistics page
+next to the sentence that already explained it.
+
 ## 2026-08-20 — 0.9.14: who wrote it, and how long the receipts stay
 
 Three small things a brain with several writers needs.

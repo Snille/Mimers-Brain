@@ -6,6 +6,22 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-20 — 0.9.15: kvittologgen läses, den granskas inte
+
+Rullgardinen för gallringstid i 0.9.14 svarade på en fråga ingen hade ställt. Det
+som efterfrågades var att göra kvittotabellen på sidan Granska kortare att läsa,
+inte att radera rader ur databasen. Två olika saker, och bara den ena går att
+ångra.
+
+Kvittolistan har nu en egen `Visa`-väljare — 10, 25, 50, 100 eller 200 rader,
+ihågkommen per webbläsare i `localStorage` och skickad till `/api/review` som en
+frågeparameter. Standardvärdet går från 50 till 25. Ingenting raderas; loggen
+läses nyast först, och hur långt bak den räcker är ett läsval.
+
+Rullgardinen för gallring från 0.9.14 ligger kvar där den är. Den svarar på den
+andra frågan — hur länge raderna lever — och den hör hemma på sidan Statistik
+bredvid meningen som redan förklarade den.
+
 ## 2026-08-20 — 0.9.14: vem som skrev det, och hur länge kvittona ligger kvar
 
 Tre små saker som en hjärna med flera skrivare behöver.

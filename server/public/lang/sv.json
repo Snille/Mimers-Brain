@@ -108,6 +108,7 @@
     "mergePrompt": "Redigera det sammanslagna minnet:",
     "recalls": {
       "title": "Återkallningskvitton",
+      "show": "Visa",
       "description": "Visar endast klient och minnes-ID:n — aldrig sökfrågan eller svaret.",
       "when": "Tid",
       "client": "Klient",

@@ -477,7 +477,11 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
               threshold: Number(url.searchParams.get("threshold")) || 0.86,
               limit: 50,
             }),
-            recalls: await db.recallTraces(tiers, { limit: 50 }),
+            // How many receipts to show is the reader's choice, not the
+            // server's: the table is a log, and a long one is only in the way.
+            recalls: await db.recallTraces(tiers, {
+              limit: Math.min(Number(url.searchParams.get("recalls")) || 25, 500),
+            }),
           });
 
         if (path === "/api/ingest/preview" && req.method === "POST") {

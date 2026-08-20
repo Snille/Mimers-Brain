@@ -27,10 +27,17 @@ function memorySummary(row, prefix = "") {
   </div>`;
 }
 
+// The receipt log grows by one row per search and is read newest-first, so how
+// far back it reaches is a reading choice. The choice is remembered per browser
+// rather than stored on the server: it changes nothing about the data.
+const RECALL_LIMITS = [10, 25, 50, 100, 200];
+const storedLimit = Number(localStorage.getItem("recall-limit"));
+let recallLimit = RECALL_LIMITS.includes(storedLimit) ? storedLimit : 25;
+
 export async function render(root) {
   root.innerHTML = `<div class="empty">${esc(tr("common.loading"))}</div>`;
   let data;
-  try { data = await api("/api/review"); }
+  try { data = await api(`/api/review?recalls=${recallLimit}`); }
   catch (error) { root.innerHTML = `<div class="err">${esc(error.message)}</div>`; return; }
 
   root.innerHTML = `
@@ -46,7 +53,11 @@ export async function render(root) {
     </section>
     <section class="review-section">
       <h2>${esc(tr("review.recalls.title"))}</h2>
-      <p class="sub">${esc(tr("review.recalls.description"))}</p>
+      <p class="sub">${esc(tr("review.recalls.description"))}
+        <label>${esc(tr("review.recalls.show"))}
+          <select id="recall-limit">${RECALL_LIMITS.map((limit) =>
+            `<option value="${limit}"${limit === recallLimit ? " selected" : ""}>${limit}</option>`).join("")}</select>
+        </label></p>
       <div id="review-recalls"></div>
     </section>`;
 
@@ -102,6 +113,13 @@ export async function render(root) {
     };
     duplicates.appendChild(card);
   }
+
+  const limitPicker = root.querySelector("#recall-limit");
+  if (limitPicker) limitPicker.onchange = async () => {
+    recallLimit = Number(limitPicker.value);
+    localStorage.setItem("recall-limit", String(recallLimit));
+    await render(root);
+  };
 
   const recalls = root.querySelector("#review-recalls");
   recalls.innerHTML = data.recalls.length ? `<table><thead><tr>

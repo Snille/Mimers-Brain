@@ -108,6 +108,7 @@
     "mergePrompt": "Edit the merged memory:",
     "recalls": {
       "title": "Recall receipts",
+      "show": "Show",
       "description": "Shows only client and memory ids — never the query or answer.",
       "when": "Time",
       "client": "Client",
