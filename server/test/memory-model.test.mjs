@@ -219,6 +219,18 @@ test("translated metadata cannot introduce a technical identifier from another m
   assert.match(meta.summary, /qwen_image_edit/i);
 });
 
+test("natural punctuation is not mistaken for a foreign technical identifier", () => {
+  const content = [
+    "Kontrollera alltid Home Assistant-versionen innan API-åtgärder.",
+    "",
+    "Fråga den körande instansen och använd manuell PICK UP / DROP där det behövs.",
+  ].join("\n");
+  assert.equal(describesContent(
+    "Home Assistant:s API:er och en manual pickup/drop mechanism måste verifieras live.",
+    content,
+  ), true);
+});
+
 test("non-task memories cannot carry a task status", () => {
   const meta = normaliseMeta({ kind: "procedure", task_status: "pending" }, "Deploy safely.");
   assert.equal(meta.task_status, undefined);

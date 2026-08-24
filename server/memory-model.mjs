@@ -303,9 +303,14 @@ function anchors(value) {
 }
 
 function technicalAnchors(value) {
-  return [...new Set((String(value ?? "").match(
-    /[\p{L}\p{N}]+(?:[._/\\:][\p{L}\p{N}]+)+/gu,
-  ) || []).map((part) => part.toLowerCase().replaceAll("\\", "/")))];
+  const text = String(value ?? "");
+  const identifiers = (text.match(/[\p{L}\p{N}]+(?:[._][\p{L}\p{N}]+)+/gu) || [])
+    // A single prose dot such as Node.js is weak evidence. Underscores, digits,
+    // or multiple separators are much stronger signs of a model, version or id.
+    .filter((part) => part.includes("_") || /\d/u.test(part) || (part.match(/\./g) || []).length >= 2);
+  const paths = (text.match(/[\p{L}\p{N}.:-]+(?:[/\\][\p{L}\p{N}._:-]+){2,}/gu) || []);
+  return [...new Set([...identifiers, ...paths]
+    .map((part) => part.toLowerCase().replaceAll("\\", "/")))];
 }
 
 export function describesContent(candidate, content) {

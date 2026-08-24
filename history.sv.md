@@ -6,6 +6,15 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-24 — 0.9.19: skiljetecken är inte en identifierare
+
+Live-torrkörningen av 0.9.18 fångade ett falsklarm innan någon metadata skrevs:
+vanliga uttryck som `Home Assistant:s`, `API:er` och `pickup/drop` kunde tolkas
+som en främmande teknisk identifierare. Grundningsvakten begränsar nu den hårda
+avvisningen till starkare signaler: identifierare med underscore, numeriska
+eller flerpunktade versioner och sökvägar med flera segment. Ett regressionstest
+håller vanlig svensk och engelsk interpunktion borta från identifierarvägen.
+
 ## 2026-08-24 — 0.9.18: Minnet är inte projekthistorik
 
 Den centrala policyn och Desktop Commanders beständiga instruktioner ger nu små

@@ -6,6 +6,15 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-24 — 0.9.19: punctuation is not an identifier
+
+The live 0.9.18 dry-run caught a false positive before any metadata was written:
+ordinary punctuation such as `Home Assistant:s`, `API:er` and `pickup/drop`
+could be treated as a foreign technical identifier. The grounding guard now
+limits that hard rejection to stronger signals: underscore-based identifiers,
+numeric or multi-dot versions, and paths with multiple segments. A regression
+test keeps natural Swedish and English punctuation out of the identifier path.
+
 ## 2026-08-24 — 0.9.18: memory is not project history
 
 The central policy and the persistent Desktop Commander instructions now give
