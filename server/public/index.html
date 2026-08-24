@@ -562,7 +562,7 @@ $("#dlg-save").onclick = async () => {
   const btn = $("#dlg-save");
   btn.disabled = true; btn.textContent = tr("editor.saving");
   try {
-    if (content.length >= 1500) {
+    if (content.length >= (cfg.smartIngestThreshold || 1200)) {
       const preview = await api("/api/ingest/preview", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, metadata: editorMetadata() }),

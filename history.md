@@ -6,6 +6,29 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-24 — 0.9.18: memory is not project history
+
+The central policy and the persistent Desktop Commander instructions now give
+small models a narrow save gate: one current, verified piece of knowledge that can change a
+future answer. Status reports, completed work, tests, releases, versions,
+commits and session summaries belong in README and history/changelog files. If
+a project lacks either file, the model proposes creating it instead of falling
+back to Mimers Brain. `task` is reserved for explicitly unfinished work with a
+concrete next step, while `user_confirmed` means the user confirmed the exact
+memory text — approving work, wrapping up or saying continue is not enough.
+
+The atomic-ingest limit is now 1200 characters and applies equally to capture
+and `supersede_thought`, including MCP, OpenAPI and the web editor. Metadata
+extraction defines every kind and treats `project` as the owning repository or
+service rather than the client or harness. A deterministic metadata guard also
+rejects translated titles or summaries that introduce a technical identifier
+absent from the content.
+
+`npm run audit` remains read-only and now reports UUID-only quality warnings for
+oversized or multi-purpose current rows, completed tasks, session-history
+language, possible secret fragments, ungrounded metadata and project/path
+disagreement. It never prints memory content or secret values.
+
 ## 2026-08-20 — 0.9.17: the vocabulary has to still be there at the end
 
 0.9.13 named `other` a last resort instead of the twenty-sixth equal option, and

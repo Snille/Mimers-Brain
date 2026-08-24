@@ -120,16 +120,14 @@ function topicSubjects() {
 }
 
 // The rule above sits at the top of the prompt, which holds while the text is
-// short. supersede_thought is the one write path with no length guard: capture
-// refuses anything from SMART_INGEST_THRESHOLD characters upwards and sends it
-// through preview_ingest, which yields atoms, so supersede is the only way a
-// 4500-character body reaches the extraction whole. Two such Swedish memories
+// short. Before replacements gained the same atomic-ingest guard as capture, a
+// 4500-character body could reach extraction whole. Two such Swedish memories
 // about Mimers Brain itself came back as topics ["other"] on 2026-08-20 with
 // project correctly set to "mimers-brain", so the subject was never in doubt -
 // the closed list had simply scrolled thousands of characters out of reach by
 // the time the answer was written. Repeating the list and the last-resort
-// sentence after the text puts them back beside the decision, and the last line
-// closes the gap those two rows fell through.
+// sentence after the text remains useful defence in depth for direct extraction
+// callers and legacy content.
 export function topicReminder() {
   return `Choose "topics" only from this list: ${topicSubjects().join(", ")}\n` +
     `"other" is the last resort: use it only when no value on that list applies to\n` +
@@ -142,11 +140,15 @@ export function topicReminder() {
 // where a memory landed under the project "docker" on 2026-08-19.
 export function projectRule(existing) {
   const line = `- "project": one lower-kebab-case owning project, or empty\n`;
-  if (!existing.length) return line;
-  return line +
-    `  Reuse an existing project name when the text belongs to one of these: ${existing.join(", ")}\n` +
-    `  Invent a new name only when none of them owns the text. A topic word such as ` +
-    `${CANONICAL_TOPICS.slice(0, 6).join(", ")} names a subject, never a project.\n`;
+  const reuse = existing.length
+    ? `  Reuse an existing project name when the text belongs to one of these: ${existing.join(", ")}\n` +
+      `  Invent a new name only when none of them owns the text. A topic word such as ` +
+      `${CANONICAL_TOPICS.slice(0, 6).join(", ")} names a subject, never a project.\n`
+    : "";
+  return line + reuse +
+    `  The project is the repository or service the memory is about, never the client, harness, ` +
+    `assistant or test tool that happened to perform the work. Prefer an explicit repository name ` +
+    `or the project folder in a path from the text; leave project empty when ownership is unclear.\n`;
 }
 
 // The model proposes metadata, but memory-model.mjs owns the vocabulary and
@@ -168,6 +170,11 @@ export async function extractMetadata(text) {
             `- "title": a factual title for THIS text, at most 180 characters\n` +
             `- "summary": the current conclusion of THIS text, at most 500 characters\n` +
             `- "kind": one of ${MEMORY_KINDS.join(", ")}\n` +
+            `  fact = stable current fact; reference = stable lookup information; procedure = reusable steps;\n` +
+            `  decision = an explicit choice; lesson = a reusable conclusion; incident = an observed failure;\n` +
+            `  task = only an explicitly unfinished action with a concrete next step; idea = uncommitted future possibility;\n` +
+            `  preference = what a person wants; profile = stable information about a person.\n` +
+            `  Completed work, a status report, release notes, test results and session history are never tasks.\n` +
             `- "task_status": "pending" or "done", only when kind is task\n` +
             projectRule(existingProjects) +
             `- "people": named human beings only, and only names written in the text.\n` +

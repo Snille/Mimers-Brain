@@ -18,7 +18,7 @@ import { timingSafeEqual, createHash } from "node:crypto";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildServer } from "./mcp.mjs";
-import { MEMORY_POLICY } from "./memory-model.mjs";
+import { MEMORY_POLICY, SMART_INGEST_THRESHOLD } from "./memory-model.mjs";
 import { spec, callTool } from "./openapi.mjs";
 import * as db from "./lib.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
@@ -262,6 +262,7 @@ function connectInfo(req, { tiers, allowUrlKey }) {
     accessKey: full ? ACCESS_KEY || null : null,
     openKey: OPEN_KEY || null,
     memoryPolicy: MEMORY_POLICY,
+    smartIngestThreshold: SMART_INGEST_THRESHOLD,
     tools: [
       { name: "search_thoughts", what: "Search by meaning. The important one." },
       { name: "list_thoughts", what: "Recent memories, filtered by kind, status, project, topic, person, system or time" },

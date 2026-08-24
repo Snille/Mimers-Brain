@@ -32,11 +32,9 @@ async function promptFor(text) {
   return captured;
 }
 
-// supersede_thought has no length guard - capture refuses anything from
-// SMART_INGEST_THRESHOLD characters upwards and routes it through
-// preview_ingest, which yields short atoms - so it is the only write path that
-// hands the extraction a body this size. The closed vocabulary must still be
-// next to the decision at the end of it.
+// Direct extraction callers and legacy imports can still hand this function a
+// body larger than the public write limit. The closed vocabulary must therefore
+// remain next to the decision at the end of it.
 test("a long text keeps the topic vocabulary within reach of the answer", async () => {
   assert.ok(LONG_SWEDISH_TEXT.length > 3000, "the fixture must be a long input");
   const prompt = await promptFor(LONG_SWEDISH_TEXT);
@@ -62,6 +60,12 @@ test("a long text keeps the topic vocabulary within reach of the answer", async 
 
   // A long body must not be able to read as prompt text.
   assert.match(prompt, /<<<TEXT\n[\s\S]*\nTEXT>>>/);
+
+  // Small extraction models get concrete meanings instead of guessing from
+  // ten bare enum labels.
+  assert.match(prompt, /fact = stable current fact/);
+  assert.match(prompt, /task = only an explicitly unfinished action with a concrete next step/);
+  assert.match(prompt, /Completed work.*are never tasks/);
 });
 
 // project was correct in both rows while topics was not, so the reminder spends

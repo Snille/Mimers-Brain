@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { spec, toolsFor } from "../openapi.mjs";
-import { MEMORY_POLICY } from "../memory-model.mjs";
+import { MEMORY_POLICY, SMART_INGEST_THRESHOLD } from "../memory-model.mjs";
 import { recallReference } from "../recall.mjs";
 
 test("open and full OpenAPI surfaces keep the tier boundary", () => {
@@ -61,4 +61,15 @@ test("recall searches expose trace_id with a backwards-compatible request_id ali
   assert.match(search.description, /every non-empty search/i);
   assert.match(report.description, /multiple searches need separate reports/i);
   assert.deepEqual(report.schema.required, ["trace_id"]);
+});
+
+test("supersede cannot bypass atomic ingest for long replacement text", async () => {
+  const supersede = toolsFor(["open", "vault"]).find((tool) => tool.name === "supersede_thought");
+  await assert.rejects(
+    supersede.run({
+      old_ids: ["123e4567-e89b-12d3-a456-426614174000"],
+      content: "x".repeat(SMART_INGEST_THRESHOLD),
+    }),
+    /Long replacement text must be split into atomic memories below 1200 characters/,
+  );
 });

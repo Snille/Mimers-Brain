@@ -6,6 +6,31 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-24 — 0.9.18: Minnet är inte projekthistorik
+
+Den centrala policyn och Desktop Commanders beständiga instruktioner ger nu små
+modeller en smal skrivgrind: en aktuell, verifierad kunskapsbit som kan ändra ett
+framtida svar. Statusrapporter, färdigt arbete, tester, releaser, versioner,
+commits och sessionssammanfattningar hör hemma i README och
+historik/changelog. Saknar projektet någon av filerna föreslår modellen att
+skapa den i stället för att falla tillbaka på Mimers Brain. `task` är reserverat
+för uttryckligen oavslutat arbete med ett konkret nästa steg, medan
+`user_confirmed` betyder att användaren bekräftat den exakta minnestexten — att
+godkänna arbetet, avsluta eller säga fortsätt räcker inte.
+
+Gränsen för atomär ingest är nu 1200 tecken och gäller likadant för capture och
+`supersede_thought`, inklusive MCP, OpenAPI och webbredigeraren.
+Metadataextraktionen definierar varje kind och behandlar `project` som repot
+eller tjänsten som äger kunskapen, inte klienten eller harnesset. En
+deterministisk metadatavakt avvisar också översatta titlar eller sammanfattningar
+som introducerar en teknisk identifierare som saknas i innehållet.
+
+`npm run audit` är fortsatt skrivskyddad och rapporterar nu UUID-baserade
+kvalitetsvarningar för för stora eller mångsyftande aktuella poster, avslutade
+uppgifter, sessionshistoriskt språk, möjliga hemlighetsfragment, ogrundad
+metadata och skillnader mellan projekt och sökväg. Den skriver aldrig ut
+minnesinnehåll eller hemliga värden.
+
 ## 2026-08-20 — 0.9.17: ordförrådet måste finnas kvar på slutet
 
 0.9.13 utnämnde `other` till sista utväg i stället för det tjugosjätte likvärdiga

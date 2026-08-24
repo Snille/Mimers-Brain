@@ -159,7 +159,7 @@ export function toolsFor(tiers, ctx = {}) {
           tier: { type: "string", enum: full ? ["open", "vault"] : ["open"], default: "open" },
           user_confirmed: {
             type: "boolean", default: false,
-            description: "True only when the user directly confirmed or requested this exact memory",
+            description: "True only when the user directly confirmed or requested this exact memory text; work approval, wrap-up, or permission to continue is not confirmation",
           },
           source_refs: { type: "array", items: str("A source URL or memory:<uuid> reference"), default: [] },
           artifact_refs: { type: "array", items: str("A durable path, URL, commit, issue, or artifact"), default: [] },
@@ -328,7 +328,7 @@ export function toolsFor(tiers, ctx = {}) {
           user_confirmed: {
             type: "boolean",
             default: false,
-            description: "True only when the user directly confirmed or requested this exact replacement",
+            description: "True only when the user directly confirmed or requested this exact replacement text; work approval, wrap-up, or permission to continue is not confirmation",
           },
         },
       },
@@ -336,6 +336,8 @@ export function toolsFor(tiers, ctx = {}) {
         if (!Array.isArray(old_ids) || !old_ids.length) throw new BadRequest("old_ids is required");
         const ids = old_ids.map(uuid);
         if (!String(content || "").trim()) throw new BadRequest("content is required");
+        if (String(content).length >= SMART_INGEST_THRESHOLD)
+          throw new BadRequest(`Long replacement text must be split into atomic memories below ${SMART_INGEST_THRESHOLD} characters`);
         await db.validateSupersession(tiers, ids, tier);
         const inherited = await db.supersessionTrust(tiers, ids);
         const saved = await db.captureThought(tiers, String(content).trim(), {

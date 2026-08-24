@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { MEMORY_POLICY } from "../memory-model.mjs";
+import { CAPTURE_GUIDANCE, MEMORY_POLICY } from "../memory-model.mjs";
 import { buildServer } from "../mcp.mjs";
 import { spec, toolsFor } from "../openapi.mjs";
 
@@ -18,6 +18,13 @@ test("the central policy covers retrieval, durable capture, supersession and sec
   assert.match(MEMORY_POLICY, /multiple searches require separate reports/i);
   assert.match(MEMORY_POLICY, /never store raw passwords/i);
   assert.match(MEMORY_POLICY, /unless the corresponding tool call succeeded/i);
+  assert.match(MEMORY_POLICY, /project status.*README.*history\/changelog/i);
+  assert.match(MEMORY_POLICY, /propose creating/i);
+  assert.match(MEMORY_POLICY, /task.*explicitly unfinished.*concrete next step/i);
+  assert.match(MEMORY_POLICY, /exact memory text/i);
+  assert.match(MEMORY_POLICY, /wrap-up/i);
+  assert.match(MEMORY_POLICY, /same limit applies to replacements/i);
+  assert.match(CAPTURE_GUIDANCE, /README or history\/changelog/i);
 });
 
 test("MCP initialize instructions use the central policy and connection scope", () => {
@@ -42,6 +49,7 @@ test("OpenAPI publishes the same policy globally and targeted guidance locally",
   const tools = toolsFor(["open", "vault"]);
   assert.match(tools.find((tool) => tool.name === "search_thoughts").description, /before answering about Erik/i);
   assert.match(tools.find((tool) => tool.name === "capture_thought").description, /ordinary conversation/i);
+  assert.match(tools.find((tool) => tool.name === "capture_thought").description, /propose creating it/i);
   assert.match(tools.find((tool) => tool.name === "fetch_thought").description, /compact result is not enough/i);
   for (const name of ["preview_ingest", "apply_ingest", "report_memory_usage", "review_memory"])
     assert.ok(tools.some((tool) => tool.name === name), `${name} missing`);

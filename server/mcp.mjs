@@ -154,7 +154,7 @@ export function buildServer(tiers, ctx = {}) {
       content: z.string(),
       tier: full ? z.enum(["open", "vault"]).default("open") : z.literal("open").default("open"),
       user_confirmed: z.boolean().default(false).describe(
-        "True only when the user directly confirmed or requested this exact memory"),
+        "True only when the user directly confirmed or requested this exact memory text; work approval, wrap-up, or permission to continue is not confirmation"),
       source_refs: z.array(z.string()).default([]).describe("URLs or memory:<uuid> source references"),
       artifact_refs: z.array(z.string()).default([]).describe("Paths, URLs, commits, issues, or other durable artifacts"),
     },
@@ -256,10 +256,12 @@ export function buildServer(tiers, ctx = {}) {
         content: z.string(),
         tier: z.enum(["open", "vault"]).default("open"),
         user_confirmed: z.boolean().default(false).describe(
-          "True only when the user directly confirmed or requested this exact replacement"),
+          "True only when the user directly confirmed or requested this exact replacement text; work approval, wrap-up, or permission to continue is not confirmation"),
       },
     }, track("supersede_thought", "write", async ({ old_ids, content, tier, user_confirmed }, note) => {
       try {
+        if (content.length >= SMART_INGEST_THRESHOLD)
+          throw new Error(`Long replacement text must be split into atomic memories below ${SMART_INGEST_THRESHOLD} characters`);
         await db.validateSupersession(tiers, old_ids, tier);
         const inherited = await db.supersessionTrust(tiers, old_ids);
         const saved = await db.captureThought(tiers, content, {

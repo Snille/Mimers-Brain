@@ -161,10 +161,15 @@ systeminstruktioner. För Codex är den dokumenterade beständiga reservvägen
 `~/.codex/AGENTS.md`.
 
 Policyn säger åt modellerna att söka innan de svarar om Erik eller hans system,
-hämta fullständiga detaljer bara vid behov, spara varaktiga slutsatser i stället
-för småprat, använda navigerbar ersättning vid rättelser och aldrig lagra råa
-hemligheter. Servern fortsätter samtidigt att validera nivåer och metadata,
-eftersom instruktioner i sig inte är en säkerhetsgräns.
+hämta fullständiga detaljer bara vid behov och bara spara atomär, verifierad
+kunskap som kan ändra ett framtida svar. Projektstatus, färdigt arbete,
+releaser och sessionshistorik hör hemma i README och historik/changelog; saknas
+någon av filerna ska modellen föreslå att skapa den i stället för att använda
+Minnet som ersättning. Policyn definierar också vad en oavslutad uppgift är,
+reserverar `user_confirmed` för den exakta minnestexten, använder navigerbar
+ersättning vid rättelser och förbjuder råa hemligheter. Servern fortsätter
+samtidigt att validera nivåer och metadata, eftersom instruktioner i sig inte är
+en säkerhetsgräns.
 
 Nycklarna är maskerade tills du ber om dem, och en regel avgör vilka som alls
 ligger på sidan: `MCP_ACCESS_KEY` serveras **bara av LAN-lyssnaren**. Att nå
@@ -323,14 +328,14 @@ till `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems
 
 `topics` har en sluten ordlista, så ett värde utanför den når aldrig databasen,
 och `other` erbjuds extraheringen som sista utväg i stället för som ett val bland
-likvärdiga. På en lång text räcker inte den regeln ensam — bara
-`supersede_thought` kan lämna extraheringen en hel text, eftersom capture
-skickar allt från 1500 tecken och uppåt genom `preview_ingest` — så texten
-avgränsas och den slutna listan och meningen om sista utväg upprepas efter
-den, intill beslutet. `project` är fritt med flit — ett nytt projekt måste kunna döpa sig
-självt — så extraheringen får i stället se de projektnamn som redan används, och
-uppmanas återanvända ett när texten hör dit. Utan den listan hittade den på ett
-namn varje gång, och ett strönamn är osynligt för varje projektfilter.
+likvärdiga. Både capture och supersession vägrar direkt text på 1200 tecken
+eller mer och skickar långt källmaterial genom atomära förslag från
+`preview_ingest`. Extraktionsprompten upprepar ändå den slutna listan efter
+källtexten som försvar för äldre innehåll och direkta anrop. `project` är fritt
+med flit — ett nytt projekt måste kunna döpa sig självt — men betyder repot eller
+tjänsten som äger kunskapen, aldrig klienten, harnesset eller testverktyget som
+gör extraktionen. Extraktionen får se befintliga projektnamn och uttryckliga
+workspace-sökvägar går före; när ägarskapet är oklart lämnas fältet tomt.
 
 `thought_relations` lagrar fullständiga UUID-länkar mellan ersättare och minnena
 de ersätter, samt `derived_from`, relaterade, konflikt-, sammanslagnings- och
@@ -352,3 +357,15 @@ tid som väljs på sidan Statistik — `Spara allt` stänger av gallringen.
 En detalj i `upsert_thought`: en post kan **befordras** till valvet men aldrig
 tyst falla ur det. Fångar samma innehåll upp igen med `tier='open'` behåller
 raden `vault`.
+
+## Audit
+
+Kör `npm run audit` i `server/` för en skrivskyddad, deterministisk
+kvalitetskontroll. Utöver metadatafält som skulle normaliseras rapporterar den
+varningskoder för för stora eller mångsyftande aktuella minnen, färdigt arbete
+som lagts som uppgift, sessionshistoriskt språk, möjliga hemlighetsfragment,
+metadata som inte stöds av innehållet och projekt som inte stämmer med en
+uttrycklig workspace-sökväg. Rapporten innehåller bara UUID:n, fält och
+varningskoder — aldrig minnesinnehåll, titlar, sammanfattningar eller hemliga
+värden. Varningarna skriver inget till databasen och gör inte torrkörningen till
+ett fel.

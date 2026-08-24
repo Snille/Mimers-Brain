@@ -158,10 +158,14 @@ instructions, paste the policy into its global or system instructions. For Codex
 the documented persistent fallback is `~/.codex/AGENTS.md`.
 
 The policy tells models to search before answering about Erik or his systems,
-fetch full details only when needed, save durable conclusions rather than chat,
-use navigable supersession for corrections, and never store raw secrets. The
-server still validates tiers and metadata because instructions alone are not a
-security boundary.
+fetch full details only when needed, and save only atomic, verified knowledge
+that can change a future answer. Project status, completed work, releases and
+session history belong in README and history/changelog files; when either is
+missing, the model should propose creating it instead of using memory as a
+substitute. The policy also defines an unfinished task, reserves
+`user_confirmed` for exact memory text, uses navigable supersession for
+corrections, and forbids raw secrets. The server still validates tiers and
+metadata because instructions alone are not a security boundary.
 
 Keys are masked until you ask for them, and one rule decides which are on the
 page at all: `MCP_ACCESS_KEY` is served **only by the LAN listener**. Reaching
@@ -320,15 +324,15 @@ under `legacy_topics` instead of disappearing.
 
 `topics` has a closed vocabulary, so a value outside it never reaches the
 database, and `other` is offered to the extraction as a last resort rather than
-as one option among equals. On a long text that rule alone is not enough - only
-`supersede_thought` can hand the extraction a whole body, since capture routes
-anything from 1500 characters upwards through `preview_ingest` - so the text is
-delimited and the closed list and the last-resort sentence are repeated after
-it, next to the decision. `project` is deliberately free-form — a new project
-must be able to name itself — so the extraction is instead shown the project
-names already in use and told to reuse one when the text belongs to it. Without
-that list it invented a name every time, and a stray name is invisible to every
-project filter.
+as one option among equals. Both capture and supersession reject direct text of
+1200 characters or more and route long source material through atomic
+`preview_ingest` proposals. The extraction prompt still repeats the closed list
+after the source as defence in depth for legacy and direct callers. `project` is
+deliberately free-form — a new project must be able to name itself — but means
+the repository or service that owns the knowledge, never the client, harness or
+test tool doing the extraction. The extraction is shown existing project names
+and explicit workspace paths take precedence; when ownership is unclear the
+field stays empty.
 
 `thought_relations` stores full UUID links between replacements and the memories
 they supersede, as well as `derived_from`, `related_to`, conflict, merge and
@@ -350,6 +354,17 @@ turns pruning off.
 One detail in `upsert_thought`: a row can be **promoted** into the vault but
 never silently fall out of it. Capturing the same content again with
 `tier='open'` leaves the row as `vault`.
+
+## Audit
+
+Run `npm run audit` in `server/` for a read-only, deterministic quality pass.
+Besides metadata fields that would be normalized, it reports warning codes for
+oversized or multi-purpose current memories, completed work filed as tasks,
+session-history language, possible secret fragments, metadata not grounded in
+the content, and projects that disagree with an explicit workspace path. The
+report contains UUIDs, fields and warning codes only — never memory content,
+titles, summaries or secret values. Warnings do not write to the database and
+do not turn the dry run into a failure.
 
 ## Naming
 

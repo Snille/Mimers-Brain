@@ -5,10 +5,11 @@
 //   node scripts/renormalise.mjs --only <id>[,<id>...] --apply --expected-count N
 //   node scripts/renormalise.mjs --only <id> --set '{"topics":["mimers-brain"]}' --dry-run
 //
-// --all --dry-run is the standing audit: it answers "which rows were written
-// before the current guards?" and should normally report zero. It is idempotent
-// by construction because it only re-runs the four display facets below and
-// never infers anything from the passage of time.
+// --all --dry-run is the standing audit: it answers both "which rows were
+// written before the current normalisation guards?" and "which current rows
+// trigger deterministic quality warnings?" Normalisation changes should
+// normally report zero; warnings remain advisory. The pass is idempotent by
+// construction and never infers anything from the passage of time.
 //
 // Use this when a server-side guard is added and existing rows were written
 // before it. It rewrites only title, summary, people and systems, and leaves
@@ -27,6 +28,7 @@
 // The report never prints memory content, titles, summaries or secret values.
 
 import { embeddingText, normaliseMeta } from "../memory-model.mjs";
+import { memoryQualityWarnings } from "../memory-quality.mjs";
 import { embed, pool } from "../lib.mjs";
 
 const argv = process.argv.slice(2);
@@ -59,9 +61,9 @@ if (unknown.length) throw new Error(`--set only accepts ${SETTABLE.join(", ")}; 
 if (all && Object.keys(overrides).length) throw new Error("--set states a value for named memories; use it with --only");
 
 const { rows } = all
-  ? await pool.query("SELECT id, content, metadata FROM thoughts ORDER BY created_at")
+  ? await pool.query("SELECT id, content, metadata, tier FROM thoughts ORDER BY created_at")
   : await pool.query(
-    "SELECT id, content, metadata FROM thoughts WHERE id = ANY($1::uuid[])",
+    "SELECT id, content, metadata, tier FROM thoughts WHERE id = ANY($1::uuid[])",
     [ids],
   );
 
@@ -83,12 +85,17 @@ const proposed = rows.map((row) => {
 });
 
 const changed = proposed.filter((item) => item.fields.length);
+const qualityWarnings = proposed.flatMap(({ row, next }) =>
+  memoryQualityWarnings({ ...row, metadata: next })
+    .map((warning) => ({ id: row.id, ...warning })));
 const report = {
   mode: apply ? "apply" : "dry-run",
   scope: all ? "all" : "named",
   requested: rows.length,
   changed: changed.length,
   changes: changed.map(({ row, fields }) => ({ id: row.id, fields })),
+  quality_warning_count: qualityWarnings.length,
+  quality_warnings: qualityWarnings,
 };
 
 if (!apply) {

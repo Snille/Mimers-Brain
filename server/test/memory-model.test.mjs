@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   CAPTURE_GUIDANCE,
   OPEN_SCOPE,
+  SMART_INGEST_THRESHOLD,
   VAULT_SCOPE,
   applyReview,
   deriveSummary,
@@ -14,6 +15,10 @@ import {
   normaliseMeta,
   resolvePeople,
 } from "../memory-model.mjs";
+
+test("the direct-write limit leaves long source material to atomic ingest", () => {
+  assert.equal(SMART_INGEST_THRESHOLD, 1200);
+});
 
 test("derives a compact title and summary without losing the content", () => {
   const content = "# Home Assistant SSH\n\nUse the root account.\n\nLong incident history.";
@@ -198,6 +203,20 @@ test("a summary whose anchors are absent belongs to another text", () => {
   ].join("\n");
   const foreign = "Chatt om strategier för att förbättra Wi-Fi-täckning hemma, inklusive mesh-system.";
   assert.equal(describesContent(foreign, content), false);
+});
+
+test("translated metadata cannot introduce a technical identifier from another memory", () => {
+  const content = [
+    "MikkoAni sparar arbetsflöden för ComfyUI i projektet comfyui-image-tools.",
+    "",
+    "Modellen qwen_image_edit används för bildredigering och testas lokalt.",
+  ].join("\n");
+  const contaminated = "MikkoAni uses zimage_base_better_pussy_v1.0 for image editing workflows.";
+
+  assert.equal(describesContent(contaminated, content), false);
+  const meta = normaliseMeta({ summary: contaminated }, content);
+  assert.doesNotMatch(meta.summary, /zimage_base_better_pussy_v1\.0/i);
+  assert.match(meta.summary, /qwen_image_edit/i);
 });
 
 test("non-task memories cannot carry a task status", () => {
