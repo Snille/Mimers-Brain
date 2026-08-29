@@ -86,6 +86,12 @@ export const VAULT_SCOPE =
 export const OPEN_SCOPE =
   "This connection reaches open knowledge only. Sensitive context and SECRET_REF pointers belong in the LAN-only vault; never store raw secret values in either tier.";
 
+// The read-only listener. Said plainly and early, because the point of that
+// listener is a model that cannot be trusted to write: it should stop trying
+// rather than spend a turn on a tool call that is not there.
+export const READ_ONLY_SCOPE =
+  "This connection reaches open knowledge and is READ ONLY. There are no tools to save, replace, review or delete a memory here, so never promise to remember something; ask the user to save it from a writing connection instead.";
+
 export const CAPTURE_GUIDANCE =
   "Write one current, verified, standalone memory with one main purpose only when it can change a future answer or action and is not already represented by repository documentation, history, or source. Project status and completed work belong in README or history/changelog; if either file is missing, propose creating it instead of using memory as a substitute. Never store raw passwords, tokens, API keys, private keys, or other secret values. Use an exact SECRET_REF pointer instead.";
 

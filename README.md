@@ -46,14 +46,26 @@ property of the **listener**:
 | --- | --- | --- |
 | **8790** | open + vault, plus the web UI | LAN only. **Never proxy this one.** |
 | **8791** | open tier only | The only port a reverse proxy should forward to |
+| **8792** | open tier, **read only** | For a model that may look things up but must not change anything |
 
 The MCP server on 8791 is built without the ability to reach the vault — its
 tools are constructed with `tiers = ['open']` and `delete_thought` is not
 registered at all. No parameter, header or path changes that. An attacker who
 gets past the proxy still only reaches open knowledge.
 
-The smoke test is read-only by default. Use `-Write` for the complete 48-check
-canary suite; test rows are removed in a `finally` block even when a check fails:
+8792 applies the same idea to writing. Less capable models tend to treat the
+memory as a scratchpad: they save what the repository already records, restate
+their own reasoning, and never supersede anything. That port simply never
+registers `capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
+`supersede_thought` or `delete_thought`, so there is nothing to talk it into.
+What remains is search, list, fetch, statistics — and `report_memory_usage`,
+which writes a recall receipt rather than a memory and is asked for by every
+search. Give that port its own `MCP_READ_KEY`: hand out `MCP_OPEN_KEY` instead
+and the same client can simply write on 8791. It serves `/mcp`, `/openapi.json`
+and `/tools/*`, and nothing else — no web UI, no dashboard REST.
+
+The smoke test is read-only by default. Use `-Write` for the complete canary
+suite; test rows are removed in a `finally` block even when a check fails:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
@@ -66,7 +78,12 @@ leaks, looking a vault row up by id is refused, writing to the vault from outsid
 is refused, statistics do not even reveal that the vault exists, the connection
 guide withholds the vault key from the proxied listener, the usage log never
 carries content, a wrong key returns 401, agent memories start as evidence, human
-review changes their trust, and smart ingest preserves source provenance.
+review changes their trust, and smart ingest preserves source provenance. The
+read-only port is checked the same way: it registers no tool that writes over
+either surface, it refuses `capture_thought`, `supersede_thought` and
+`delete_thought` even when the vault key is presented, nothing those attempts
+sent reaches the memory, it still answers a search, and `MCP_READ_KEY` opens
+that port and neither of the other two.
 
 ## Running it
 

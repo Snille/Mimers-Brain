@@ -17,12 +17,18 @@ Recommended minimum resources are 2 CPU cores, 2 GB RAM and 20 GB disk. The
 machine also needs outbound HTTPS access to GitHub and Docker Hub, plus
 OpenRouter when semantic search is wanted.
 
-Mimers Brain listens on two ports with deliberately different capabilities:
+Mimers Brain listens on three ports with deliberately different capabilities:
 
 | Port | Contents | Exposure |
 | --- | --- | --- |
 | `8790` | open tier + vault + web UI | trusted LAN/VPN only; never reverse-proxy it |
 | `8791` | open tier + web UI | the only port that may sit behind a reverse proxy |
+| `8792` | open tier, read only, no web UI | optional; a second proxy host for models that must not write |
+
+Port `8792` registers no tool that changes a memory. Set `MCP_READ_KEY` to a
+third, different value and give that key — and only that key — to such a client;
+leave it empty and the port falls back to `MCP_ACCESS_KEY`, which works but
+cannot be rotated on its own.
 
 Choose where the persistent data and backups will live before installing. The
 database is stored in the named Docker volume `mimers-valv_valv-data`, not in

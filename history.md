@@ -6,6 +6,44 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-29 — 0.9.20: a port that can only read
+
+Less capable models rarely look after a memory. They save what the repository
+already records, write down their own reasoning, and never supersede the entry
+they have just contradicted. Asking them to behave does not work, so a third
+listener answers on port 8792 and simply never registers a tool that writes:
+no `capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
+`supersede_thought` or `delete_thought`, over MCP or OpenAPI. What remains is
+search, list, fetch and statistics, plus `report_memory_usage`, which writes a
+recall receipt rather than a memory and is asked for by every search. The
+connection scope tells the model in plain words that it cannot remember
+anything, so it asks the user to save instead of promising to.
+
+This is the same reasoning the tier split already rests on: writing is a
+capability of the listener, not a property of the request, so there is nothing
+to talk the server into. The port serves `/mcp`, `/openapi.json` and `/tools/*`
+and nothing else — no web UI and no dashboard REST, since both of those write.
+
+`MCP_READ_KEY` is a third key on purpose. Handing a read-only client the open
+key would let it write on 8791 with the same string, which is the whole thing
+being prevented. Left empty, the port falls back to `MCP_ACCESS_KEY`, which
+works but cannot be rotated on its own. The Connect page fills in the address
+and the key like any other client.
+
+The isolation suite grew from 48 checks to 78. The new ones assert an absence:
+neither surface offers a write tool, `capture_thought`, `supersede_thought` and
+`delete_thought` are refused even when the vault key is presented, nothing those
+attempts sent reaches the memory, the port still answers a search, and the read
+key opens 8792 and neither of the other two. The canary rows are listed rather
+than searched, since a row saved without an embedding would be invisible to a
+semantic search and the check would pass for the wrong reason.
+
+Every `Invoke-WebRequest` in that suite now passes `-UseBasicParsing`. Without
+it, Windows PowerShell 5.1 hands the body to the Internet Explorer engine and
+throws a bare "Object reference not set to an instance of an object" on a
+machine where IE was never set up — a failure that says nothing about the
+server it was testing.
+
 ## 2026-08-24 — 0.9.19: punctuation is not an identifier
 
 The live 0.9.18 dry-run caught a false positive before any metadata was written:

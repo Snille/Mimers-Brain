@@ -47,14 +47,27 @@ valvet. Istället är nivån en egenskap hos **lyssnaren**:
 | --- | --- | --- |
 | **8790** | öppen + valv, plus webbgränssnittet | Endast LAN. **Proxa aldrig hit.** |
 | **8791** | endast öppen nivå | Den enda port NPM ska vidarebefordra `brain.example.net` till |
+| **8792** | öppen nivå, **endast läsning** | För en modell som får slå upp saker men inte ändra något |
 
 MCP-servern på 8791 byggs utan förmågan att nå valvet — verktygen konstrueras med
 `tiers = ['open']` och `delete_thought` registreras inte alls. Det finns ingen
 parameter, header eller sökväg som ändrar det. En angripare som tar sig förbi
 proxyn når fortfarande bara öppen kunskap.
 
+8792 tillämpar samma tanke på skrivning. Mindre kapabla modeller behandlar gärna
+minnet som ett kladdpapper: de sparar det som redan står i repot, upprepar sitt
+eget resonemang och ersätter aldrig något. Den porten registrerar helt enkelt
+aldrig `capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
+`supersede_thought` eller `delete_thought`, så det finns inget att övertala den
+till. Kvar finns sökning, listning, hämtning, statistik — och
+`report_memory_usage`, som skriver ett återkallningskvitto och inte ett minne,
+och som varje sökning ber om. Ge porten en egen `MCP_READ_KEY`: lämnar du ut
+`MCP_OPEN_KEY` i stället kan samma klient bara skriva på 8791. Den serverar
+`/mcp`, `/openapi.json` och `/tools/*`, ingenting annat — inget webbgränssnitt
+och ingen dashboard-REST.
+
 Smoke-testet är skrivskyddat som standard. Använd `-Write` för hela
-canary-sviten med 48 kontroller; testdata tas bort i ett `finally`-block även om
+canary-sviten; testdata tas bort i ett `finally`-block även om
 en kontroll misslyckas:
 
 ```powershell
@@ -68,7 +81,12 @@ aldrig ut, direkt id-uppslag av en valv-rad nekas, skrivförsök till valvet
 utifrån nekas, statistik avslöjar inte ens att valvet finns, anslutningsguiden
 lämnar inte ut valvnyckeln på den proxade lyssnaren, användningsloggen bär aldrig
 innehåll, fel nyckel ger 401, agentminnen börjar som evidens, mänsklig granskning
-ändrar deras tillit och smart import bevarar källans proveniens.
+ändrar deras tillit och smart import bevarar källans proveniens. Läsporten
+kontrolleras på samma sätt: den registrerar inget skrivande verktyg på någon av
+ytorna, den nekar `capture_thought`, `supersede_thought` och `delete_thought`
+även när valvnyckeln visas upp, inget av det försöken skickade når minnet, den
+svarar fortfarande på en sökning, och `MCP_READ_KEY` öppnar den porten och
+ingen av de andra två.
 
 ## Kom igång lokalt
 

@@ -54,7 +54,7 @@ det ID:t innan den använder posten som aktuell kunskap.
 
 ---
 
-## De två adresserna
+## De tre adresserna
 
 Det här är den enda detalj som verkligen betyder något:
 
@@ -62,6 +62,7 @@ Det här är den enda detalj som verkligen betyder något:
 | --- | --- | --- |
 | `http://192.0.2.41:8790/mcp` | öppet **+ valvet** | du är hemma eller på VPN |
 | `https://brain.example.net/mcp` | **endast öppet** | allt annat, och alla andra modeller |
+| `http://192.0.2.41:8792/mcp` | öppet, **endast läsning** | en modell som får slå upp saker men inte ändra något |
 
 Valvet — känslig kontext och SECRET_REF-pekare, aldrig råa hemliga värden — serveras bara av den första. Det är inte en
 inställning som går att slå på för den andra: MCP-servern på 8791 byggs helt utan
@@ -69,12 +70,40 @@ förmågan att nå de raderna, så ingen header, parameter eller sökväg kan ly
 dem. Därför kan du peka vilken extern modell som helst på `brain.example.net` utan
 att fundera.
 
-Båda kräver `MCP_ACCESS_KEY` som bearer-token.
+Den tredje adressen är samma öppna kunskap med varje skrivande verktyg borttaget.
+Den finns därför att en mindre kapabel modell sällan sköter ett minne: den sparar
+det som redan står i repot, skriver ner sitt eget resonemang och ersätter aldrig
+posten den just motsagt. I stället för att be den sköta sig registrerar den porten
+aldrig `capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
+`supersede_thought` eller `delete_thought`. Modellen kan söka, lista, hämta och
+läsa statistik, och den får rakt ut veta i sin anslutningsbeskrivning att den inte
+kan minnas något — så den ber dig spara i stället för att lova att den gör det.
+
+De två första kräver `MCP_ACCESS_KEY` som bearer-token. Den läsbara tar
+`MCP_READ_KEY` — ett tredje, eget värde, i `Authorization`-huvudet eller som
+`?key=` i URL:en för klienter utan fält för huvuden. Håll den skild med flit: ger
+du en läsande klient den öppna nyckeln kan den lika gärna skriva på 8791. För att
+nå 8792 utifrån: peka ett andra värdnamn mot den i Nginx Proxy Manager, precis som
+du gjorde för 8791.
+
+### En läsande klient
+
+```bash
+claude mcp add --transport http mimers-brain-read http://192.0.2.41:8792/mcp --header "Authorization: Bearer <LÄSNYCKEL>"
+```
+
+```bash
+curl -s -X POST http://192.0.2.41:8792/tools/thought_stats -H "Authorization: Bearer <LÄSNYCKEL>" -H "Content-Type: application/json" -d '{}'
+```
+
+Anslut-sidan i webbgränssnittet fyller i båda med den här instansens egen adress
+och nyckel.
 
 ### Var nyckeln finns
 
 ```bash
 ssh valv 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
+ssh valv 'grep ^MCP_READ_KEY= ~/mimers-brain/.env | cut -d= -f2'
 ```
 
 ---

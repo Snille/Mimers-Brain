@@ -54,7 +54,7 @@ the client should fetch that id before using the record as current knowledge.
 
 ---
 
-## The two addresses
+## The three addresses
 
 This is the only detail that really matters:
 
@@ -62,6 +62,7 @@ This is the only detail that really matters:
 | --- | --- | --- |
 | `http://192.0.2.41:8790/mcp` | open **+ vault** | on the LAN or over VPN |
 | `https://brain.example.net/mcp` | **open only** | everything else, and every other model |
+| `http://192.0.2.41:8792/mcp` | open, **read only** | a model that may look things up but must not change anything |
 
 The vault — sensitive context and SECRET_REF pointers, never raw secret values — is served only by the first. This is not a
 setting that can be switched on for the second: the MCP server on 8791 is built
@@ -69,12 +70,40 @@ entirely without the ability to reach those rows, so no header, parameter or pat
 can lift them out. That is why you can point any external model at the public
 hostname without thinking about it.
 
-Both require `MCP_ACCESS_KEY` as a bearer token.
+The third address is the same open knowledge with every writing tool removed.
+It exists because a less capable model rarely handles a memory well: it saves
+what the repository already records, writes down its own reasoning, and never
+supersedes the entry it has just contradicted. Rather than ask it to behave, that
+port never registers `capture_thought`, `preview_ingest`, `apply_ingest`,
+`review_memory`, `supersede_thought` or `delete_thought`. The model can search,
+list, fetch and read statistics, and it is told plainly in its connection scope
+that it cannot remember anything, so it asks you to save instead of promising to.
+
+The first two require `MCP_ACCESS_KEY` as a bearer token. The read-only one takes
+`MCP_READ_KEY` — a third, separate value, in the `Authorization` header or as
+`?key=` on the URL for clients with no header field. Keep it separate on purpose:
+give a read-only client the open key and it can simply write on 8791 instead. To
+reach 8792 from outside, forward a second hostname to it in Nginx Proxy Manager,
+exactly as you did for 8791.
+
+### A read-only client
+
+```bash
+claude mcp add --transport http mimers-brain-read http://192.0.2.41:8792/mcp --header "Authorization: Bearer <READ-KEY>"
+```
+
+```bash
+curl -s -X POST http://192.0.2.41:8792/tools/thought_stats -H "Authorization: Bearer <READ-KEY>" -H "Content-Type: application/json" -d '{}'
+```
+
+The Connect page in the web interface fills both in with this instance's own
+address and key.
 
 ### Where the key lives
 
 ```bash
 ssh <server> 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
+ssh <server> 'grep ^MCP_READ_KEY= ~/mimers-brain/.env | cut -d= -f2'
 ```
 
 ---

@@ -21,18 +21,21 @@ const MASK = "••••••••••••••••";
 function keys() {
   const access = cfg.accessKey || "<MCP_ACCESS_KEY>";
   const open = cfg.openKey || "<MCP_OPEN_KEY>";
+  const read = cfg.readKey || "<MCP_READ_KEY>";
   return {
     accessReal: access,
     openReal: open,
+    readReal: read,
     access: cfg.accessKey && !reveal ? MASK : access,
     open: cfg.openKey && !reveal ? MASK : open,
+    read: cfg.readKey && !reveal ? MASK : read,
   };
 }
 
 function block(title, snippet, { lang = "", note = "" } = {}) {
   const k = keys();
-  const shown = snippet(k.access, k.open);
-  const real = snippet(k.accessReal, k.openReal);
+  const shown = snippet(k.access, k.open, k.read);
+  const real = snippet(k.accessReal, k.openReal, k.readReal);
   return `
     <div class="snip">
       <div class="snip-head">
@@ -68,6 +71,13 @@ function addresses() {
           <td><span class="tag">${esc(t("connect.addresses.openOnly"))}</span></td>
           <td>${esc(t("connect.addresses.publicWhen"))}</td>
         </tr>
+        <tr>
+          <td>${cfg.readUrl
+            ? `<code>${esc(cfg.readUrl)}/mcp</code>`
+            : `<span class="sub">${esc(t("connect.addresses.noRead"))}</span>`}</td>
+          <td><span class="tag">${esc(t("connect.addresses.readOnly"))}</span></td>
+          <td>${esc(t("connect.addresses.readWhen"))}</td>
+        </tr>
       </table>
       <p class="sub">${t("connect.addresses.viewing", { listener: esc(listener), version: esc(cfg.version) })}</p>
     </div>`;
@@ -97,6 +107,13 @@ function keyCard() {
             ? `<code class="keyval">${esc(k.open)}</code> <button class="ghost small copy" data-copy="${esc(k.openReal)}">${esc(t("common.copy"))}</button>`
             : `<span class="sub">${t("connect.keyCard.notSet")}</span>`}</td>
           <td>${t("connect.keyCard.openUrlOnly")}</td>
+        </tr>
+        <tr>
+          <td><code>MCP_READ_KEY</code></td>
+          <td>${cfg.hasReadKey
+            ? `<code class="keyval">${esc(k.read)}</code> <button class="ghost small copy" data-copy="${esc(k.readReal)}">${esc(t("common.copy"))}</button>`
+            : `<span class="sub">${t("connect.keyCard.readNotSet")}</span>`}</td>
+          <td>${t("connect.keyCard.readOnlyOpens")}</td>
         </tr>
       </table>
       ${vaultKeyHere ? "" : `
@@ -165,6 +182,19 @@ function clientCards() {
       ${block(t("connect.openWebui.config"), () => `${pub}/openapi.json`)}
       ${block(t("connect.openWebui.auth"), (a) => `Bearer ${a}`,
         { note: t("connect.openWebui.note") })}
+    </div>`);
+
+  const readUrl = cfg.readUrl || "http://<LAN-IP>:8792";
+  cards.push(`
+    <div class="card">
+      <h3>${esc(t("connect.readOnly.title"))}</h3>
+      <p class="sub">${t("connect.readOnly.description")}</p>
+      ${block(t("connect.readOnly.address"), () => `${readUrl}/mcp`)}
+      ${block(t("connect.readOnly.header"), (a, o, r) => `Authorization: Bearer ${r}`,
+        { note: t("connect.readOnly.note") })}
+      ${block(t("connect.readOnly.urlKey"), (a, o, r) => `${readUrl}/mcp?key=${r}`)}
+      ${block(t("connect.readOnly.openapi"), () => `${readUrl}/openapi.json`,
+        { note: t("connect.readOnly.proxyNote") })}
     </div>`);
 
   cards.push(`

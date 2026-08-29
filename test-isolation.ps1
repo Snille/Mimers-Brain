@@ -1,6 +1,7 @@
 # Verifies the tier boundary: the open listener must not expose vault rows,
 # must not accept vault writes, and must not serve a vault row by direct id.
-# Also checks that MCP_OPEN_KEY stays confined to /mcp on the open listener.
+# Also checks that MCP_OPEN_KEY stays confined to /mcp on the open listener, and
+# that the read-only listener on 8792 registers no tool that writes.
 #
 #   .\test-isolation.ps1                                      # read-only checks
 #   .\test-isolation.ps1 -Write                               # full canary suite
@@ -9,8 +10,10 @@ param(
     [string]$HostName = "localhost",
     [int]$FullPort = 8790,
     [int]$OpenPort = 8791,
+    [int]$ReadPort = 8792,
     [string]$KeyFile,
     [string]$OpenKeyFile,
+    [string]$ReadKeyFile,
     [switch]$Write,
     [switch]$Json
 )
@@ -20,6 +23,10 @@ if ($Json) {
     $PSDefaultParameterValues['Write-Host:InformationAction'] = 'Ignore'
 }
 Set-Location $PSScriptRoot
+# -UseBasicParsing on every Invoke-WebRequest below: Windows PowerShell 5.1
+# otherwise hands the body to the Internet Explorer engine, which throws a bare
+# "Object reference not set to an instance of an object" on a machine where IE
+# was never set up. PowerShell 7 accepts the switch and ignores it.
 
 $key = if ($KeyFile) { (Get-Content $KeyFile -Raw).Trim() }
        elseif ($env:MCP_ACCESS_KEY) { $env:MCP_ACCESS_KEY.Trim() }
@@ -28,6 +35,7 @@ $key = if ($KeyFile) { (Get-Content $KeyFile -Raw).Trim() }
 $H = @{ Authorization = "Bearer $key"; "Content-Type" = "application/json" }
 $FULL = "http://${HostName}:$FullPort"
 $OPEN = "http://${HostName}:$OpenPort"
+$READ = "http://${HostName}:$ReadPort"
 Write-Host "Testing against $HostName" -ForegroundColor Cyan
 
 $pass = 0; $fail = 0; $results = @(); $createdIds = [System.Collections.ArrayList]::new()
@@ -47,6 +55,21 @@ function Finish {
     if ($fail) { exit 1 }
 }
 
+# Every tool that can change a memory. report_memory_usage is deliberately not
+# here: it writes a recall receipt, not a memory, and every search asks for one.
+$WriteTools = @("capture_thought", "preview_ingest", "apply_ingest",
+                "review_memory", "supersede_thought", "delete_thought")
+
+# The stateless MCP endpoint answers either plain JSON or a single SSE frame,
+# depending on what the client said it accepts. Both shapes turn up in practice,
+# so unwrap whichever arrived rather than guessing.
+function McpCall($url, $headers, $rpc) {
+    $raw = (Invoke-WebRequest $url -Method Post -Headers $headers -Body $rpc -UseBasicParsing).Content.Trim()
+    if ($raw.StartsWith("{")) { return $raw | ConvertFrom-Json }
+    $dataLine = $raw -split "`n" | Where-Object { $_ -match '^data:\s*' } | Select-Object -First 1
+    return ($dataLine -replace '^data:\s*', '') | ConvertFrom-Json
+}
+
 if (-not $Write) {
     Write-Host "`nRead-only smoke test (use -Write for canary isolation checks)" -ForegroundColor Cyan
     $healthFull = Invoke-RestMethod "$FULL/healthz"
@@ -59,10 +82,24 @@ if (-not $Write) {
     Check "OpenAPI exposes smart ingest" ([bool]$specOpen.paths."/tools/preview_ingest") "tool missing"
     Check "OPEN hides trusted review tool" (-not [bool]$specOpen.paths."/tools/review_memory") "review tool leaked"
     Check "FULL exposes trusted review tool" ([bool]$specFull.paths."/tools/review_memory") "tool missing"
-    $openResponse = Invoke-WebRequest "$OPEN/api/thoughts?limit=1" -Headers $H
+    $openResponse = Invoke-WebRequest "$OPEN/api/thoughts?limit=1" -Headers $H -UseBasicParsing
     Check "OPEN memory API is readable" ($openResponse.StatusCode -eq 200) "HTTP $($openResponse.StatusCode)"
     $openStats = Invoke-RestMethod "$OPEN/api/stats" -Headers $H
     Check "OPEN statistics expose no vault count" (-not $openStats.byTier.vault) "vault count leaked"
+
+    # The read-only listener. What is checked is an absence, so check it on the
+    # document the client actually reads rather than on the source.
+    $healthRead = Invoke-RestMethod "$READ/healthz"
+    Check "READ health endpoint" ($healthRead.ok -and $healthRead.tier -eq "open") "unexpected response"
+    Check "READ reports itself as not writable" ($healthRead.writable -eq $false) "writable was '$($healthRead.writable)'"
+    $specRead = Invoke-RestMethod "$READ/openapi.json"
+    foreach ($tool in $WriteTools) {
+        Check "READ OpenAPI hides $tool" (-not [bool]$specRead.paths."/tools/$tool") "the tool was published"
+    }
+    Check "READ OpenAPI still offers search" ([bool]$specRead.paths."/tools/search_thoughts") "tool missing"
+    Check "READ OpenAPI still offers the recall receipt" ([bool]$specRead.paths."/tools/report_memory_usage") "tool missing"
+    Check "READ OpenAPI says it is read only" ($specRead.info.title -match "read only") "title does not say so"
+
     Finish
     exit 0
 }
@@ -168,7 +205,7 @@ $initRpc = @{
         clientInfo = @{ name = "mimers-policy-test"; version = "1.0" }
     }
 } | ConvertTo-Json -Depth 6
-$initRaw = (Invoke-WebRequest "$FULL/mcp" -Method Post -Headers $mcpHeaders -Body $initRpc).Content.Trim()
+$initRaw = (Invoke-WebRequest "$FULL/mcp" -Method Post -Headers $mcpHeaders -Body $initRpc -UseBasicParsing).Content.Trim()
 if ($initRaw.StartsWith("{")) {
     $initResult = $initRaw | ConvertFrom-Json
 } else {
@@ -301,6 +338,105 @@ if (-not $openKey) {
     } catch { Check "a wrong URL key is refused" $true "" }
 }
 
+Write-Host "`nThe read-only listener" -ForegroundColor Cyan
+# The point of 8792 is a port a model of modest judgement can be handed. What
+# proves that is not a refusal but an absence: the tool is never registered, so
+# the client cannot see it and the server has nothing to call. The access key is
+# used here on purpose - even the most privileged caller must find no way to
+# write on this port.
+$mcpH = @{ "Content-Type" = "application/json"; Accept = "application/json, text/event-stream" }
+$readList = McpCall "$READ/mcp" ($H + @{ Accept = "application/json, text/event-stream" }) '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+$readTools = @($readList.result.tools.name)
+Check "READ MCP lists tools at all" ($readTools.Count -gt 0) "no tools listed"
+foreach ($tool in $WriteTools) {
+    Check "READ MCP does not register $tool" ($readTools -notcontains $tool) "the tool was offered"
+}
+Check "READ MCP still offers search_thoughts" ($readTools -contains "search_thoughts") "tool missing"
+Check "READ MCP still offers the recall receipt" ($readTools -contains "report_memory_usage") "tool missing"
+
+# The same absence over REST, and with the vault key in the header.
+foreach ($tool in @("capture_thought", "supersede_thought", "delete_thought")) {
+    try {
+        Invoke-RestMethod "$READ/tools/$tool" -Method Post -Headers $H -Body (@{
+            content = "READ-CANARY: this must never be saved."; tier = "open"
+            id = $o.id; old_ids = @($o.id) } | ConvertTo-Json) | Out-Null
+        Check "READ refuses /tools/$tool" $false "the call went through"
+    } catch { Check "READ refuses /tools/$tool" $true "" }
+}
+
+# Refusing to write is only half of it - the port has to still be useful.
+$readStats = $null
+try {
+    $readStats = Invoke-RestMethod "$READ/tools/thought_stats" -Method Post -Headers $H -Body "{}"
+    Check "READ can still read statistics" ($readStats.total -ge 0) "no total returned"
+    Check "READ statistics expose no vault count" (-not $readStats.byTier.vault) "vault count leaked"
+} catch { Check "READ can still read statistics" $false $_.Exception.Message }
+
+# No dashboard REST and no web UI: both of those write, and neither is any use
+# to the kind of caller this port exists for.
+try {
+    Invoke-RestMethod "$READ/api/thoughts?limit=1" -Headers $H | Out-Null
+    Check "READ serves no dashboard REST" $false "it answered"
+} catch { Check "READ serves no dashboard REST" $true "" }
+
+# Nothing above may have landed in the memory. Listed rather than searched: a
+# row saved without an embedding would be invisible to a semantic search and the
+# check would pass for the wrong reason.
+$recent = Invoke-RestMethod "$FULL/api/thoughts?lifecycle=all&limit=50" -Headers $H
+Check "no read-only write reached the memory" (-not (@($recent) | Where-Object { $_.content -match "READ-CANARY" })) "a canary row was saved"
+Check "the open test row survived the delete attempts" ((Invoke-RestMethod "$FULL/api/thoughts/$($o.id)" -Headers $H).id -eq $o.id) "the row is gone"
+
+Write-Host "`nThe read-only key" -ForegroundColor Cyan
+# MCP_READ_KEY exists so a read-only client can be given a credential of its own.
+# It is worth nothing if it also opens a listener that writes.
+$readKey = if ($ReadKeyFile) { (Get-Content $ReadKeyFile -Raw).Trim() }
+           elseif ($env:MCP_READ_KEY) { $env:MCP_READ_KEY.Trim() }
+           else {
+               $m = Get-Content .env -ErrorAction SilentlyContinue | Select-String '^MCP_READ_KEY=(.*)$'
+               if ($m) { $m.Matches.Groups[1].Value.Trim() } else { "" }
+           }
+
+if (-not $readKey) {
+    Write-Host "  SKIP  MCP_READ_KEY not set" -ForegroundColor DarkGray
+} elseif ($readKey -eq $key -or ($openKey -and $readKey -eq $openKey)) {
+    Check "MCP_READ_KEY is a value of its own" $false "it matches another key, so a read-only client can write"
+} else {
+    $rpc = '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+    $readH = @{ Authorization = "Bearer $readKey"; "Content-Type" = "application/json"
+                Accept = "application/json, text/event-stream" }
+
+    try {
+        Invoke-RestMethod "$READ/mcp" -Method Post -Headers $readH -Body $rpc | Out-Null
+        Check "READ /mcp accepts the read key" $true ""
+    } catch { Check "READ /mcp accepts the read key" $false $_.Exception.Message }
+
+    try {
+        Invoke-RestMethod "$READ/mcp?key=$readKey" -Method Post -Headers $mcpH -Body $rpc | Out-Null
+        Check "READ /mcp accepts the read key in the URL" $true ""
+    } catch { Check "READ /mcp accepts the read key in the URL" $false $_.Exception.Message }
+
+    # The two that matter: this key must open nothing that can write.
+    try {
+        Invoke-RestMethod "$OPEN/mcp" -Method Post -Headers $readH -Body $rpc | Out-Null
+        Check "OPEN refuses the read key" $false "it was let through"
+    } catch { Check "OPEN refuses the read key" $true "" }
+
+    try {
+        Invoke-RestMethod "$FULL/mcp" -Method Post -Headers $readH -Body $rpc | Out-Null
+        Check "FULL refuses the read key" $false "it was let through"
+    } catch { Check "FULL refuses the read key" $true "" }
+
+    try {
+        Invoke-RestMethod "$OPEN/mcp?key=$readKey" -Method Post -Headers $mcpH -Body $rpc | Out-Null
+        Check "OPEN refuses the read key in the URL" $false "it was let through"
+    } catch { Check "OPEN refuses the read key in the URL" $true "" }
+
+    try {
+        Invoke-RestMethod "$READ/mcp?key=wrong-key" -Method Post -Headers $mcpH -Body $rpc | Out-Null
+        Check "READ refuses a wrong URL key" $false "it was let through"
+    } catch { Check "READ refuses a wrong URL key" $true "" }
+}
+
 Write-Host "`nThe connection guide" -ForegroundColor Cyan
 $cFull = Invoke-RestMethod "$FULL/api/connect" -Headers $H
 $cOpen = Invoke-RestMethod "$OPEN/api/connect" -Headers $H
@@ -328,7 +464,7 @@ Check "OPEN usage counts only open-tier memories" ($uOpen.memories.total -lt $uF
 
 # The usage log is a traffic light, not a transcript. If a query string ever
 # reached it, a vault search would be readable from the open listener.
-$raw = (Invoke-WebRequest "$OPEN/api/usage" -Headers $H).Content
+$raw = (Invoke-WebRequest "$OPEN/api/usage" -Headers $H -UseBasicParsing).Content
 Check "usage statistics contain no memory content" ($raw -notmatch "CANARY") "the secret appeared in the statistics"
 
 } finally {

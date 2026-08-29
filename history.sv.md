@@ -6,6 +6,44 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-29 — 0.9.20: en port som bara kan läsa
+
+Mindre kapabla modeller sköter sällan ett minne. De sparar det som redan står i
+repot, skriver ner sitt eget resonemang och ersätter aldrig posten de just
+motsagt. Att be dem sköta sig fungerar inte, så en tredje lyssnare svarar på
+port 8792 och registrerar helt enkelt aldrig ett verktyg som skriver: inget
+`capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
+`supersede_thought` eller `delete_thought`, varken över MCP eller OpenAPI. Kvar
+finns sökning, listning, hämtning och statistik, plus `report_memory_usage`, som
+skriver ett återkallningskvitto och inte ett minne, och som varje sökning ber om.
+Anslutningsbeskrivningen säger rakt ut till modellen att den inte kan minnas
+något, så den ber användaren spara i stället för att lova att den gör det.
+
+Det är samma resonemang som nivåuppdelningen redan vilar på: skrivning är en
+förmåga hos lyssnaren, inte en egenskap hos anropet, så det finns inget att
+övertala servern till. Porten serverar `/mcp`, `/openapi.json` och `/tools/*` och
+ingenting annat — inget webbgränssnitt och ingen dashboard-REST, eftersom båda
+skriver.
+
+`MCP_READ_KEY` är en tredje nyckel med flit. Ger man en läsande klient den öppna
+nyckeln kan den skriva på 8791 med samma sträng, vilket är precis det som ska
+förhindras. Lämnad tom faller porten tillbaka på `MCP_ACCESS_KEY`, vilket
+fungerar men inte går att rotera för sig. Anslut-sidan fyller i adressen och
+nyckeln som för vilken annan klient som helst.
+
+Isoleringssviten växte från 48 kontroller till 78. De nya slår fast en frånvaro:
+ingen av ytorna erbjuder ett skrivverktyg, `capture_thought`,
+`supersede_thought` och `delete_thought` nekas även när valvnyckeln visas upp,
+inget av det försöken skickade når minnet, porten svarar fortfarande på en
+sökning, och läsnyckeln öppnar 8792 men ingen av de andra två. Canary-raderna
+listas i stället för att sökas, eftersom en rad sparad utan embedding hade varit
+osynlig för en semantisk sökning och kontrollen hade gått igenom av fel skäl.
+
+Varje `Invoke-WebRequest` i sviten skickar nu `-UseBasicParsing`. Utan den
+lämnar Windows PowerShell 5.1 svaret till Internet Explorers motor och kastar ett
+naket "Object reference not set to an instance of an object" på en maskin där IE
+aldrig satts upp — ett fel som inte säger något alls om servern som testades.
+
 ## 2026-08-24 — 0.9.19: skiljetecken är inte en identifierare
 
 Live-torrkörningen av 0.9.18 fångade ett falsklarm innan någon metadata skrevs:

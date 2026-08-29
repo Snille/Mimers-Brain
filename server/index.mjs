@@ -1,14 +1,21 @@
 // Mimers Brain - entry point.
 //
-// Two listeners, deliberately:
+// Three listeners, deliberately:
 //
-//   PORT_FULL (default 8790)  open + vault.  LAN only. Never proxy this one.
-//   PORT_OPEN (default 8791)  open only.     This is what Nginx Proxy Manager
-//                                            forwards brain.example.net to.
+//   PORT_FULL (default 8790)  open + vault, read and write. LAN only. Never
+//                                            proxy this one.
+//   PORT_OPEN (default 8791)  open only, read and write. This is what Nginx
+//                                            Proxy Manager forwards
+//                                            brain.example.net to.
+//   PORT_READ (default 8792)  open only, READ ONLY. For a model that should be
+//                                            allowed to look things up but not
+//                                            to keep the memory tidy.
 //
 // The tier set is a property of the listener, not of the request. There is no
 // header, parameter or path that lets a caller on the open port reach a vault
-// row - the tools on that port are constructed without the capability.
+// row - the tools on that port are constructed without the capability. Writing
+// works the same way: the read-only listener never builds a write tool, so
+// there is nothing to talk it into.
 
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -29,8 +36,10 @@ const VERSION = JSON.parse(await readFile(join(ROOT, "package.json"), "utf8")).v
 
 const PORT_FULL = Number(process.env.PORT_FULL || 8790);
 const PORT_OPEN = Number(process.env.PORT_OPEN || 8791);
+const PORT_READ = Number(process.env.PORT_READ || 8792);
 const ACCESS_KEY = process.env.MCP_ACCESS_KEY || "";
 const OPEN_KEY = process.env.MCP_OPEN_KEY || "";
+const READ_KEY = process.env.MCP_READ_KEY || "";
 
 // Origins allowed to call the OpenAPI surface from a browser. Empty by default,
 // which is the same as "no browser on another origin may call this": a tool
@@ -100,6 +109,19 @@ function openKeyOk(url) {
   return sameSecret(url.searchParams.get("key"), OPEN_KEY);
 }
 
+// The read-only listener's own key. A third one on purpose: handing a model the
+// open key would let it write from 8791 with the same string, which is the whole
+// thing we are trying to prevent. This one opens nothing but the read port, so
+// it can be pasted into a client of modest judgement and rotated on its own.
+// Header or URL, because the clients that need this are the ones with a single
+// URL field; what it can reach is read-only anyway.
+function readKeyOk(req, url) {
+  if (!READ_KEY) return false;
+  const given = (req.headers.authorization || "").replace(/^Bearer\s+/i, "")
+    || req.headers["x-access-key"] || url.searchParams.get("key") || "";
+  return sameSecret(given, READ_KEY);
+}
+
 // Browser session. MCP clients send a bearer token, but a browser cannot - so
 // the UI trades the access key for an HttpOnly cookie once. Derived from the
 // key rather than stored, so there is no session table to keep.
@@ -118,8 +140,9 @@ function cookieOk(req) {
 // Remote-User. Trusting that header is safe *here* and only here: this listener
 // cannot reach vault rows at all, so the worst it grants is open-tier data that
 // anyone on the LAN could read from 8790 anyway. Never do this on the full one.
-function authOk(req, allowAuthelia) {
+function authOk(req, url, { allowAuthelia, allowReadKey }) {
   if (keyOk(req) || cookieOk(req)) return true;
+  if (allowReadKey && readKeyOk(req, url)) return true;
   return Boolean(allowAuthelia && req.headers["remote-user"]);
 }
 
@@ -143,11 +166,12 @@ async function body(req) {
 
 // Which of the four ways in the caller actually used. Recorded with each call so
 // the statistics can distinguish an MCP client from someone in the web UI.
-function authMode(req, url, { allowAuthelia, allowUrlKey }) {
-  if (!ACCESS_KEY) return "none";
+function authMode(req, url, { allowAuthelia, allowUrlKey, allowReadKey }) {
+  if (!ACCESS_KEY && !READ_KEY) return "none";
   if (keyOk(req)) return "bearer";
   if (cookieOk(req)) return "cookie";
   if (allowUrlKey && openKeyOk(url)) return "url-key";
+  if (allowReadKey && readKeyOk(req, url)) return "read-key";
   if (allowAuthelia && req.headers["remote-user"]) return "authelia";
   return "none";
 }
@@ -256,11 +280,19 @@ function connectInfo(req, { tiers, allowUrlKey }) {
     publicUrl: publicUrl || null,
     hasAccessKey: Boolean(ACCESS_KEY),
     hasOpenKey: Boolean(OPEN_KEY),
+    hasReadKey: Boolean(READ_KEY),
     urlKeyAccepted: Boolean(allowUrlKey && OPEN_KEY),
     // null means "exists, but not from here" - the UI shows <KEY> and how to
     // fetch it instead of pretending the key is unset.
     accessKey: full ? ACCESS_KEY || null : null,
     openKey: OPEN_KEY || null,
+    // Safe to show wherever the open key is: it reaches strictly less - the
+    // same tier, minus every tool that writes.
+    readKey: READ_KEY || null,
+    // The read port sits on the same machine as the LAN address, so it can be
+    // named exactly. Its public address cannot be: that is a hostname in the
+    // proxy, which this server has no way to know about.
+    readUrl: lanUrl ? `${lanUrl.replace(/:\d+$/, "")}:${PORT_READ}` : null,
     memoryPolicy: MEMORY_POLICY,
     smartIngestThreshold: SMART_INGEST_THRESHOLD,
     tools: [
@@ -282,8 +314,15 @@ function connectInfo(req, { tiers, allowUrlKey }) {
   };
 }
 
-function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = false }) {
+function makeListener(tiers, {
+  serveUi, allowAuthelia = false, allowUrlKey = false, writable = true,
+}) {
+  // The usage log's `listener` column says which tier set the call could reach,
+  // and the read-only listener reaches the open one - so it files under "open"
+  // and is told apart by its auth mode, "read-key". Inventing a third value
+  // would need a schema change on every existing database for no new fact.
   const label = tiers.includes("vault") ? "full" : "open";
+  const allowReadKey = !writable && Boolean(READ_KEY);
 
   return createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
@@ -301,14 +340,15 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
     // The same answer names the writer on a captured memory, so `whoIs` is
     // shared rather than computed twice with a chance of drifting apart.
     const whoIs = () => {
-      const auth = authMode(req, url, { allowAuthelia, allowUrlKey });
+      const auth = authMode(req, url, { allowAuthelia, allowUrlKey, allowReadKey });
       const browser = auth === "cookie" || auth === "authelia";
       return browser ? { name: "web-ui", version: VERSION } : clientOf(req);
     };
     const note = (tool, action, extra = {}) => {
       const who = whoIs();
       db.logUsage({
-        tool, action, listener: label, auth: authMode(req, url, { allowAuthelia, allowUrlKey }),
+        tool, action, listener: label,
+        auth: authMode(req, url, { allowAuthelia, allowUrlKey, allowReadKey }),
         client: who.name, clientVersion: who.version, ...extra,
       });
     };
@@ -318,13 +358,22 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
     if (tiers.includes("vault") && path !== "/healthz") learnLan(req);
 
     try {
-      if (path === "/healthz") return json(res, 200, { ok: true, tier: label });
+      if (path === "/healthz")
+        return json(res, 200, { ok: true, tier: label, writable });
+
+      // The read-only listener answers on four paths and nothing else. No web
+      // UI, no dashboard REST - both of those write, and neither is any use to
+      // the kind of caller this port exists for.
+      if (!writable && !(path === "/mcp" || path === "/openapi.json"
+        || path.startsWith("/tools/")))
+        return json(res, 404, { error: "Not found" });
 
       // --- MCP (stateless: fresh server + transport per request) ------------
       if (path === "/mcp") {
         // The URL key is accepted here and nowhere else. /api keeps the header
         // and the cookie, since the UI has no trouble sending either.
-        if (!keyOk(req) && !(allowUrlKey && openKeyOk(url)))
+        if (!keyOk(req) && !(allowUrlKey && openKeyOk(url))
+          && !(allowReadKey && readKeyOk(req, url)))
           return json(res, 401, { error: "Invalid key" });
 
         // The body is read here rather than by the transport, so the initialize
@@ -347,7 +396,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
             db.logUsage({
               tool: "initialize", action: "connect", listener: label,
               client: info.name || "unknown", clientVersion: info.version || null,
-              auth: authMode(req, url, { allowAuthelia, allowUrlKey }),
+              auth: authMode(req, url, { allowAuthelia, allowUrlKey, allowReadKey }),
             });
           }
         }
@@ -356,9 +405,10 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
         const server = buildServer(tiers, {
           version: VERSION,
           listener: label,
+          writable,
           client: who.name,
           clientVersion: who.version,
-          auth: authMode(req, url, { allowAuthelia, allowUrlKey }),
+          auth: authMode(req, url, { allowAuthelia, allowUrlKey, allowReadKey }),
         });
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
         res.on("close", () => { transport.close(); server.close(); });
@@ -393,10 +443,12 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
             baseUrl: `${proto}://${host}`,
             version: VERSION,
             listener: label,
+            writable,
           }), cors);
         }
 
-        if (!authOk(req, allowAuthelia)) return json(res, 401, { error: "Invalid key" }, cors);
+        if (!authOk(req, url, { allowAuthelia, allowReadKey }))
+          return json(res, 401, { error: "Invalid key" }, cors);
         if (req.method !== "POST") return json(res, 405, { error: "Use POST" }, cors);
 
         let args;
@@ -412,7 +464,7 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
           const who = clientOf(req);
           const { tool, out } = await callTool(tiers, name, args, {
             client: who.name, clientVersion: who.version,
-          });
+          }, { writable });
           note(tool.name, tool.action, {
             results: out?.count ?? null,
             tier: out?.tier ?? null,
@@ -434,14 +486,15 @@ function makeListener(tiers, { serveUi, allowAuthelia = false, allowUrlKey = fal
             tier: label,
             version: VERSION,
             vault: tiers.includes("vault"),
-            authed: authOk(req, allowAuthelia),
+            authed: authOk(req, url, { allowAuthelia, allowReadKey }),
             needsKey: Boolean(ACCESS_KEY) && !allowAuthelia,
           });
 
         if (path === "/api/login" && req.method === "POST")
           return handleLogin(req, res);
 
-        if (!authOk(req, allowAuthelia)) return json(res, 401, { error: "Not signed in" });
+        if (!authOk(req, url, { allowAuthelia, allowReadKey }))
+          return json(res, 401, { error: "Not signed in" });
         if (path === "/api/stats") return json(res, 200, await db.stats(tiers));
 
         if (path === "/api/connect")
@@ -653,6 +706,9 @@ const listeners = [
 
   makeListener(db.OPEN, { serveUi: true, allowAuthelia: true, allowUrlKey: true }).listen(PORT_OPEN, () =>
     console.log(`OPEN (proxy to this one)       -> http://0.0.0.0:${PORT_OPEN}  [/mcp, /api]`)),
+
+  makeListener(db.OPEN, { serveUi: false, writable: false }).listen(PORT_READ, () =>
+    console.log(`READ (look, do not touch)      -> http://0.0.0.0:${PORT_READ}  [/mcp, /tools]`)),
 ];
 
 startMqtt();
@@ -680,5 +736,9 @@ if (!ACCESS_KEY) console.log("WARNING: MCP_ACCESS_KEY is empty - no key required
 if (OPEN_KEY) console.log("MCP_OPEN_KEY set - open listener also accepts /mcp?key=");
 if (OPEN_KEY && OPEN_KEY === ACCESS_KEY)
   console.log("WARNING: MCP_OPEN_KEY equals MCP_ACCESS_KEY - the vault key is now in URLs and logs.");
+if (READ_KEY) console.log("MCP_READ_KEY set - read-only listener accepts it as a header or /mcp?key=");
+else console.log("MCP_READ_KEY is empty - the read-only listener falls back to MCP_ACCESS_KEY.");
+if (READ_KEY && (READ_KEY === ACCESS_KEY || READ_KEY === OPEN_KEY))
+  console.log("WARNING: MCP_READ_KEY equals another key - a read-only client can then also write.");
 if (!process.env.OPENROUTER_API_KEY)
   console.log("WARNING: OPENROUTER_API_KEY missing - no embeddings, semantic search disabled.");

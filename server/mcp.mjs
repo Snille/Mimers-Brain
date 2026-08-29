@@ -1,6 +1,11 @@
 // MCP surface. Built fresh per listener with a fixed tier set baked in, so the
 // tools on the public port simply have no way to reach vault rows.
 //
+// The same applies to writing. A listener built with writable:false never
+// registers capture, ingest, review, supersede or delete, so a model on that
+// port cannot change the memory however hard it tries - the capability is
+// absent, not refused.
+//
 // There is a second surface over the same memory in openapi.mjs, for clients
 // that read an OpenAPI document instead of speaking MCP. A tool added here needs
 // adding there too - the two are deliberately separate, since one returns prose
@@ -18,6 +23,7 @@ import {
   MEMORY_LIFECYCLES,
   memoryFreshness,
   OPEN_SCOPE,
+  READ_ONLY_SCOPE,
   REVIEW_ACTIONS,
   SMART_INGEST_THRESHOLD,
   TASK_STATUSES,
@@ -51,9 +57,10 @@ function render(t, { compact = false } = {}) {
 
 export function buildServer(tiers, ctx = {}) {
   const full = tiers.includes("vault");
-  const scope = full ? VAULT_SCOPE : OPEN_SCOPE;
+  const writable = ctx.writable !== false;
+  const scope = !writable ? READ_ONLY_SCOPE : full ? VAULT_SCOPE : OPEN_SCOPE;
   const server = new McpServer({
-    name: full ? "mimers-brain" : "mimers-brain-open",
+    name: !writable ? "mimers-brain-read" : full ? "mimers-brain" : "mimers-brain-open",
     version: ctx.version || "development",
   }, {
     instructions: `${MEMORY_POLICY}\n\nConnection scope: ${scope}`,
@@ -89,6 +96,12 @@ export function buildServer(tiers, ctx = {}) {
     if (action !== "read" && !out?.isError) publishSoon();
     return out;
   };
+
+  // Writing is a capability of the listener, like the tier set. On a read-only
+  // listener these are never registered at all, so the model sees a memory it
+  // can search and nothing it can spoil. report_memory_usage stays: it writes a
+  // recall receipt, not a memory, and search_thoughts asks for one every time.
+  const registerWrite = (...args) => { if (writable) server.registerTool(...args); };
 
   server.registerTool("search_thoughts", {
     title: "Search the memory",
@@ -146,7 +159,7 @@ export function buildServer(tiers, ctx = {}) {
     } catch (e) { return fail(e); }
   }));
 
-  server.registerTool("capture_thought", {
+  registerWrite("capture_thought", {
     title: "Save a memory",
     description:
       `Save a durable conclusion, not ordinary conversation or tentative reasoning. If this corrects existing knowledge, use supersede_thought when available. ${CAPTURE_GUIDANCE} Never report success unless this call succeeds. ${scope}`,
@@ -177,7 +190,7 @@ export function buildServer(tiers, ctx = {}) {
     } catch (e) { return fail(e); }
   }));
 
-  server.registerTool("preview_ingest", {
+  registerWrite("preview_ingest", {
     title: "Preview atomic memories",
     description: `Split source text into proposed standalone memories without writing anything. Use this before saving text longer than ${SMART_INGEST_THRESHOLD} characters.`,
     inputSchema: { content: z.string() },
@@ -189,7 +202,7 @@ export function buildServer(tiers, ctx = {}) {
     } catch (e) { return fail(e); }
   }));
 
-  server.registerTool("apply_ingest", {
+  registerWrite("apply_ingest", {
     title: "Apply reviewed atomic memories",
     description: "Save candidates returned by preview_ingest and archive the verbatim source. Call only after the user approved the proposed memories.",
     inputSchema: {
@@ -228,7 +241,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   if (full) {
-    server.registerTool("review_memory", {
+    registerWrite("review_memory", {
       title: "Review an agent memory",
       description: "Confirm, restrict, reject, mark stale, or keep a memory as evidence only. Full trusted connection only.",
       inputSchema: {
@@ -245,7 +258,7 @@ export function buildServer(tiers, ctx = {}) {
       } catch (e) { return fail(e); }
     }));
 
-    server.registerTool("supersede_thought", {
+    registerWrite("supersede_thought", {
       title: "Replace one or more memories",
       description:
         "Create a current replacement and preserve the old memories as navigable superseded history. " +
@@ -341,7 +354,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   if (full) {
-    server.registerTool("delete_thought", {
+    registerWrite("delete_thought", {
       title: "Delete a memory",
       description: "Permanently delete a memory. Confirm with the user first.",
       inputSchema: { id: z.string() },

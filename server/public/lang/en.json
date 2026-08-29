@@ -329,7 +329,7 @@
       "note": "Keep this text unchanged so every client follows the same retrieval, capture, supersession and secret-handling rules."
     },
     "addresses": {
-      "title": "The two addresses",
+      "title": "The three addresses",
       "description": "The vault is served only by the first address and stores sensitive context and SECRET_REF pointers. Raw passwords, tokens and keys must never be stored in either tier.",
       "address": "Address",
       "content": "Contents",
@@ -341,6 +341,9 @@
       "publicPlaceholder": "https://<public-address>",
       "openOnly": "open only",
       "publicWhen": "everywhere else, and for every other model",
+      "readOnly": "open, read only",
+      "readWhen": "for a model that may look things up but must not change them",
+      "noRead": "read-only port not known yet",
       "viewing": "You are currently viewing the <b>{listener}</b> (Mimers Brain {version}).",
       "fullListener": "LAN listener",
       "openListener": "open listener"
@@ -352,6 +355,8 @@
       "opens": "What it opens",
       "everything": "everything, including the vault",
       "openUrlOnly": "open tier only, and only as <code>?key=</code>",
+      "readOnlyOpens": "open tier, read only – no tool that writes exists on that port",
+      "readNotSet": "not set – the read-only port falls back to <code>MCP_ACCESS_KEY</code>",
       "notShown": "not shown here",
       "notSet": "not set — <code>/mcp?key=</code> is disabled",
       "remoteWarning": "The vault key is shown only on the LAN address. Sending it through the proxy would put the one credential that unlocks the vault in the browser cache whenever the page opens. Retrieve it on the server:",
@@ -385,6 +390,16 @@
       "config": "OpenAPI document URL",
       "auth": "Bearer token",
       "note": "Use MCP_ACCESS_KEY as the token. The URL points directly to Mimers Brain; no mcpo translation proxy is needed."
+    },
+    "readOnly": {
+      "title": "Read-only connection",
+      "description": "Port 8792 serves the open tier with no write tools registered at all. A model on it can search, list, fetch and read statistics, and has no way to save, replace, review or delete a memory. Use it for models that do not look after the memory well.",
+      "address": "MCP address",
+      "header": "Authorization header",
+      "urlKey": "Address with the key in the URL, for clients with no header field",
+      "openapi": "OpenAPI document, for Open WebUI and similar",
+      "note": "Give this key out on its own. A client that also holds MCP_OPEN_KEY or MCP_ACCESS_KEY can simply write on another port.",
+      "proxyNote": "To reach it from outside, forward a second hostname to port 8792 in Nginx Proxy Manager, exactly as you did for 8791."
     },
     "otherClients": {
       "title": "ChatGPT, Gemini and others",

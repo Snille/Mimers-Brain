@@ -329,7 +329,7 @@
       "note": "Behåll texten oförändrad så att alla klienter följer samma regler för sökning, lagring, ersättning och hemligheter."
     },
     "addresses": {
-      "title": "De två adresserna",
+      "title": "De tre adresserna",
       "description": "Valvet serveras bara av den första adressen och lagrar känslig kontext och SECRET_REF-pekare. Råa lösenord, tokens och nycklar får aldrig sparas på någon nivå.",
       "address": "Adress",
       "content": "Innehåll",
@@ -341,6 +341,9 @@
       "publicPlaceholder": "https://<publik-adress>",
       "openOnly": "endast öppen",
       "publicWhen": "allt annat, och alla andra modeller",
+      "readOnly": "öppen, endast läsning",
+      "readWhen": "för en modell som får slå upp saker men inte ändra dem",
+      "noRead": "läsporten är inte känd än",
       "viewing": "Du tittar just nu på <b>{listener}</b> (Mimers Brain {version}).",
       "fullListener": "LAN-lyssnaren",
       "openListener": "den öppna lyssnaren"
@@ -352,6 +355,8 @@
       "opens": "Vad den öppnar",
       "everything": "allt, inklusive valvet",
       "openUrlOnly": "endast öppen nivå, och bara som <code>?key=</code>",
+      "readOnlyOpens": "öppen nivå, endast läsning – inget verktyg som skriver finns på den porten",
+      "readNotSet": "inte satt – läsporten använder <code>MCP_ACCESS_KEY</code> i stället",
       "notShown": "visas inte här",
       "notSet": "inte satt — <code>/mcp?key=</code> är avstängt",
       "remoteWarning": "Valvnyckeln visas bara på LAN-adressen. Att skicka ut den genom proxyn hade lagt den enda credential som låser upp valvet i webbläsarens cache varje gång sidan öppnas. Hämta den på servern:",
@@ -385,6 +390,16 @@
       "config": "OpenAPI-dokumentets URL",
       "auth": "Bearer-token",
       "note": "Använd MCP_ACCESS_KEY som token. URL:en går direkt till Mimers Brain; ingen mcpo-översättningsproxy behövs."
+    },
+    "readOnly": {
+      "title": "Läsbar anslutning",
+      "description": "Port 8792 serverar den öppna nivån utan att registrera några skrivverktyg alls. En modell där kan söka, lista, hämta och läsa statistik, men har ingen väg att spara, ersätta, granska eller radera ett minne. Använd den för modeller som inte sköter minnet.",
+      "address": "MCP-adress",
+      "header": "Authorization-huvud",
+      "urlKey": "Adress med nyckeln i URL:en, för klienter utan fält för huvuden",
+      "openapi": "OpenAPI-dokument, för Open WebUI och liknande",
+      "note": "Lämna ut den här nyckeln för sig. En klient som också har MCP_OPEN_KEY eller MCP_ACCESS_KEY kan helt enkelt skriva på en annan port.",
+      "proxyNote": "För att nå den utifrån: peka ett andra värdnamn mot port 8792 i Nginx Proxy Manager, precis som du gjorde för 8791."
     },
     "otherClients": {
       "title": "ChatGPT, Gemini och andra",

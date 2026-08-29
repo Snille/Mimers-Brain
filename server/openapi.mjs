@@ -7,7 +7,9 @@
 //
 // This is an addition, not a replacement. /mcp is untouched and stays the way in
 // for Claude, ChatGPT and Gemini; nothing here can reach a tier the listener it
-// runs on was not built with, exactly as in mcp.mjs.
+// runs on was not built with, exactly as in mcp.mjs. A listener built without
+// writing gets the read tools only, and the document it publishes describes
+// exactly those - so a tool server set up against it cannot even offer a write.
 //
 // When you add a tool to mcp.mjs, add it here too. The two surfaces are kept
 // deliberately separate - one returns prose for a model to read, the other
@@ -24,6 +26,7 @@ import {
   MEMORY_LIFECYCLES,
   memoryFreshness,
   OPEN_SCOPE,
+  READ_ONLY_SCOPE,
   REVIEW_ACTIONS,
   SMART_INGEST_THRESHOLD,
   TASK_STATUSES,
@@ -81,9 +84,9 @@ function uuid(v) {
   return s;
 }
 
-export function toolsFor(tiers, ctx = {}) {
+export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
   const full = tiers.includes("vault");
-  const scope = full ? VAULT_SCOPE : OPEN_SCOPE;
+  const scope = !writable ? READ_ONLY_SCOPE : full ? VAULT_SCOPE : OPEN_SCOPE;
 
   const tools = [
     {
@@ -381,15 +384,24 @@ export function toolsFor(tiers, ctx = {}) {
     });
   }
 
+  // Read-only listener: keep what only reads, plus the recall receipt, which
+  // writes a usage row rather than a memory and is asked for by every search.
+  // preview_ingest goes too - it reads nothing back and only exists to feed
+  // apply_ingest, which is not here.
+  if (!writable)
+    return tools.filter((t) =>
+      (t.action === "read" && t.name !== "preview_ingest")
+      || t.name === "report_memory_usage");
+
   return tools;
 }
 
 // The document Open WebUI reads. `baseUrl` comes from the request rather than
 // from configuration, so the same instance describes itself correctly whether it
 // was reached on the LAN address or through the proxy.
-export function spec(tiers, { baseUrl, version, listener }) {
+export function spec(tiers, { baseUrl, version, listener, writable = true }) {
   const paths = {};
-  for (const t of toolsFor(tiers)) {
+  for (const t of toolsFor(tiers, {}, { writable })) {
     paths[`/tools/${t.name}`] = {
       post: {
         operationId: t.name,
@@ -414,9 +426,12 @@ export function spec(tiers, { baseUrl, version, listener }) {
   return {
     openapi: "3.1.0",
     info: {
-      title: listener === "full" ? "Mimers Brain" : "Mimers Brain (open)",
+      title: !writable ? "Mimers Brain (read only)"
+        : listener === "full" ? "Mimers Brain" : "Mimers Brain (open)",
       version,
-      description: `${listener === "full"
+      description: `${!writable
+        ? "Memory, open tier, read only. Nothing here can save, replace or delete a memory."
+        : listener === "full"
         ? "Memory, open and vault tiers. Local network only."
         : "Memory, open tier. The vault is not reachable through this server."}\n\n${MEMORY_POLICY}`,
     },
@@ -434,8 +449,8 @@ export function spec(tiers, { baseUrl, version, listener }) {
 
 // Dispatch. Returns the tool's result; throws with .status set for anything the
 // caller got wrong.
-export async function callTool(tiers, name, args, ctx = {}) {
-  const tool = toolsFor(tiers, ctx).find((t) => t.name === name);
+export async function callTool(tiers, name, args, ctx = {}, { writable = true } = {}) {
+  const tool = toolsFor(tiers, ctx, { writable }).find((t) => t.name === name);
   if (!tool) {
     const e = new Error(`Unknown tool "${name}"`);
     e.status = 404;

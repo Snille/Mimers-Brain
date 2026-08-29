@@ -41,6 +41,9 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       MCP_ACCESS_KEY: ${MCP_ACCESS_KEY:-}
       MCP_OPEN_KEY: ${MCP_OPEN_KEY:-}
+      # The read-only port's own key. Keep it different from the other two -
+      # a shared key would let the same client write on 8791.
+      MCP_READ_KEY: ${MCP_READ_KEY:-}
       CITATION_BASE_URL: ${CITATION_BASE_URL:-http://localhost:8790/thoughts}
       # Shown by the Connect page. PUBLIC_URL falls back to CITATION_BASE_URL
       # without its path. LAN_URL is normally empty - the server learns its own
@@ -65,11 +68,15 @@ services:
       MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-}
       PORT_FULL: 8790
       PORT_OPEN: 8791
+      PORT_READ: 8792
     ports:
       # FULL - open + vault + dashboard. Keep this on the LAN only.
       - "8790:8790"
       # OPEN - the only port Nginx Proxy Manager should ever forward to.
       - "8791:8791"
+      # READ - open tier, no write tools at all. Safe to hand to a model you do
+      # not trust to look after the memory. Proxy it under its own hostname.
+      - "8792:8792"
 
 volumes:
   valv-data:
