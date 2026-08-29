@@ -6,6 +6,29 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-08-29 — 0.9.21: one system, one spelling
+
+The isolation suite could not run against the live memory at all: `/api/stats`
+came back with `Docker` and `docker` as separate keys, and a client whose object
+model is case-insensitive — PowerShell's among them — cannot parse that into an
+object. Eight systems had drifted into two spellings each: `Docker`/`docker`,
+`ESPHome`/`ESPhome`, `Node-RED`/`node-red`, `Tokentracker`/`TokenTracker`,
+`DeepSeek Harness`/`Deepseek Harness`, `Node`/`node`, `bash`/`Bash` and
+`python-collector`/`Python-collector`.
+
+The audit pass reported nothing, and it was right to: systems are deduplicated
+within a memory but nothing settled the spelling between memories. They are free
+text on purpose — a system can be any machine, service or script — so a closed
+vocabulary like the one topics have would be wrong. `canonicalSystem` fixes only
+the spelling, keyed by lower case, for names the memory already uses. An unknown
+system passes through exactly as written.
+
+The statistics query is the durable half of the fix. People and systems now
+group by lower case, and the most common spelling names the group, so a new
+free-text name that arrives in two cases is counted once and displayed once
+rather than splitting its own total. Topics and projects need none of this: a
+topic comes from a closed lower-case vocabulary, and a project is one string.
+
 ## 2026-08-29 — 0.9.20: a port that can only read
 
 Less capable models rarely look after a memory. They save what the repository

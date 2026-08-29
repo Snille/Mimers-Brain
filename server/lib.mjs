@@ -1021,6 +1021,13 @@ async function memoryHealth(tiers) {
        (SELECT jsonb_object_agg(kind, c) FROM (
           SELECT kind, count(*) AS c FROM normalised GROUP BY kind
         ) x) AS kinds,
+       -- People and systems are grouped by lower case, and the most common
+       -- spelling names the group. Grouping on the raw value counts "Docker"
+       -- and "docker" as two systems: the page shows both, every total is split
+       -- between them, and the JSON cannot even be parsed by a client whose
+       -- objects are case-insensitive. Topics and projects need none of this -
+       -- topics come from a closed lower-case vocabulary, and a project is a
+       -- single string written once.
        (SELECT jsonb_object_agg(project, c) FROM (
           SELECT project, count(*) AS c FROM normalised WHERE project IS NOT NULL GROUP BY project
         ) x) AS projects`,
@@ -1365,17 +1372,17 @@ export async function stats(tiers) {
                        jsonb_array_elements_text(s.arr) AS topic
                  GROUP BY 1) x) AS topics,
        (SELECT jsonb_object_agg(person, c)
-          FROM (SELECT person, count(*) AS c
+          FROM (SELECT mode() WITHIN GROUP (ORDER BY person) AS person, count(*) AS c
                   FROM (SELECT metadata->'people' AS arr FROM base
                          WHERE jsonb_typeof(metadata->'people') = 'array') s,
                        jsonb_array_elements_text(s.arr) AS person
-                 GROUP BY 1) x) AS people,
+                 GROUP BY lower(person)) x) AS people,
        (SELECT jsonb_object_agg(system, c)
-          FROM (SELECT system, count(*) AS c
+          FROM (SELECT mode() WITHIN GROUP (ORDER BY system) AS system, count(*) AS c
                   FROM (SELECT metadata->'systems' AS arr FROM base
                          WHERE jsonb_typeof(metadata->'systems') = 'array') s,
                        jsonb_array_elements_text(s.arr) AS system
-                 GROUP BY 1) x) AS systems`,
+                 GROUP BY lower(system)) x) AS systems`,
     [tiers],
   );
   const r = rows[0];

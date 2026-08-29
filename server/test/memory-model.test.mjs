@@ -13,6 +13,7 @@ import {
   inheritsConfirmedTrust,
   memoryFreshness,
   normaliseMeta,
+  canonicalSystem,
   resolvePeople,
 } from "../memory-model.mjs";
 
@@ -284,4 +285,25 @@ test("every public tool description forbids raw secret values", () => {
     assert.match(text, /never store raw/i);
   }
   assert.doesNotMatch(VAULT_SCOPE, /vault \(keys, passwords, tokens\)/i);
+});
+
+test("a system keeps one spelling, whatever case it arrives in", () => {
+  // Free text, so an unknown name must survive exactly as written.
+  assert.equal(canonicalSystem("Sleipner"), "Sleipner");
+  assert.equal(canonicalSystem("  Sleipner  "), "Sleipner");
+
+  // Known ones settle on the spelling the memory already uses most.
+  assert.equal(canonicalSystem("docker"), "Docker");
+  assert.equal(canonicalSystem("DOCKER"), "Docker");
+  assert.equal(canonicalSystem("ESPhome"), "ESPHome");
+  assert.equal(canonicalSystem("node-red"), "Node-RED");
+  assert.equal(canonicalSystem("TokenTracker"), "Tokentracker");
+  assert.equal(canonicalSystem("Deepseek Harness"), "DeepSeek Harness");
+  assert.equal(canonicalSystem("Bash"), "bash");
+  assert.equal(canonicalSystem("node"), "Node");
+});
+
+test("two spellings of one system in a memory become one entry", () => {
+  const { systems } = resolvePeople([], ["Docker", "docker", "ESPhome"], "");
+  assert.deepEqual(systems, ["Docker", "ESPHome"]);
 });

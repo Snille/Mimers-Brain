@@ -145,6 +145,30 @@ function dedupe(list, { lower = false } = {}) {
   return kept;
 }
 
+// Systems are free text on purpose - a system can be any machine, service or
+// script Erik happens to name - so there is no closed vocabulary to check
+// against the way topics have one. What there is instead is a spelling: the
+// same system written two ways becomes two systems, which double-counts it in
+// the statistics and splits every filter that matches on it. This map fixes the
+// spelling of the ones already in the memory, keyed by lower case so a new
+// variant of a known name lands on the settled form. An unknown system passes
+// through untouched, which is the point of the field.
+const SYSTEM_SPELLINGS = new Map(Object.entries({
+  "bash": "bash",
+  "deepseek harness": "DeepSeek Harness",
+  "docker": "Docker",
+  "esphome": "ESPHome",
+  "node": "Node",
+  "node-red": "Node-RED",
+  "python-collector": "python-collector",
+  "tokentracker": "Tokentracker",
+}));
+
+export function canonicalSystem(value) {
+  const name = clean(value);
+  return SYSTEM_SPELLINGS.get(name.toLowerCase()) || name;
+}
+
 export function canonicalTopic(value) {
   const topic = clean(value).toLowerCase();
   const canonical = TOPIC_ALIASES.get(topic) || topic;
@@ -258,7 +282,9 @@ export function resolvePeople(people, systems, content = "") {
 
   return {
     people: dedupe(keptPeople),
-    systems: dedupe([...systemNames, ...addedSystems]),
+    // Spelled before the dedupe, so "Docker" and "docker" in the same memory
+    // collapse to one entry rather than to whichever came first.
+    systems: dedupe([...systemNames, ...addedSystems].map(canonicalSystem)),
   };
 }
 

@@ -6,6 +6,29 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-08-29 — 0.9.21: ett system, en stavning
+
+Isoleringssviten gick inte att köra mot det riktiga minnet alls: `/api/stats`
+svarade med `Docker` och `docker` som skilda nycklar, och en klient vars
+objektmodell är skiftesokänslig — PowerShells är det — kan inte tolka det som ett
+objekt. Åtta system hade glidit isär i två stavningar var: `Docker`/`docker`,
+`ESPHome`/`ESPhome`, `Node-RED`/`node-red`, `Tokentracker`/`TokenTracker`,
+`DeepSeek Harness`/`Deepseek Harness`, `Node`/`node`, `bash`/`Bash` och
+`python-collector`/`Python-collector`.
+
+Auditkörningen rapporterade ingenting, och det var riktigt: system dubblettrensas
+inom ett minne, men ingenting avgjorde stavningen mellan minnen. De är fri text
+med flit — ett system kan vara vilken maskin, tjänst eller skript som helst — så
+en sluten ordlista av det slag topics har hade varit fel. `canonicalSystem` rättar
+bara stavningen, nyckeln är gemener, och bara för namn minnet redan använder. Ett
+okänt system passerar precis som det skrevs.
+
+Statistikfrågan är den varaktiga halvan av fixen. Personer och system grupperas nu
+på gemener, och den vanligaste stavningen namnger gruppen, så ett nytt fritextnamn
+som dyker upp i två skepnader räknas en gång och visas en gång i stället för att
+dela sin egen summa. Topics och projekt behöver inget av detta: ett topic kommer
+från en sluten ordlista i gemener, och ett projekt är en enda sträng.
+
 ## 2026-08-29 — 0.9.20: en port som bara kan läsa
 
 Mindre kapabla modeller sköter sällan ett minne. De sparar det som redan står i
