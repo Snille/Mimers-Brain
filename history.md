@@ -6,6 +6,20 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-09-02 — 0.9.22: one person, one useful title
+
+The people facet showed `Louise` and `Louise Sjogren` as separate humans even
+though the current metadata policy already names Erik's daughter simply
+`Louise`. Both the full Swedish spelling and its ASCII form now resolve to the
+canonical name on every write. The normalisation audit can therefore repair the
+two historical rows that predate the rule without changing their lifecycle or
+review history.
+
+Three otherwise useful current memories still carried the extractor fallback
+`Untitled memory`. That fallback is now treated as missing metadata, so the
+normaliser derives a real title from the content. This is a standing write-time
+guard as well as a cleanup for existing rows.
+
 ## 2026-08-29 — 0.9.21: one system, one spelling
 
 The isolation suite could not run against the live memory at all: `/api/stats`

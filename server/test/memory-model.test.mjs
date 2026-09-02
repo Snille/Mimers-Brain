@@ -101,6 +101,14 @@ test("Erik has one name, and his handles resolve to it", () => {
   assert.deepEqual(meta.systems, ["Snille"]);
 });
 
+test("Louise's full name and ASCII spelling resolve to one person", () => {
+  const content = "Louise Sjögren använder person.louise_sjogren i Home Assistant.";
+  const meta = normaliseMeta({
+    people: ["Louise", "Louise Sjögren", "Louise Sjogren"],
+  }, content);
+  assert.deepEqual(meta.people, ["Louise"]);
+});
+
 test("a name invented from prose never reaches the people facet", () => {
   // "Erik Bildmak" was extracted out of the Swedish phrase "Eriks bildsmak".
   const content = "ERIKS BILDSMAK för YouTube-kanalen: DIY-elektronik, inte polerade produktbilder.";
@@ -151,6 +159,12 @@ test("a faithful title and summary are kept exactly as proposed", () => {
   }, content);
   assert.equal(meta.title, "People-facetten i Mimers Brain");
   assert.match(meta.summary, /tekniska enheter/);
+});
+
+test("replaces the generated placeholder title with one derived from content", () => {
+  const content = "Home Assistant emits no event when an input boolean is already on.";
+  const meta = normaliseMeta({ title: "Untitled memory" }, content);
+  assert.equal(meta.title, content);
 });
 
 test("short content gives no signal, so proposed metadata is trusted", () => {

@@ -207,6 +207,8 @@ const KNOWN_PEOPLE = new Map(Object.entries({
   "camilla": "Camilla",
   "timo": "Timo",
   "louise": "Louise",
+  "louise sjogren": "Louise",
+  "louise sjögren": "Louise",
 }));
 
 // A relationship label carries no index value; store the actual name instead.
@@ -418,7 +420,8 @@ export function normaliseMeta(meta = {}, content = "", defaults = {}) {
   const out = { ...meta };
 
   const proposedTitle = cleanTitle(out.title);
-  out.title = proposedTitle && describesContent(proposedTitle, content)
+  const placeholderTitle = proposedTitle.toLowerCase() === "untitled memory";
+  out.title = proposedTitle && !placeholderTitle && describesContent(proposedTitle, content)
     ? proposedTitle
     : deriveTitle(content);
   const proposedSummary = clean(out.summary);

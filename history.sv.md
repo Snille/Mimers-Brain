@@ -6,6 +6,20 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-09-02 — 0.9.22: en person, en användbar titel
+
+Personfacetten visade `Louise` och `Louise Sjogren` som skilda människor trots
+att den aktuella metadatapolicyn redan namnger Eriks dotter enbart som `Louise`.
+Både den fullständiga svenska stavningen och ASCII-formen översätts nu till det
+kanoniska namnet vid varje skrivning. Normaliseringsauditen kan därför rätta de
+två historiska rader som skrevs före regeln utan att ändra deras livscykel eller
+granskningshistorik.
+
+Tre i övrigt användbara aktuella minnen bar fortfarande extraktorns reservtitel
+`Untitled memory`. Den behandlas nu som saknad metadata, så normaliseraren
+härleder en riktig titel ur innehållet. Det är både ett beständigt skrivskydd och
+en städning av befintliga rader.
+
 ## 2026-08-29 — 0.9.21: ett system, en stavning
 
 Isoleringssviten gick inte att köra mot det riktiga minnet alls: `/api/stats`
