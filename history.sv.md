@@ -6,6 +6,20 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-09-16 — 0.9.23: en status som kan återhämta sig
+
+TokenTrackerns statussida hade visat `CHECK` för Mimers Brain i veckor medan
+minnet självt var helt friskt. Två MQTT-räknare var felet, inte hjärnan.
+`memories_unembedded` räknade varje rad utan embedding, även arkiverade
+ingest-källor som avsiktligt aldrig embeddas, så varje import av lång text gav
+ett permanent fel. Nu räknas bara aktuella, ej avvisade minnen — samma
+definition som statistiksidan redan använde. `recall_unreported` räknade varje
+orapporterat spår sedan tidernas begynnelse, och eftersom en kraschad harness
+aldrig lämnar sitt kvitto kunde talet bara växa: en död session i augusti hade
+hållit displayen gul tills tvåårsgallringen tog bort den. Räknaren tittar nu på
+ett rullande dygn, länge nog att agera på ett saknat kvitto och kort nog att
+statusen läker av sig själv. Statistiksidan visar fortfarande hela historiken.
+
 ## 2026-09-02 — 0.9.22: en person, en användbar titel
 
 Personfacetten visade `Louise` och `Louise Sjogren` som skilda människor trots

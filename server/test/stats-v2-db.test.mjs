@@ -104,7 +104,8 @@ test("statistics v2 separates active records and reported recall usefulness", {
     assert.equal(live.memories_stale, 0);
     assert.equal(live.recall_searches_today, 3);
     assert.equal(live.recall_reports_today, 2);
-    assert.equal(live.recall_unreported, 2);
+    assert.equal(live.recall_unreported, 1);
+    assert.equal(live.memories_unembedded, 3);
     assert.equal(live.recall_use_percent_today, 50);
   } finally {
     await db.pool.end();

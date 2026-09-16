@@ -259,9 +259,11 @@ Assistant repopulates all of them from a single message after a restart instead
 of showing `unknown` until the next tick.
 
 Recall telemetry contains counts, timestamps and trace completion only. Queries,
-answers and memory content never enter MQTT. A recall trace that is still
-unreported after ten minutes degrades the status so missing client receipts are
-visible in Home Assistant and on the TokenTracker.
+answers and memory content never enter MQTT. A recall trace from the last 24
+hours that is still unreported after ten minutes degrades the status so missing
+client receipts are visible in Home Assistant and on the TokenTracker. Older
+traces stay in the statistics but no longer degrade the status: a harness that
+crashed last month is history, not a fault to act on today.
 
 The availability topic carries a **last will**, which is the part that makes
 "is it alive" honest: if the process dies, the broker publishes `offline` on its

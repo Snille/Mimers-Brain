@@ -261,9 +261,11 @@ att visa `unknown` fram till nästa tick.
 
 Återkallningstelemetrin innehåller bara antal, tidpunkter och om ett spår fått
 ett kvitto. Frågor, svar och minnesinnehåll går aldrig ut över MQTT. Om ett
-återkallningsspår fortfarande saknar kvitto efter tio minuter blir statusen
-degraderad, så utebliven klientrapportering syns i Home Assistant och på
-TokenTracker.
+återkallningsspår från det senaste dygnet fortfarande saknar kvitto efter tio
+minuter blir statusen degraderad, så utebliven klientrapportering syns i Home
+Assistant och på TokenTracker. Äldre spår finns kvar i statistiken men
+degraderar inte längre statusen: en harness som kraschade förra månaden är
+historik, inte ett fel att agera på i dag.
 
 Availability-topicen bär en **last will**, och det är den delen som gör "lever
 den" ärlig: dör processen publicerar brokern `offline` åt den. Utan en sådan ser

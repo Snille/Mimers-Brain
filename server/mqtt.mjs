@@ -171,7 +171,7 @@ export async function publishNow() {
     if (counters.memories_unembedded)
       problems.push(`${counters.memories_unembedded} memories have no embedding`);
     if (counters.recall_unreported)
-      problems.push(`${counters.recall_unreported} recall traces older than 10m have no usage report`);
+      problems.push(`${counters.recall_unreported} recall traces from the last 24h have no usage report`);
     payload = {
       ...counters,
       status: problems.length ? "degraded" : "ok",

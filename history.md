@@ -6,6 +6,21 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-09-16 — 0.9.23: a status that can recover
+
+The TokenTracker status page had shown `CHECK` for Mimers Brain for weeks while
+the memory itself was perfectly healthy. Two MQTT counters were at fault, not
+the brain. `memories_unembedded` counted every row without an embedding,
+including archived ingest sources that are deliberately never embedded, so
+every long-text import raised a permanent fault. It now counts only current,
+non-rejected memories — the same definition the Statistics page already used.
+`recall_unreported` counted every unreported trace since the beginning of time,
+and since a crashed harness never files its receipt, that number could only
+grow: one dead session in August would have kept the display amber until the
+two-year retention pruned it. The counter now looks at a rolling 24 hours,
+long enough to act on a missing receipt and short enough that the status heals
+on its own. The Statistics page still shows the full history.
+
 ## 2026-09-02 — 0.9.22: one person, one useful title
 
 The people facet showed `Louise` and `Louise Sjogren` as separate humans even

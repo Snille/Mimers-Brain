@@ -1244,7 +1244,12 @@ export async function liveCounters(tiers = ALL) {
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1))                        AS mem_total,
        (SELECT count(*) FROM thoughts WHERE tier = 'open')                         AS mem_open,
        (SELECT count(*) FROM thoughts WHERE tier = 'vault')                        AS mem_vault,
-       (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND embedding IS NULL)  AS mem_unembedded,
+       -- Only usable memories count as unembedded. An archived ingest source is
+       -- deliberately never embedded, and a rejected or superseded row is not
+       -- searched, so none of them is a fault worth degrading the status over.
+       (SELECT count(*) FROM thoughts WHERE tier = ANY($1) AND embedding IS NULL
+          AND coalesce(metadata->>'lifecycle', 'current') = 'current'
+          AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected') AS mem_unembedded,
        (SELECT count(*) FROM thoughts WHERE tier = ANY($1)
           AND coalesce(metadata->>'lifecycle', 'current') = 'current'
           AND (coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
@@ -1271,8 +1276,13 @@ export async function liveCounters(tiers = ALL) {
             AND reported_at IS NOT NULL) AS recall_reported_returned_today,
        (SELECT coalesce(sum(cardinality(used_ids)), 0) FROM recall_traces
           WHERE listener = ANY($2) AND created_at >= (SELECT v FROM d)) AS recall_used_today,
+       -- A trace whose harness crashed stays unreported for good, so an
+       -- all-time count could only ever grow and the status would never
+       -- recover. A rolling day keeps a missing receipt visible long enough to
+       -- act on without turning last month's crash into a permanent CHECK.
        (SELECT count(*) FROM recall_traces WHERE listener = ANY($2)
           AND created_at < now() - interval '10 minutes'
+          AND created_at >= now() - interval '24 hours'
           AND reported_at IS NULL) AS recall_unreported,
        (SELECT max(created_at) FROM recall_traces WHERE listener = ANY($2)) AS recall_last,
        (SELECT count(*) FROM usage_events WHERE listener = ANY($2) AND at >= (SELECT v FROM d)) AS calls_today,
