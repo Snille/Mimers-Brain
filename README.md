@@ -243,6 +243,7 @@ one:
 | `sensor.mimers_brain_last_memory`, `_last_recall`, `_last_call` | timestamps |
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, and why |
 | `sensor.mimers_brain_uptime` | seconds since start |
+| `number.mimers_brain_unreported_fault` | slider: unreported recalls per day before the status degrades |
 
 Review queue sensors count current memories only. Superseded and archived
 records retain their historical review metadata but never require action.
@@ -259,10 +260,16 @@ Assistant repopulates all of them from a single message after a restart instead
 of showing `unknown` until the next tick.
 
 Recall telemetry contains counts, timestamps and trace completion only. Queries,
-answers and memory content never enter MQTT. A recall trace from the last 24
-hours that is still unreported after ten minutes degrades the status so missing
-client receipts are visible in Home Assistant and on the TokenTracker. Older
-traces stay in the statistics but no longer degrade the status: a harness that
+answers and memory content never enter MQTT. `sensor.mimers_brain_recall_unreported`
+counts traces from the last 24 hours still unreported after ten minutes. One or
+two of those are sessions that closed before they could file a receipt — ordinary,
+and not something to check — so they show in the count but leave the status `ok`.
+Only when the count reaches the threshold does the status degrade, because that
+many in a day means a client that never reports at all. The threshold is the
+slider `number.mimers_brain_unreported_fault` (1–50); `MQTT_UNREPORTED_FAULT` in
+`.env` is only its starting value, and a slider choice is kept as a retained
+message on the broker so a restart of the brain does not forget it.
+Older traces stay in the statistics but never touch the status: a harness that
 crashed last month is history, not a fault to act on today.
 
 The availability topic carries a **last will**, which is the part that makes

@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-09-18 — 0.9.24: ett saknat kvitto är inget fel
+
+Två dagar efter 0.9.23 sa TokenTrackern `CHECK` igen. Den här gången räknade
+räknarna rätt: en Claude Code-session hade sökt i minnet kvällen innan och
+stängts utan att lämna sitt användningskvitto. Det är vardag — en harness som
+avslutas i förtid kan inte rapportera — och inget någon behöver gå bort och
+kolla. Ett enskilt orapporterat spår syns fortfarande i
+`sensor.mimers_brain_recall_unreported`, men statusen förblir nu `ok` tills
+antalet når en gräns, för många saknade kvitton på ett dygn betyder en klient
+som aldrig rapporterar, och det är värt en titt.
+
+Gränsen är en dragbar i Home Assistant, `number.mimers_brain_unreported_fault`
+(1–50), publicerad via MQTT discovery precis som sensorerna. En ändring slår
+igenom vid nästa publicering, och valet sparas som ett retained-meddelande på
+brokern så att en omstart av hjärnan inte glömmer det. `MQTT_UNREPORTED_FAULT`
+i `.env` ger bara startvärdet (5) första gången hjärnan ansluter.
+
 ## 2026-09-16 — 0.9.23: en status som kan återhämta sig
 
 TokenTrackerns statussida hade visat `CHECK` för Mimers Brain i veckor medan

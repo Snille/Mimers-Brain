@@ -6,6 +6,23 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-09-18 — 0.9.24: a missing receipt is not a fault
+
+Two days after 0.9.23 the TokenTracker said `CHECK` again. This time the
+counters were right: one Claude Code session had searched the memory the
+evening before and closed without filing its usage receipt. That is ordinary
+— a harness that exits early cannot report — and nothing anyone needs to walk
+over and check. A single unreported trace still shows in
+`sensor.mimers_brain_recall_unreported`, but the status now stays `ok` until
+the count reaches a threshold, because many missing receipts in one day mean a
+client that never reports at all, which is worth a look.
+
+The threshold is a slider in Home Assistant, `number.mimers_brain_unreported_fault`
+(1–50), published through MQTT discovery like the sensors. A change takes effect
+on the next publish, and the chosen value is kept as a retained message on the
+broker so a restart of the brain does not forget it. `MQTT_UNREPORTED_FAULT` in
+`.env` only supplies the starting value (5) the first time the brain connects.
+
 ## 2026-09-16 — 0.9.23: a status that can recover
 
 The TokenTracker status page had shown `CHECK` for Mimers Brain for weeks while

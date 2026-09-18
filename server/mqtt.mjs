@@ -20,6 +20,10 @@ const INTERVAL = Math.max(10, Number(process.env.MQTT_INTERVAL_S || 60)) * 1000;
 
 const T_STATE = `${PREFIX}/state`;
 const T_STATUS = `${PREFIX}/status`;
+// The one setting Home Assistant may change: how many unreported recall traces
+// in a day count as a fault. Set from a slider in HA, remembered on the broker.
+const T_FAULT = `${PREFIX}/unreported_fault`;
+const T_FAULT_SET = `${T_FAULT}/set`;
 
 // Home Assistant builds the entity_id from the DEVICE name plus the sensor name -
 // not from object_id, whatever the docs imply. So `sensor.mimers_brain_calls_today`
@@ -113,6 +117,19 @@ let timer = null;
 let debounce = null;
 const startedAt = Date.now();
 
+// Threshold for the unreported-recall fault. .env gives the starting value; the
+// slider in Home Assistant overrides it, and the override lives as a retained
+// message on the broker so a restart of the brain does not forget it. Clamped
+// to the slider's own range: a stray payload must not switch the fault off.
+const FAULT_MIN = 1;
+const FAULT_MAX = 50;
+const clampFault = (v) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(FAULT_MAX, Math.max(FAULT_MIN, n)) : null;
+};
+let unreportedFault = clampFault(process.env.MQTT_UNREPORTED_FAULT) ?? 5;
+let faultRestored = false;
+
 export function mqttStatus() {
   return { ...state };
 }
@@ -138,6 +155,27 @@ function publishDiscovery() {
       { retain: true },
     );
   }
+
+  client.publish(
+    `${DISCOVERY}/number/mimers_brain/unreported_fault/config`,
+    JSON.stringify({
+      name: "Unreported Fault",
+      unique_id: "mimers_brain_unreported_fault",
+      object_id: "mimers_brain_unreported_fault",
+      state_topic: T_FAULT,
+      command_topic: T_FAULT_SET,
+      min: FAULT_MIN,
+      max: FAULT_MAX,
+      step: 1,
+      mode: "slider",
+      unit_of_measurement: "recalls",
+      icon: "mdi:tune-variant",
+      entity_category: "config",
+      device: DEVICE,
+      ...AVAILABILITY,
+    }),
+    { retain: true },
+  );
 
   // Not given an availability block on purpose. With one it would go
   // "unavailable" when the brain dies, which reads as a broken sensor; without
@@ -170,7 +208,10 @@ export async function publishNow() {
       problems.push("No OPENROUTER_API_KEY: semantic search is off");
     if (counters.memories_unembedded)
       problems.push(`${counters.memories_unembedded} memories have no embedding`);
-    if (counters.recall_unreported)
+    // One missing receipt is a session that closed before it could report -
+    // ordinary, and nothing anyone needs to check. Many in a day means a client
+    // that never reports at all, which is worth a look.
+    if (counters.recall_unreported >= unreportedFault)
       problems.push(`${counters.recall_unreported} recall traces from the last 24h have no usage report`);
     payload = {
       ...counters,
@@ -180,6 +221,7 @@ export async function publishNow() {
       // Never the empty string when healthy - empty becomes "unknown" in HA,
       // which looks exactly like a publisher that has never run.
       problem: displaySafe(problems.join(" / ")).slice(0, 255) || "OK",
+      unreported_fault: unreportedFault,
       uptime_s: Math.round((Date.now() - startedAt) / 1000),
     };
   } catch (e) {
@@ -226,9 +268,34 @@ export function startMqtt() {
     console.log(`MQTT connected -> ${state.broker} (prefix ${PREFIX})`);
     client.publish(T_STATUS, "online", { retain: true, qos: 1 });
     publishDiscovery();
+    // Subscribe before the first publish: the retained state topic hands back
+    // the value the slider was left at, and the set topic is where HA sends
+    // a new one. If nothing retained arrives within a second there was never
+    // a slider value, so the .env default becomes the retained one.
+    client.subscribe([T_FAULT, T_FAULT_SET], { qos: 1 });
+    setTimeout(() => {
+      if (!faultRestored) client.publish(T_FAULT, String(unreportedFault), { retain: true });
+    }, 1000);
     await publishNow();
     clearInterval(timer);
     timer = setInterval(publishNow, INTERVAL);
+  });
+
+  client.on("message", (topic, buf) => {
+    const next = clampFault(buf.toString());
+    if (next === null) return;
+    if (topic === T_FAULT) {
+      faultRestored = true;
+      if (next === unreportedFault) return;
+      unreportedFault = next;
+    } else if (topic === T_FAULT_SET) {
+      unreportedFault = next;
+      // Echo the value on the state topic so the slider settles and the
+      // choice survives a restart.
+      client.publish(T_FAULT, String(next), { retain: true });
+    } else return;
+    console.log(`MQTT: unreported-recall fault threshold is now ${next}`);
+    publishNow();
   });
 
   client.on("error", (e) => {

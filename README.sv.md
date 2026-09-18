@@ -243,6 +243,7 @@ vad dokumentationen än antyder — så de är ett kontrakt värt att behandla s
 | `sensor.mimers_brain_recall_reporting_percent_today`, `_use_percent_today` | kvitto- och användningsgrad |
 | `sensor.mimers_brain_last_memory`, `_last_recall`, `_last_call` | tidpunkter |
 | `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, och varför |
+| `number.mimers_brain_unreported_fault` | dragbar: orapporterade återkallningar per dygn innan statusen degraderas |
 | `sensor.mimers_brain_uptime` | sekunder sedan start |
 
 Granskningskö-sensorerna räknar endast aktuella minnen. Ersatta och arkiverade
@@ -260,12 +261,18 @@ Assistant fyller alla på nytt från ett meddelande efter en omstart i stället 
 att visa `unknown` fram till nästa tick.
 
 Återkallningstelemetrin innehåller bara antal, tidpunkter och om ett spår fått
-ett kvitto. Frågor, svar och minnesinnehåll går aldrig ut över MQTT. Om ett
-återkallningsspår från det senaste dygnet fortfarande saknar kvitto efter tio
-minuter blir statusen degraderad, så utebliven klientrapportering syns i Home
-Assistant och på TokenTracker. Äldre spår finns kvar i statistiken men
-degraderar inte längre statusen: en harness som kraschade förra månaden är
-historik, inte ett fel att agera på i dag.
+ett kvitto. Frågor, svar och minnesinnehåll går aldrig ut över MQTT.
+`sensor.mimers_brain_recall_unreported` räknar spår från det senaste dygnet som
+fortfarande saknar kvitto efter tio minuter. Ett eller två sådana är sessioner
+som stängdes innan de hann rapportera — vardag, inget att kolla — så de syns i
+räknaren men lämnar statusen `ok`. Först när antalet når gränsen degraderas
+statusen, för så många på ett dygn betyder en klient som aldrig rapporterar.
+Gränsen är dragbaren `number.mimers_brain_unreported_fault` (1–50);
+`MQTT_UNREPORTED_FAULT` i `.env` är bara dess startvärde, och ett val i dragbaren
+sparas som ett retained-meddelande på brokern så att en omstart av hjärnan inte
+glömmer det. Äldre spår finns kvar i statistiken men rör aldrig statusen:
+en harness som kraschade förra månaden är historik, inte ett fel att agera på i
+dag.
 
 Availability-topicen bär en **last will**, och det är den delen som gör "lever
 den" ärlig: dör processen publicerar brokern `offline` åt den. Utan en sådan ser
