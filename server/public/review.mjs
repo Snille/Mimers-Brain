@@ -1,4 +1,4 @@
-import { formatDate, t as tr } from "./i18n.mjs";
+import { formatDate, formatStamp, t as tr } from "./i18n.mjs";
 
 const esc = (s) => String(s ?? "").replace(/[&<>\"]/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -19,10 +19,11 @@ const post = (path, payload) => api(path, {
 function memorySummary(row, prefix = "") {
   const meta = row[`${prefix}metadata`] || row.metadata || {};
   const content = row[`${prefix}content`] || row.content || "";
+  const created = formatStamp(row[`${prefix}created_at`] || row.created_at);
   return `<div class="review-memory">
     <b>${esc(meta.title || content.slice(0, 120))}</b>
     <div class="summary">${esc(meta.summary || content.slice(0, 400))}</div>
-    <div class="sub">${esc(meta.origin || "legacy")} · ${esc(meta.provenance || "imported")} · ${esc(meta.review_status || "confirmed")}${
+    <div class="sub">${created ? `${esc(created)} · ` : ""}${esc(meta.origin || "legacy")} · ${esc(meta.provenance || "imported")} · ${esc(meta.review_status || "confirmed")}${
       meta.captured_by ? ` · ${esc(tr("review.capturedBy", { client: meta.captured_by }))}` : ""}</div>
   </div>`;
 }

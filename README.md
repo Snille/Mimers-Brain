@@ -98,7 +98,9 @@ docker compose up -d --build
 The interface: <http://localhost:8790>
 
 The **Review** page contains the trust queue, semantically similar duplicate
-candidates, and privacy-preserving recall receipts. Long text entered through
+candidates, and privacy-preserving recall receipts. Every memory card there and
+under **Thoughts** shows when it was created, as `2026-10-06 - 20:54` in local
+time. Long text entered through
 **New thought** is previewed as atomic memories before anything is saved.
 The **Statistics** page separates active memories from archived and superseded
 records, then shows trust state, provenance, receipt coverage, recalled-memory

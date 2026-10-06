@@ -6,6 +6,17 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-06 — 0.9.25: när ett minne skrevs
+
+Listan **Tankar** visade bara datumet då ett minne skapades, och sidan
+**Granska** visade inget datum alls, så ett väntande minne eller ett
+dubblettpar sa inget om hur gammalt det var. Båda visar nu när minnet skapades
+som `2026-10-06 - 20:54` i lokal tid, likadant på alla språk.
+Dubblettfrågan returnerade inte `created_at` för någon sida av paret; nu
+returnerar den `left_created_at` och `right_created_at`.
+
+---
+
 ## 2026-09-18 — 0.9.24: ett saknat kvitto är inget fel
 
 Två dagar efter 0.9.23 sa TokenTrackern `CHECK` igen. Den här gången räknade

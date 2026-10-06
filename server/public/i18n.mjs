@@ -86,6 +86,16 @@ export function formatDate(value, options = {}) {
   return value ? new Intl.DateTimeFormat(language, options).format(new Date(value)) : "";
 }
 
+// A memory's own timestamp: "2026-10-06 - 20:54" in local time, the same in
+// every language so cards on the list and the review page read alike.
+export function formatStamp(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || !Number.isFinite(date.valueOf())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} - ${
+    pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatDateTime(value) {
   return value
     ? new Intl.DateTimeFormat(language, { dateStyle: "short", timeStyle: "short" }).format(new Date(value))

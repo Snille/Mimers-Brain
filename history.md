@@ -6,6 +6,17 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-06 — 0.9.25: when a memory was written
+
+The **Thoughts** list showed only the date a memory was created, and the
+**Review** page showed no date at all, so a pending memory or a duplicate pair
+gave no hint of how old it was. Both now show the creation time as
+`2026-10-06 - 20:54` in local time, the same in every language. The duplicate
+query did not return `created_at` for either side of a pair; it now returns
+`left_created_at` and `right_created_at`.
+
+---
+
 ## 2026-09-18 — 0.9.24: a missing receipt is not a fault
 
 Two days after 0.9.23 the TokenTracker said `CHECK` again. This time the

@@ -101,7 +101,9 @@ docker compose up -d --build
 Gränssnittet: <http://localhost:8790>
 
 Sidan **Granska** innehåller tillitskön, semantiskt liknande dubblettförslag och
-integritetssäkra återkallningskvitton. Längre text i **Ny tanke** visas först som
+integritetssäkra återkallningskvitton. Varje minneskort där och under **Tankar**
+visar när det skapades, som `2026-10-06 - 20:54` i lokal tid. Längre text i
+**Ny tanke** visas först som
 atomära minnesförslag innan något sparas.
 Sidan **Statistik** skiljer aktiva minnen från arkiverade och ersatta poster och
 visar sedan tillitsstatus, proveniens, kvittotäckning, nyttan av återkallade

@@ -585,7 +585,9 @@ export async function duplicateCandidates(tiers, { threshold = 0.86, limit = 50 
         ORDER BY updated_at DESC LIMIT 750
      )
      SELECT a.id AS left_id, a.content AS left_content, a.metadata AS left_metadata, a.tier AS left_tier,
+            a.created_at AS left_created_at,
             b.id AS right_id, b.content AS right_content, b.metadata AS right_metadata, b.tier AS right_tier,
+            b.created_at AS right_created_at,
             1 - (a.embedding <=> b.embedding) AS similarity
        FROM candidates a JOIN candidates b ON a.id::text < b.id::text
       WHERE 1 - (a.embedding <=> b.embedding) >= $2

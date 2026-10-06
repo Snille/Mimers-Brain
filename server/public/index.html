@@ -293,7 +293,7 @@
 
 <script type="module">
 import {
-  availableLanguages, chooseLanguage, currentLanguage, formatDate, initI18n, t as tr,
+  availableLanguages, chooseLanguage, currentLanguage, formatStamp, initI18n, t as tr,
 } from "./i18n.mjs";
 
 await initI18n();
@@ -313,7 +313,7 @@ for (const item of availableLanguages()) {
 $("#language").onchange = (event) => chooseLanguage(event.target.value);
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const fmt = (d) => formatDate(d);
+const fmt = (d) => formatStamp(d);
 
 function showError(msg) {
   $("#error").innerHTML = msg ? `<div class="err">${esc(msg)}</div>` : "";
