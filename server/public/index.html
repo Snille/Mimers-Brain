@@ -159,6 +159,9 @@
   .breakdown-row:nth-child(3n+2) .breakdown-meter i { background: var(--ok); }
   .breakdown-row:nth-child(3n) .breakdown-meter i { background: var(--warn); }
   .stats-note { border-left: 3px solid var(--accent); padding-left: 10px; }
+  .tag.pinned { border-color: var(--accent); color: var(--ink); }
+  .editfields .e-pin-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; grid-column: 1 / -1; margin-top: 6px; }
+  .editfields .e-pin-row input { width: auto; }
 
   /* --- the brain: always night sky, whatever the theme --- */
   .brain-card { padding: 0; overflow: hidden; }
@@ -393,6 +396,11 @@ function chips(container, entries, key) {
   if (!entries.length) el.innerHTML = '<span class="sub">–</span>';
 }
 
+// In the session digest: pinned by the reader, or a preference or profile
+// memory the reader has not taken out. Mirrors memoryDigest() in lib.mjs.
+const DIGEST_KINDS = ["preference", "profile"];
+const inDigest = (m) => m.pinned === true || (m.pinned !== false && DIGEST_KINDS.includes(m.kind));
+
 function card(t) {
   const m = t.metadata || {};
   const el = document.createElement("div");
@@ -402,6 +410,7 @@ function card(t) {
   const verified = m.verified_at ? new Date(`${m.verified_at}T00:00:00`) : null;
   const stale = verified && Number.isFinite(verified.valueOf()) && Date.now() - verified.valueOf() > 180 * 86400000;
   const tags = [
+    inDigest(m) ? `<span class="tag pinned" title="${esc(tr("thought.pinnedHint"))}">📌 ${esc(tr("thought.pinned"))}</span>` : "",
     t.tier === "vault" ? `<span class="tag vault">🔒 ${esc(tr("tiers.vault"))}</span>` : "",
     m.kind ? `<span class="tag type">${esc(m.kind)}</span>` : (m.type ? `<span class="tag type">${esc(m.type)}</span>` : ""),
     m.lifecycle && m.lifecycle !== "current" ? `<span class="tag">${esc(m.lifecycle)}</span>` : "",
@@ -470,7 +479,9 @@ function card(t) {
       <label>${esc(tr("editor.topics"))}<input class="e-topics" value="${esc((m.topics || []).join(", "))}" /></label>
       <label>${esc(tr("editor.people"))}<input class="e-people" value="${esc((m.people || []).join(", "))}" /></label>
       <label>${esc(tr("editor.systems"))}<input class="e-systems" value="${esc((m.systems || []).join(", "))}" /></label>
-      <label>${esc(tr("editor.verifiedAt"))}<input class="e-verified" value="${esc(m.verified_at || "")}" placeholder="YYYY-MM-DD" /></label>`;
+      <label>${esc(tr("editor.verifiedAt"))}<input class="e-verified" value="${esc(m.verified_at || "")}" placeholder="YYYY-MM-DD" /></label>
+      <label class="e-pin-row"><input type="checkbox" class="e-pinned"${inDigest(m) ? " checked" : ""} /> ${esc(tr("editor.pinned"))}
+        <span class="sub">${esc(tr("editor.pinnedHint"))}</span></label>`;
     ta.after(fields);
 
     const acts = el.querySelector(".actions");
@@ -503,8 +514,15 @@ function card(t) {
             people: list(".e-people"),
             systems: list(".e-systems"),
             verified_at: fields.querySelector(".e-verified").value,
+            pinned: undefined,
           },
         };
+        // Preferences and profile memories are in the digest by default, so
+        // for them the box records a removal; for every other kind, a pin.
+        const wanted = fields.querySelector(".e-pinned").checked;
+        const automatic = DIGEST_KINDS.includes(payload.metadata.kind);
+        if (wanted && !automatic) payload.metadata.pinned = true;
+        if (!wanted && automatic) payload.metadata.pinned = false;
         // Only send content when it actually changed - the server re-embeds
         // whenever it sees the field, and that is a paid API call.
         if (ta.value !== t.content) payload.content = ta.value;

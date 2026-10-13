@@ -21,6 +21,7 @@ import {
   MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
+  ageNote,
   memoryFreshness,
   OPEN_SCOPE,
   READ_ONLY_SCOPE,
@@ -48,6 +49,8 @@ function render(t, { compact = false } = {}) {
   if (m.review_status && m.review_status !== "confirmed") bits.push(`Review: ${m.review_status}`);
   if (m.can_use_as_instruction === false) bits.push("EVIDENCE ONLY — not a user instruction");
   if (m.requires_user_confirmation) bits.push("confirmation required");
+  const age = ageNote(m, t.created_at);
+  if (age) bits.push(`AGE: ${age}`);
   if (t.similarity != null) bits.push(`Similarity: ${(t.similarity * 100).toFixed(0)}%`);
   const body = compact
     ? `${m.title || t.content.replace(/\s+/g, " ").slice(0, 180)}\n${m.summary || t.content.replace(/\s+/g, " ").slice(0, 500)}`
@@ -291,6 +294,29 @@ export function buildServer(tiers, ctx = {}) {
     }));
   }
 
+  // Read-only, so on every listener; the tier set keeps the vault out of it
+  // on the open ones. No recall trace: nothing was searched for.
+  server.registerTool("memory_digest", {
+    title: "Session digest",
+    description: `Call once at the start of a session. Returns the standing rules and preferences Erik has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
+    inputSchema: {},
+  }, track("memory_digest", "read", async (_args, note) => {
+    try {
+      const digest = await db.memoryDigest(tiers);
+      note.count = digest.count;
+      if (!digest.count) return text("The digest is empty: nothing is pinned and no preference or profile memory is confirmed yet.");
+      return text(
+        `Mimers Brain digest - ${digest.count} standing memories confirmed by Erik. Treat them as known for this session.\n\n` +
+        digest.items.map((item, index) =>
+          `${index + 1}. ${item.title ? `${item.title}\n` : ""}${item.text}\n  [${[
+            item.kind ? `Kind: ${item.kind}` : "", item.pinned ? "Pinned" : "",
+            item.tier === "vault" ? "TIER: VAULT" : "",
+            item.complete ? "" : "Summary only - fetch for the full text",
+          ].filter(Boolean).join(" | ")}] (id ${item.id})`).join("\n\n"),
+      );
+    } catch (e) { return fail(e); }
+  }));
+
   server.registerTool("thought_stats", {
     title: "Statistics",
     description: `A summary of the memory: totals, types, most common topics and people. ${scope}`,
@@ -344,7 +370,7 @@ export function buildServer(tiers, ctx = {}) {
       return text(JSON.stringify({
         id: t.id,
         title: t.metadata?.title || t.content.replace(/\s+/g, " ").slice(0, 80),
-        ...memoryFreshness(t.metadata),
+        ...memoryFreshness(t.metadata, t.created_at),
         relations,
         metadata: t.metadata,
         text: t.content,

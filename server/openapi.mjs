@@ -24,6 +24,7 @@ import {
   MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
+  ageNote,
   memoryFreshness,
   OPEN_SCOPE,
   READ_ONLY_SCOPE,
@@ -69,6 +70,7 @@ function memory(t) {
     tier: t.tier,
     created_at: t.created_at,
     updated_at: t.updated_at,
+    age_note: ageNote(m, t.created_at),
     ...(t.similarity != null ? { similarity: Number(t.similarity.toFixed?.(3) ?? t.similarity) } : {}),
   };
 }
@@ -256,6 +258,16 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       },
     },
     {
+      name: "memory_digest",
+      action: "read",
+      summary: "Session digest",
+      description: `Call once at the start of a session. Returns the standing rules and preferences Erik has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
+      schema: { type: "object", properties: {} },
+      async run() {
+        return db.memoryDigest(tiers);
+      },
+    },
+    {
       name: "thought_stats",
       action: "read",
       summary: "Statistics",
@@ -282,7 +294,7 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
         return {
           id: item.id,
           title: item.title,
-          ...memoryFreshness(t.metadata),
+          ...memoryFreshness(t.metadata, t.created_at),
           relations: await db.thoughtRelations(tiers, t.id),
           ...item,
         };

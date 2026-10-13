@@ -21,6 +21,7 @@ sätt för en språkmodell att anropa verktyg. Den exponerar sex verktyg:
 
 | Verktyg | Vad det gör |
 | --- | --- |
+| `memory_digest` | Anropas en gång när sessionen startar: de regler och preferenser du har bekräftat och fäst på sidan Tankar |
 | `search_thoughts` | Sök på betydelse, inte ord. Det här är det viktiga. |
 | `list_thoughts` | Lista senaste, med filter på typ, ämne, person, tid |
 | `capture_thought` | Spara ett nytt minne |
@@ -34,7 +35,12 @@ sätt för en språkmodell att anropa verktyg. Den exponerar sex verktyg:
 Agentens egna minnen är evidens som standard. En klient får bara sätta
 `user_confirmed=true` när du direkt bekräftade eller bad om just det minnet. Text
 längre än 1 500 tecken går genom `preview_ingest` och ett godkännandesteg i
-stället för att sparas som ett enda transkriptstort minne.
+stället för att sparas som ett enda transkriptstort minne. Varje väg som sparar
+stoppar text som ser ut som en hemlighet (privata nycklar, API-nycklar, tokens,
+`password: ...`) innan den når metadatamodellen, inbäddningen eller databasen;
+spara en SECRET_REF-pekare i stället. Sökträffar som inte verifierats på sex
+månader får en `AGE`-notering, och minnen som ofta hittas men aldrig används
+listas under **Sällan till nytta** på sidan Granska.
 
 Allt som talar MCP kan alltså använda minnet — du behöver inte bygga något per
 modell.

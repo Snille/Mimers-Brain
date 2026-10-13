@@ -66,7 +66,9 @@
     "topicsPlaceholder": "nätverk, proxmox",
     "cancel": "Avbryt",
     "save": "Spara",
-    "saving": "Sparar …"
+    "saving": "Sparar …",
+    "pinned": "Med i startpaketet",
+    "pinnedHint": "Alla anslutna modeller läser startpaketet först, en gång per session. Preferenser och profilminnen är med om du inte bockar ur dem. Bara bekräftade minnen visas."
   },
   "thought": {
     "edit": "Redigera",
@@ -74,7 +76,9 @@
     "confirmDelete": "Ta bort den här tanken permanent?",
     "history": "Historik",
     "evidenceOnly": "endast evidens",
-    "stale": "verifieringen kan vara gammal"
+    "stale": "verifieringen kan vara gammal",
+    "pinned": "i startpaketet",
+    "pinnedHint": "I startpaketet som varje modell läser först"
   },
   "ingest": {
     "title": "Granska föreslagna minnen",
@@ -87,6 +91,11 @@
     "pending": {
       "title": "Tillitsgranskning",
       "description": "Agentgenererade minnen är evidens tills du bekräftar hur de får användas."
+    },
+    "rarelyUseful": {
+      "title": "Sällan till nytta",
+      "description": "Kommer upp i sökningar gång på gång men används aldrig i ett svar. Kanske inaktuellt, för vagt eller fel formulerat. Bekräfta behåller minnet som det är och nollställer räkningen.",
+      "count": "Hittat {count} gånger, aldrig använt"
     },
     "duplicates": {
       "title": "Möjliga dubbletter",

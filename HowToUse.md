@@ -21,6 +21,7 @@ language model to call tools. It exposes six:
 
 | Tool | What it does |
 | --- | --- |
+| `memory_digest` | Call once at session start: the standing rules and preferences you confirmed, pinned on the Thoughts page |
 | `search_thoughts` | Search by meaning, not words. This is the important one. |
 | `list_thoughts` | List recent memories, filtered by type, topic, person, time |
 | `capture_thought` | Save a new memory |
@@ -34,7 +35,12 @@ language model to call tools. It exposes six:
 Agent-written memories are evidence by default. A client may set
 `user_confirmed=true` only when you directly confirmed or requested that exact
 memory. Text longer than 1,500 characters goes through `preview_ingest` and an
-approval step instead of being stored as one transcript-sized memory.
+approval step instead of being stored as one transcript-sized memory. Every write
+path refuses text that looks like a credential (private keys, API keys, tokens,
+`password: ...`) before it reaches the metadata model, the embedder or the
+database; save a SECRET_REF pointer instead. Search results older than six
+months since verification carry an `AGE` note, and memories that are returned
+often but never used are listed under **Rarely useful** on the Review page.
 
 Anything that speaks MCP can therefore use the memory — you do not build
 something per model.

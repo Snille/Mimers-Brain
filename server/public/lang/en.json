@@ -66,7 +66,9 @@
     "topicsPlaceholder": "network, proxmox",
     "cancel": "Cancel",
     "save": "Save",
-    "saving": "Saving …"
+    "saving": "Saving …",
+    "pinned": "In the session digest",
+    "pinnedHint": "Every connected model reads the digest first, once per session. Preferences and profile memories are included unless unticked. Only confirmed memories are shown."
   },
   "thought": {
     "edit": "Edit",
@@ -74,7 +76,9 @@
     "confirmDelete": "Permanently delete this thought?",
     "history": "History",
     "evidenceOnly": "evidence only",
-    "stale": "verification may be stale"
+    "stale": "verification may be stale",
+    "pinned": "in digest",
+    "pinnedHint": "In the session digest every model reads first"
   },
   "ingest": {
     "title": "Review proposed memories",
@@ -87,6 +91,11 @@
     "pending": {
       "title": "Trust review",
       "description": "Agent-generated memories remain evidence until you confirm how they may be used."
+    },
+    "rarelyUseful": {
+      "title": "Rarely useful",
+      "description": "Returned by search again and again, but never used in an answer. Possibly outdated, too vague or wrongly worded. Confirm keeps the memory as it is and resets its count.",
+      "count": "Returned {count} times, never used"
     },
     "duplicates": {
       "title": "Possible duplicates",

@@ -536,6 +536,7 @@ function makeListener(tiers, {
               threshold: Number(url.searchParams.get("threshold")) || 0.86,
               limit: 50,
             }),
+            rarelyUseful: await db.rarelyUseful(tiers),
             // How many receipts to show is the reader's choice, not the
             // server's: the table is a log, and a long one is only in the way.
             recalls: await db.recallTraces(tiers, {
@@ -685,6 +686,9 @@ function makeListener(tiers, {
       res.end(data);
     } catch (err) {
       if (err.code === "ENOENT") return json(res, 404, { error: "Not found" });
+      // A refusal with a status of its own (the secret gate's 422) is an
+      // answer, not a crash: no stack trace in the log, the real status code.
+      if (err.status) return json(res, err.status, { error: err.message });
       console.error(`[${label}]`, err);
       json(res, 500, { error: String(err.message || err) });
     }

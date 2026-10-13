@@ -17,6 +17,7 @@ import {
 } from "./memory-model.mjs";
 import { fallbackAtoms, normalisePreviewCandidates } from "./smart-ingest.mjs";
 import { semanticAxes } from "./semantic.mjs";
+import { refuseSecrets } from "./secret-gate.mjs";
 
 export { normaliseMeta } from "./memory-model.mjs";
 
@@ -252,6 +253,54 @@ export async function listThoughts(tiers, {
 // sentence scores 1.00, shared keywords ~0.79, and a loose rewording with no
 // words in common ~0.43. A 0.5 default silently drops that last case, which is
 // exactly the kind of recall the brain exists for.
+// What the recall receipts say about each memory: how often it was returned
+// and then used, and how often returned and passed over. Counted since the
+// memory was last reviewed, so confirming a memory on the Review page gives it
+// a clean slate.
+const RECEIPTS_CTE = `receipts AS (
+       SELECT r.thought_id,
+              count(*) FILTER (WHERE r.used) AS used,
+              count(*) FILTER (WHERE NOT r.used) AS ignored
+         FROM (SELECT unnest(used_ids) AS thought_id, true AS used, created_at FROM recall_traces
+               UNION ALL
+               SELECT unnest(ignored_ids), false, created_at FROM recall_traces) r
+         JOIN thoughts t ON t.id = r.thought_id
+        WHERE r.created_at > CASE WHEN t.metadata->>'reviewed_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                                  THEN (t.metadata->>'reviewed_at')::timestamptz ELSE '-infinity' END
+        GROUP BY r.thought_id
+     ),
+     receipt_rate AS (
+       SELECT coalesce(sum(used)::double precision / nullif(sum(used + ignored), 0), 0.25) AS rate FROM receipts
+     )`;
+
+// A nudge from those receipts, never a verdict: at most about +-0.04 against a
+// semantic score that spans 0.3-1.0. The rate is pulled towards the average
+// across all memories (two imagined receipts at that rate), so one lucky use
+// proves little, and the nudge only reaches full strength after ten receipts.
+// Centred on the average, not on 50%: most results are passed over (about
+// three in four, on 2026-10-13) simply because a search returns five and one
+// answers the question.
+const USEFULNESS_SQL = `CASE WHEN receipts.thought_id IS NULL THEN 0 ELSE
+              0.06 * ((receipts.used + 2 * (SELECT rate FROM receipt_rate)) / (receipts.used + receipts.ignored + 2)
+                      - (SELECT rate FROM receipt_rate))
+                   * least(1, (receipts.used + receipts.ignored) / 10.0) END`;
+
+// Returned again and again, used never: likely noise for every query that
+// finds it. These go to the Review page, not out of search - a reader decides.
+export async function rarelyUseful(tiers, { minimum = 8, limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    `WITH ${RECEIPTS_CTE}
+     SELECT ${COLS.split(", ").map((c) => `thoughts.${c}`).join(", ")},
+            receipts.used::int, receipts.ignored::int
+       FROM thoughts JOIN receipts ON receipts.thought_id = thoughts.id
+      WHERE thoughts.tier = ANY($1) AND receipts.used = 0 AND receipts.ignored >= $2
+        AND coalesce(thoughts.metadata->>'lifecycle', 'current') = 'current'
+      ORDER BY receipts.ignored DESC, thoughts.created_at DESC LIMIT $3`,
+    [tiers, minimum, limit],
+  );
+  return rows;
+}
+
 export async function searchThoughts(tiers, query, {
   limit = 10, threshold = 0.3, kind, lifecycle = "current", taskStatus, project,
 } = {}) {
@@ -274,7 +323,8 @@ export async function searchThoughts(tiers, query, {
   if (project) filters += ` AND metadata->>'project' = $${args.push(project)}`;
   const limitArg = args.push(Math.min(Number(limit) || 10, 100));
   const { rows } = await pool.query(
-    `WITH ranked AS (
+    `WITH ${RECEIPTS_CTE},
+     ranked AS (
        SELECT ${COLS},
               coalesce(1 - (embedding <=> $1::vector), 0) AS semantic_score,
               ts_rank_cd(
@@ -285,8 +335,9 @@ export async function searchThoughts(tiers, query, {
               ) AS lexical_score
               ,(SELECT count(*)::double precision / greatest(cardinality($5::text[]), 1)
                   FROM unnest($5::text[]) AS term
-                 WHERE lower(coalesce(metadata->>'title', '')) LIKE '%' || term || '%') AS title_score
-         FROM thoughts
+                 WHERE lower(coalesce(metadata->>'title', '')) LIKE '%' || term || '%') AS title_score,
+              ${USEFULNESS_SQL} AS usefulness
+         FROM thoughts LEFT JOIN receipts ON receipts.thought_id = thoughts.id
         WHERE ${filters}
      )
      SELECT *, semantic_score AS similarity,
@@ -295,7 +346,8 @@ export async function searchThoughts(tiers, query, {
             CASE coalesce(metadata->>'review_status', 'confirmed')
               WHEN 'confirmed' THEN 0.06 WHEN 'pending' THEN -0.02
               WHEN 'evidence_only' THEN -0.03 WHEN 'stale' THEN -0.05 ELSE 0 END +
-            CASE WHEN coalesce(metadata->>'can_use_as_instruction', 'true') = 'true' THEN 0.02 ELSE 0 END
+            CASE WHEN coalesce(metadata->>'can_use_as_instruction', 'true') = 'true' THEN 0.02 ELSE 0 END +
+            usefulness
             AS rank_score
        FROM ranked
       WHERE semantic_score > $4 OR lexical_score > 0
@@ -404,6 +456,15 @@ export async function linkSupersession(tiers, replacementId, oldIds) {
         WHERE id = $1`,
       [replacementId, ids],
     );
+    // A pinned rule that gets corrected stays pinned. The digest still only
+    // shows the replacement once it is confirmed, so an agent's rewrite of a
+    // pinned memory cannot reach the digest until the reader confirms it.
+    await client.query(
+      `UPDATE thoughts SET metadata = jsonb_set(metadata, '{pinned}', 'true'::jsonb, true)
+        WHERE id = $1 AND EXISTS (
+          SELECT 1 FROM thoughts old WHERE old.id = ANY($2::uuid[]) AND old.metadata->>'pinned' = 'true')`,
+      [replacementId, ids],
+    );
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -438,6 +499,9 @@ export async function captureThought(tiers, content, {
 } = {}) {
   if (!tiers.includes(tier))
     throw new Error(`This endpoint may not write to tier "${tier}"`);
+  // Before the metadata model and the embedder: a refused secret must not
+  // leave the house either.
+  refuseSecrets(content, metadata, sourceRefs, artifactRefs);
 
   const auto = metadata ? null : await extractMetadata(content);
   const proposed = {
@@ -454,9 +518,13 @@ export async function captureThought(tiers, content, {
   // so it has to come from the authenticated handshake rather than from
   // whatever the caller typed. `origin: agent` alone is not enough when several
   // harnesses write to the same brain at once.
+  //
+  // `pinned` puts a memory in the digest every session reads first, so it is
+  // the reader's choice on the Thoughts page, never an agent's. An agent able
+  // to pin would be able to put words in front of every model that connects.
   for (const field of [
     "provenance", "review_status", "can_use_as_instruction", "can_use_as_evidence",
-    "requires_user_confirmation", "reviewed_at", "reviewed_by", "captured_by",
+    "requires_user_confirmation", "reviewed_at", "reviewed_by", "captured_by", "pinned",
   ]) delete proposed[field];
   const meta = normaliseMeta(
     proposed,
@@ -523,6 +591,7 @@ export async function reviewQueue(tiers, { limit = 100 } = {}) {
 export async function previewIngest(content, { metadata = {}, origin = "user" } = {}) {
   const text = String(content || "").trim();
   if (!text) throw new Error("Empty source text");
+  refuseSecrets(text, metadata);
   const extracted = text.length < SMART_INGEST_THRESHOLD
     ? [{ content: text }]
     : await extractAtoms(text);
@@ -546,6 +615,10 @@ export async function applyIngest(tiers, {
   const source = String(source_content || "").trim();
   if (!source) throw new Error("source_content is required");
   const atoms = normalisePreviewCandidates(candidates);
+  // All of it up front: the archived source is written first, so a secret
+  // found in the third atom would otherwise leave the source and two atoms
+  // behind.
+  refuseSecrets(source, atoms);
 
   // The verbatim source is navigable history, not a current memory and not
   // embedded. A null fingerprint deliberately allows the same source to be
@@ -605,6 +678,7 @@ export async function duplicateCandidates(tiers, { threshold = 0.86, limit = 50 
 export async function resolveDuplicate(tiers, {
   left_id, right_id, action, canonical_id, merged_content, actor = "user",
 } = {}) {
+  if (merged_content) refuseSecrets(merged_content);
   const left = await getThought(tiers, left_id);
   const right = await getThought(tiers, right_id);
   if (!left || !right || left.id === right.id) throw new Error("Duplicate pair not found");
@@ -685,6 +759,7 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
   if (!existing) throw new Error("Not found");
   if (tier && !tiers.includes(tier))
     throw new Error(`This endpoint may not move rows to tier "${tier}"`);
+  refuseSecrets(typeof content === "string" ? content : "", metadata || {});
 
   const sets = [];
   const args = [id];
@@ -1494,4 +1569,50 @@ export async function memoryGraph(tiers, { threshold = GRAPH_THRESHOLD } = {}) {
     // [from, to, strength]: indices into nodes, so the payload stays small.
     edges: [...edges].map(([pair, s]) => [...pair.split(",").map(Number), Math.round(s * 100) / 100]),
   };
+}
+
+// The digest: what every session should know before it asks anything. Search
+// only finds what a model thinks to look for, and only Claude Code reads a
+// CLAUDE.md; DeepSeek, an OmniRoute model or a phone app start knowing
+// nothing. One call at session start gives them all the same footing.
+//
+// Only confirmed memories that may be used as instructions, so nothing an
+// agent wrote and nobody checked is put in front of every model. Pinned
+// memories first (the reader pins them on the Thoughts page), then every
+// confirmed preference and profile memory the reader has not taken out
+// (`pinned: false`). Short memories go in whole; a long one goes in as its
+// summary with its id, to fetch when needed.
+export const DIGEST_LIMIT = 15;
+export const DIGEST_WHOLE = 700;
+export const DIGEST_BUDGET = 9000;
+
+export async function memoryDigest(tiers, { limit = DIGEST_LIMIT } = {}) {
+  const { rows } = await pool.query(
+    `SELECT ${COLS} FROM thoughts
+      WHERE tier = ANY($1)
+        AND coalesce(metadata->>'lifecycle', 'current') = 'current'
+        AND coalesce(metadata->>'review_status', 'confirmed') = 'confirmed'
+        AND coalesce(metadata->>'can_use_as_instruction', 'true') = 'true'
+        AND (metadata->>'pinned' = 'true'
+             OR (metadata->>'kind' IN ('preference', 'profile') AND coalesce(metadata->>'pinned', '') <> 'false'))
+      ORDER BY (metadata->>'pinned' = 'true') DESC NULLS LAST,
+               CASE metadata->>'kind' WHEN 'preference' THEN 0 WHEN 'profile' THEN 1 ELSE 2 END,
+               updated_at DESC
+      LIMIT $2`,
+    [tiers, Math.min(Number(limit) || DIGEST_LIMIT, 50)],
+  );
+  let budget = DIGEST_BUDGET;
+  const items = [];
+  for (const row of rows) {
+    const m = row.metadata || {};
+    const whole = row.content.length <= DIGEST_WHOLE;
+    const text = whole ? row.content : (m.summary || row.content.slice(0, DIGEST_WHOLE));
+    if (items.length && text.length > budget) break;
+    budget -= text.length;
+    items.push({
+      id: row.id, tier: row.tier, kind: m.kind || null, pinned: m.pinned === true,
+      title: m.title || null, text, complete: whole,
+    });
+  }
+  return { count: items.length, items };
 }

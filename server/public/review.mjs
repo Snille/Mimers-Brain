@@ -48,6 +48,11 @@ export async function render(root) {
       <div id="review-pending"></div>
     </section>
     <section class="review-section">
+      <h2>${esc(tr("review.rarelyUseful.title"))} <span class="tag">${(data.rarelyUseful || []).length}</span></h2>
+      <p class="sub">${esc(tr("review.rarelyUseful.description"))}</p>
+      <div id="review-rarely"></div>
+    </section>
+    <section class="review-section">
       <h2>${esc(tr("review.duplicates.title"))} <span class="tag">${data.duplicates.length}</span></h2>
       <p class="sub">${esc(tr("review.duplicates.description"))}</p>
       <div id="review-duplicates"></div>
@@ -62,24 +67,31 @@ export async function render(root) {
       <div id="review-recalls"></div>
     </section>`;
 
-  const pending = root.querySelector("#review-pending");
-  pending.innerHTML = data.pending.length ? "" : `<div class="empty">${esc(tr("review.empty"))}</div>`;
-  for (const row of data.pending) {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `${memorySummary(row)}<div class="actions review-actions">
-      ${["confirm", "evidence_only", "restrict", "stale", "reject"].map((action) =>
-        `<button class="${action === "reject" ? "ghost danger" : "ghost"}" data-action="${action}">${esc(tr(`review.actions.${action}`))}</button>`).join("")}
-    </div>`;
-    for (const button of card.querySelectorAll("button")) button.onclick = async () => {
-      button.disabled = true;
-      try {
-        await post(`/api/thoughts/${row.id}/review`, { action: button.dataset.action });
-        await render(root);
-      } catch (error) { button.disabled = false; alert(error.message); }
-    };
-    pending.appendChild(card);
-  }
+  // Both lists take the same five review actions. On a rarely useful memory,
+  // Confirm means "keep it as it is": the review resets its receipt count, so
+  // it only comes back if it keeps being passed over.
+  const reviewCards = (target, rows, note = () => "") => {
+    target.innerHTML = rows.length ? "" : `<div class="empty">${esc(tr("review.empty"))}</div>`;
+    for (const row of rows) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `${note(row)}${memorySummary(row)}<div class="actions review-actions">
+        ${["confirm", "evidence_only", "restrict", "stale", "reject"].map((action) =>
+          `<button class="${action === "reject" ? "ghost danger" : "ghost"}" data-action="${action}">${esc(tr(`review.actions.${action}`))}</button>`).join("")}
+      </div>`;
+      for (const button of card.querySelectorAll("button")) button.onclick = async () => {
+        button.disabled = true;
+        try {
+          await post(`/api/thoughts/${row.id}/review`, { action: button.dataset.action });
+          await render(root);
+        } catch (error) { button.disabled = false; alert(error.message); }
+      };
+      target.appendChild(card);
+    }
+  };
+  reviewCards(root.querySelector("#review-pending"), data.pending);
+  reviewCards(root.querySelector("#review-rarely"), data.rarelyUseful || [], (row) =>
+    `<div class="meta"><span class="tag">${esc(tr("review.rarelyUseful.count", { count: row.ignored }))}</span></div>`);
 
   const duplicates = root.querySelector("#review-duplicates");
   duplicates.innerHTML = data.duplicates.length ? "" : `<div class="empty">${esc(tr("review.empty"))}</div>`;

@@ -111,11 +111,34 @@ export const MEMORY_POLICY = [
   "12. Every non-empty search creates its own trace_id. Before the final answer, report every trace exactly once with report_memory_usage; multiple searches require separate reports. If no returned memory influenced the answer, send used_ids=[] and put every returned id in ignored_ids. Do not include the user's query or answer in the report.",
   "13. Never store raw passwords, tokens, API keys, private keys, or other secret values. Store only sensitive context and exact SECRET_REF pointers in the LAN-only vault.",
   "14. Never claim that something was saved, replaced, reviewed, or deleted unless the corresponding tool call succeeded.",
+  "15. At the start of a session, call memory_digest once. It returns the standing rules and preferences Erik has confirmed for every session; treat them as known instead of searching for them again.",
 ].join("\n");
 
 const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 
-export function memoryFreshness(metadata = {}) {
+// Half a year without a check is when a fact about a running system starts to
+// deserve a second look. An incident is a record of what happened, so its age
+// says nothing about whether it is still true.
+export const AGE_NOTE_DAYS = 180;
+
+// A hedge for the reader, not a verdict: "verified 8 months ago - may be
+// outdated" lets the model check before it asserts. Counted from verified_at
+// when the memory has one, otherwise from when it was written.
+export function ageNote(metadata = {}, createdAt = null, now = new Date()) {
+  if ((clean(metadata.lifecycle) || "current") !== "current") return null;
+  if ((metadata.kind || metadata.type) === "incident") return null;
+  const verified = clean(metadata.verified_at);
+  const since = new Date(verified || createdAt || NaN);
+  if (Number.isNaN(since.getTime())) return null;
+  const days = Math.floor((now.getTime() - since.getTime()) / 86400000);
+  if (days < AGE_NOTE_DAYS) return null;
+  const months = Math.floor(days / 30);
+  const age = months >= 24 ? `${Math.floor(months / 12)} years` : `${months} months`;
+  return `${verified ? "Verified" : "Written"} ${age} ago (${since.toISOString().slice(0, 10)}) - may be outdated; check before relying on it.`;
+}
+
+export function memoryFreshness(metadata = {}, createdAt = null) {
+  const age = ageNote(metadata, createdAt);
   const lifecycle = clean(metadata.lifecycle) || "current";
   const supersededBy = clean(metadata.superseded_by) || null;
   const isCurrent = lifecycle === "current";
@@ -128,6 +151,7 @@ export function memoryFreshness(metadata = {}) {
       : supersededBy
         ? "Historical memory: fetch superseded_by before treating this as current knowledge."
         : `Historical memory (${lifecycle}): do not treat this as current knowledge.`,
+    ...(age ? { age_note: age } : {}),
   };
 }
 
