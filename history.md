@@ -6,6 +6,53 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-13 — 0.9.26: the brain, and four ideas from Synapse
+
+**The brain.** The Statistics page now opens with a 3D picture of the whole
+memory: every current memory a glowing node inside a wireframe brain. Two
+memories are connected when they share a kind, a task status, a project, a
+topic, a person or a system, or when they mean nearly the same thing (cosine
+0.60 or more — measured: 0.50 joined everything to everything, 0.70 left most
+memories alone). Each kind of connection has its own line colour and a switch.
+The most connected memory is the largest and sits deepest; where a memory sits
+follows its meaning, from the three main axes of the embeddings
+(`server/semantic.mjs`), so related memories share a region, named after the
+topic, system or project most typical of it. Drag empty space to turn it,
+scroll or pinch to zoom, grab a memory to stretch its lines out; it springs
+back on release. Its neighbours lean only a little — an early version let them
+follow, and with every kind of connection on, a held memory touches most of
+the brain, so the whole thing moved as one block. Hover highlights fade in over
+three quarters of a second; at first they lit instantly and the brain flashed
+as the cursor crossed a crowded patch. No library: a 2D canvas fed by
+`/api/graph`.
+
+Then four ideas taken from [Synapse](https://github.com/Danialsamadi/synapse)
+(ideas only; its code is GPL-3.0):
+
+- **A secret gate.** "Never store raw secrets" lived only in tool descriptions,
+  so it held exactly as well as the model reading them; the pattern check in
+  `memory-quality.mjs` ran only in the audit script. Every write path now refuses
+  text shaped like a private key, API key, token, JWT, URL password or
+  `password: ...` before it reaches the metadata model, the embedder or the
+  database, with a 422 naming only the kind. Placeholders, environment-variable
+  names and SECRET_REF pointers pass. Run against all 579 rows first: no hits.
+- **Receipts that count.** Used/ignored receipts were collected but never read
+  back. They now nudge ranking by a few hundredths, centred on the average use
+  rate (about one in four results is used, because a search returns five), and
+  memories returned eight times or more but never used are listed on the Review
+  page. Confirming one resets its count.
+- **Age notes.** A result not verified for 180 days says so (`AGE: Verified 8
+  months ago ...`). Not for incidents or history.
+- **The session digest.** Only Claude Code reads a `CLAUDE.md`; DeepSeek, an
+  OmniRoute model or a phone app started knowing nothing until they happened
+  to search for the right thing. `memory_digest`, on every listener, returns
+  the confirmed preferences and profile memories plus anything pinned on the
+  Thoughts page, and policy rule 15 tells every client to call it once. Only
+  the reader can pin — agents cannot set the field — and only confirmed
+  memories are shown.
+
+---
+
 ## 2026-10-06 — 0.9.25: when a memory was written
 
 The **Thoughts** list showed only the date a memory was created, and the

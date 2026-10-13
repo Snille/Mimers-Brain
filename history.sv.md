@@ -6,6 +6,52 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-13 — 0.9.26: hjärnan, och fyra idéer från Synapse
+
+**Hjärnan.** Sidan Statistik börjar nu med en 3D-bild av hela minnet: varje
+aktuellt minne en lysande punkt i en hjärna av trådnät. Två minnen är kopplade
+när de delar sort, uppgiftsstatus, projekt, ämne, person eller system, eller
+när de betyder nästan samma sak (cosinus 0,60 eller mer — uppmätt: 0,50 kopplade
+allt till allt, 0,70 lämnade de flesta minnen ensamma). Varje typ av koppling
+har en egen linjefärg och en knapp. Minnet med flest kopplingar är störst och
+sitter längst in; var ett minne hamnar följer dess betydelse, från
+inbäddningarnas tre huvudaxlar (`server/semantic.mjs`), så närliggande minnen
+delar ett område som namnges efter det ämne, system eller projekt som är mest
+typiskt för det. Dra på tom yta för att vrida, scrolla eller nyp för att zooma,
+ta tag i ett minne för att dra ut dess linjer; det fjädrar tillbaka när man
+släpper. Grannarna rör sig bara lite — en tidig version lät dem följa med, och
+med alla kopplingstyper på når ett minne större delen av hjärnan, så allt rörde
+sig som ett block. Markeringen vid hovring tonas in på tre kvarts sekund; först
+tändes den direkt och hjärnan blixtrade när muspekaren gick över en tät del.
+Inget bibliotek: en 2D-canvas som matas från `/api/graph`.
+
+Sedan fyra idéer hämtade från [Synapse](https://github.com/Danialsamadi/synapse)
+(bara idéer; dess kod är GPL-3.0):
+
+- **En spärr mot hemligheter.** "Spara aldrig råa hemligheter" fanns bara i
+  verktygsbeskrivningarna och höll alltså precis så bra som modellen som läste
+  dem; mönsterkollen i `memory-quality.mjs` kördes bara i granskningsskriptet.
+  Varje väg som sparar stoppar nu text som ser ut som en privat nyckel,
+  API-nyckel, token, JWT, lösenord i en URL eller `password: ...` innan den når
+  metadatamodellen, inbäddningen eller databasen, med 422 som bara anger typen.
+  Platshållare, namn på miljövariabler och SECRET_REF-pekare går igenom. Körd
+  mot alla 579 rader först: inga träffar.
+- **Kvitton som räknas.** Kvitton om använt/ignorerat samlades in men lästes
+  aldrig tillbaka. Nu knuffar de rankningen några hundradelar, centrerat på den
+  genomsnittliga användningen (ungefär var fjärde träff används, eftersom en
+  sökning ger fem), och minnen som hittats åtta gånger eller fler men aldrig
+  använts listas på sidan Granska. Att bekräfta ett nollställer räkningen.
+- **Ålder i svaren.** En träff som inte verifierats på 180 dagar säger det
+  (`AGE: Verified 8 months ago ...`). Inte för incidenter eller historik.
+- **Startpaketet.** Bara Claude Code läser en `CLAUDE.md`; DeepSeek, en
+  OmniRoute-modell eller en mobilapp började utan att veta något tills de råkade
+  söka på rätt sak. `memory_digest`, på alla lyssnare, ger de bekräftade
+  preferenserna och profilminnena plus allt som fästs på sidan Tankar, och
+  policyregel 15 säger åt varje klient att anropa det en gång. Bara läsaren kan
+  fästa — agenter kan inte sätta fältet — och bara bekräftade minnen visas.
+
+---
+
 ## 2026-10-06 — 0.9.25: när ett minne skrevs
 
 Listan **Tankar** visade bara datumet då ett minne skapades, och sidan

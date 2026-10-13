@@ -9,7 +9,8 @@ with a tier that never leaves the local network.
 Anything that speaks MCP can read and write the memory, so what you know about
 your systems gets written down once instead of re-explained in every new
 conversation. Sensitive context and SECRET_REF pointers are served on the LAN
-only; raw passwords, tokens, API keys and private keys are never stored.
+only; raw passwords, tokens, API keys and private keys are never stored — every
+write path refuses text shaped like one before it leaves the server.
 Everything else is reachable from anywhere.
 
 | | |
@@ -97,13 +98,19 @@ docker compose up -d --build
 
 The interface: <http://localhost:8790>
 
-The **Review** page contains the trust queue, semantically similar duplicate
-candidates, and privacy-preserving recall receipts. Every memory card there and
+The **Review** page contains the trust queue, memories that search keeps
+returning but no answer ever uses (**Rarely useful**), semantically similar
+duplicate candidates, and privacy-preserving recall receipts. Every memory card there and
 under **Thoughts** shows when it was created, as `2026-10-06 - 20:54` in local
 time. Long text entered through
 **New thought** is previewed as atomic memories before anything is saved.
-The **Statistics** page separates active memories from archived and superseded
-records, then shows trust state, provenance, receipt coverage, recalled-memory
+The **Statistics** page opens with **the brain**: every current memory as a node
+in a 3D wireframe brain, placed by meaning (related memories share a labelled
+region) and sized and sunk by how many connections it has — shared kind, task
+status, project, topic, person, system or similar content, each a line colour
+you can switch off. Drag to turn it, scroll to zoom, grab a memory to pull out
+its lines. Below it, the page separates active memories from archived and
+superseded records, then shows trust state, provenance, receipt coverage, recalled-memory
 usefulness, client/tool activity and operational MQTT health. Recall charts begin
 with the first 0.8.0 receipt; older calls are never mislabelled as missing reports.
 
@@ -203,6 +210,14 @@ from real visits and stored, which is why the page can still name the LAN addres
 when you are reading it through the proxy. `LAN_URL` overrides it if you would
 rather see a hostname; until the LAN listener has been opened once, the page says
 so rather than guessing.
+
+A memory's recall receipts also feed back into search: one that keeps being
+used ranks slightly higher, one that keeps being passed over slightly lower — a
+nudge of a few hundredths, never enough to outrank a better match. Results not
+verified for six months carry an `AGE` note so a model checks before it asserts.
+Every model is told to call `memory_digest` once per session: the confirmed
+preferences and profile memories plus anything pinned on the Thoughts page, so
+a model that never reads a `CLAUDE.md` starts with the same standing rules.
 
 **Statistics** answers four separate questions: whether the memory is healthy,
 whether recalled memories prove useful, how activity changes over time, and

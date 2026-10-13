@@ -9,7 +9,8 @@ en nivå som aldrig lämnar det privata nätverket.
 Vilken modell som helst som talar MCP kan läsa och skriva till minnet, så
 kunskapen om ens system beskrivs en gång i stället för i varje ny konversation.
 Känslig kontext och SECRET_REF-pekare serveras bara på LAN; råa lösenord,
-tokens, API-nycklar och privata nycklar lagras aldrig. Allt annat går att nå
+tokens, API-nycklar och privata nycklar lagras aldrig — varje väg som sparar
+stoppar text som ser ut som en sådan innan den lämnar servern. Allt annat går att nå
 varifrån som helst.
 
 | | |
@@ -100,13 +101,19 @@ docker compose up -d --build
 
 Gränssnittet: <http://localhost:8790>
 
-Sidan **Granska** innehåller tillitskön, semantiskt liknande dubblettförslag och
-integritetssäkra återkallningskvitton. Varje minneskort där och under **Tankar**
+Sidan **Granska** innehåller tillitskön, minnen som sökningen hela tiden hittar
+men inget svar använder (**Sällan till nytta**), semantiskt liknande
+dubblettförslag och integritetssäkra återkallningskvitton. Varje minneskort där och under **Tankar**
 visar när det skapades, som `2026-10-06 - 20:54` i lokal tid. Längre text i
 **Ny tanke** visas först som
 atomära minnesförslag innan något sparas.
-Sidan **Statistik** skiljer aktiva minnen från arkiverade och ersatta poster och
-visar sedan tillitsstatus, proveniens, kvittotäckning, nyttan av återkallade
+Sidan **Statistik** börjar med **hjärnan**: varje aktuellt minne som en punkt i
+en 3D-hjärna av trådnät, placerad efter betydelse (närliggande minnen delar ett
+namngivet område) och med storlek och djup efter hur många kopplingar minnet har
+— gemensam sort, uppgiftsstatus, projekt, ämne, person, system eller liknande
+innehåll, var och en en linjefärg som går att slå av. Dra för att vrida, scrolla
+för att zooma, ta tag i ett minne för att dra ut dess linjer. Därunder skiljer
+sidan aktiva minnen från arkiverade och ersatta poster och visar sedan tillitsstatus, proveniens, kvittotäckning, nyttan av återkallade
 minnen, klient-/verktygsaktivitet och MQTT-drift. Återkallningsdiagrammen börjar
 med det första 0.8.0-kvittot; äldre anrop märks aldrig felaktigt som saknade svar.
 
@@ -207,6 +214,15 @@ som spelar roll: det är en adress en webbläsare precis kom fram på. Den tas a
 från riktiga besök och sparas, vilket är varför sidan kan namnge LAN-adressen även
 när du läser den via proxyn. `LAN_URL` går före om du hellre vill se ett värdnamn;
 innan LAN-lyssnaren öppnats en gång säger sidan det i stället för att gissa.
+
+Ett minnes återkallningskvitton påverkar också sökningen: ett som används ofta
+hamnar lite högre, ett som ofta förbigås lite lägre — en knuff på några
+hundradelar, aldrig nog för att gå förbi en bättre träff. Träffar som inte
+verifierats på sex månader får en `AGE`-notering så att en modell kontrollerar
+innan den påstår. Varje modell ombeds anropa `memory_digest` en gång per
+session: de bekräftade preferenserna och profilminnena plus allt som fästs på
+sidan Tankar, så att en modell som aldrig läser en `CLAUDE.md` börjar med samma
+grundregler.
 
 **Statistik** svarar på fyra separata frågor: om minnet mår bra, om återkallade
 minnen faktiskt blir användbara, hur aktiviteten förändras över tid och om
