@@ -6,6 +6,26 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-13 — 0.9.28: en policy som kommer fram hel
+
+Regel 15 sa åt varje modell att anropa `memory_digest` när sessionen startar,
+och Claude Code såg den aldrig: den klipper MCP-serverinstruktioner vid 2048
+tecken, och policyn plus anslutningsraden var 3423. Allt efter mitten av regel
+10 försvann — regeln om startpaketet, regeln om hemligheter, ersättning och
+kvittoreglerna. Upptäckt genom att läsa vad just den här sessionen hade fått,
+som slutade med `… [truncated]`.
+
+Klienterna får nu en kort form när de ansluter (ungefär 800 tecken på alla
+lyssnare, testad att hålla sig under 2048) där första raden säger åt dem att
+anropa `memory_digest`; startpaketet börjar med hela policyn och
+anslutningsraden före de fasta minnena, och OpenAPI-versionen ger `policy` och
+`scope` bredvid posterna. Själva policyn gick från fjorton regler och 3193 tecken
+till tio och 2250: inget togs bort, regler som sa samma sak två gånger slogs
+ihop. Sidan Anslut erbjuder fortfarande hela texten för klienter som ignorerar
+serverinstruktioner.
+
+---
+
 ## 2026-10-13 — 0.9.27: vad som finns i startpaketet
 
 Startpaketet saknade en egen vy: enda sättet att se vad varje modell fick var

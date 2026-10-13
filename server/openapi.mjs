@@ -264,7 +264,7 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       description: `Call once at the start of a session. Returns the standing rules and preferences Erik has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
       schema: { type: "object", properties: {} },
       async run() {
-        return db.memoryDigest(tiers);
+        return { policy: MEMORY_POLICY, scope, ...(await db.memoryDigest(tiers)) };
       },
     },
     {

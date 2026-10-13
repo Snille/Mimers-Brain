@@ -19,6 +19,7 @@ import { recallReference } from "./recall.mjs";
 import {
   CAPTURE_GUIDANCE,
   MEMORY_POLICY,
+  SESSION_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
   ageNote,
@@ -66,7 +67,7 @@ export function buildServer(tiers, ctx = {}) {
     name: !writable ? "mimers-brain-read" : full ? "mimers-brain" : "mimers-brain-open",
     version: ctx.version || "development",
   }, {
-    instructions: `${MEMORY_POLICY}\n\nConnection scope: ${scope}`,
+    instructions: `${SESSION_POLICY}\n\nConnection scope: ${scope}`,
   });
 
   // Every tool is wrapped so the usage log gets a row without each handler
@@ -304,9 +305,10 @@ export function buildServer(tiers, ctx = {}) {
     try {
       const digest = await db.memoryDigest(tiers);
       note.count = digest.count;
-      if (!digest.count) return text("The digest is empty: nothing is pinned and no preference or profile memory is confirmed yet.");
+      const policy = `${MEMORY_POLICY}\n\nConnection scope: ${scope}\n\n---\n\n`;
+      if (!digest.count) return text(`${policy}No standing memories yet: nothing is pinned and no preference or profile memory is confirmed.`);
       return text(
-        `Mimers Brain digest - ${digest.count} standing memories confirmed by Erik. Treat them as known for this session.\n\n` +
+        `${policy}Standing memories - ${digest.count} confirmed by Erik. Treat them as known for this session.\n\n` +
         digest.items.map((item, index) =>
           `${index + 1}. ${item.title ? `${item.title}\n` : ""}${item.text}\n  [${[
             item.kind ? `Kind: ${item.kind}` : "", item.pinned ? "Pinned" : "",

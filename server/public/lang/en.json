@@ -364,7 +364,7 @@
     "fetchError": "Could not load the connection details.",
     "policy": {
       "title": "One policy for every model",
-      "description": "MCP clients receive this policy as server instructions. Paste the same text into the client's global or system instructions when it does not support MCP server instructions.",
+      "description": "MCP clients get a short version as server instructions when they connect, and the full policy from memory_digest at the start of each session. Paste the full text into the client's global or system instructions if it does not support MCP server instructions.",
       "copyTitle": "Memory policy",
       "note": "Keep this text unchanged so every client follows the same retrieval, capture, supersession and secret-handling rules."
     },

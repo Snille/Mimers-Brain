@@ -6,6 +6,26 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-13 — 0.9.28: a policy that arrives whole
+
+Rule 15 told every model to call `memory_digest` at the start of a session, and
+Claude Code never saw it: it cuts MCP server instructions at 2048 characters,
+and the policy plus the connection scope was 3423. Everything after the middle
+of rule 10 was gone — the digest rule, the secret rule, supersession and the
+receipt rules. Found by reading what this very session had been given, which
+ended in `… [truncated]`.
+
+Clients now receive a short form on connecting (about 800 characters on every
+listener, tested to stay under 2048) whose first line says to call
+`memory_digest`; the digest opens with the full policy and the connection
+scope before the standing memories, and the OpenAPI version returns `policy`
+and `scope` beside the items. The full policy itself went from fourteen rules
+and 3193 characters to ten and 2250: nothing was dropped, rules that said the
+same thing twice were merged. The Connect page still offers the full text for
+clients that ignore server instructions.
+
+---
+
 ## 2026-10-13 — 0.9.27: what is in the digest
 
 The session digest had no view of its own: the only way to see what every model

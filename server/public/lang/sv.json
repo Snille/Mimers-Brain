@@ -364,7 +364,7 @@
     "fetchError": "Kunde inte hämta anslutningsuppgifterna.",
     "policy": {
       "title": "En policy för alla modeller",
-      "description": "MCP-klienter får policyn som serverinstruktioner. Klistra in samma text i klientens globala instruktioner eller systeminstruktioner om den inte stöder MCP-serverinstruktioner.",
+      "description": "MCP-klienter får en kort version som serverinstruktioner när de ansluter, och hela policyn från memory_digest när sessionen startar. Klistra in hela texten i klientens globala instruktioner eller systeminstruktioner om den inte stöder MCP-serverinstruktioner.",
       "copyTitle": "Minnespolicy",
       "note": "Behåll texten oförändrad så att alla klienter följer samma regler för sökning, lagring, ersättning och hemligheter."
     },

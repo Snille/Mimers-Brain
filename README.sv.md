@@ -181,7 +181,9 @@ VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient 
 för platshållare. Kopieringsknappar ger färdiga kommandon och färdig JSON.
 
 Samma sida visar också en kopierbar **minnespolicy** för alla modeller. MCP-klienter
-får exakt den policyn vid initieringen; OpenAPI-klienter får den i
+får en kort form vid initieringen — Claude Code klipper serverinstruktioner vid
+2048 tecken — som säger åt dem att anropa `memory_digest` först, och
+startpaketet börjar med hela policyn. OpenAPI-klienter får hela policyn i
 `info.description` och `x-memory-policy`. Om en klient ignorerar instruktioner på
 protokollnivå klistras policyn in i dess globala instruktioner eller
 systeminstruktioner. För Codex är den dokumenterade beständiga reservvägen

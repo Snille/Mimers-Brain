@@ -178,8 +178,10 @@ rendered with *this* instance's addresses, keys and tool list rather than
 placeholders. Copy buttons hand over ready-made commands and JSON.
 
 The same page also exposes one copyable **memory policy** for every model. MCP
-clients receive that exact policy during initialization; OpenAPI clients receive
-it in `info.description` and `x-memory-policy`. If a client ignores protocol-level
+clients receive a short form during initialization — Claude Code cuts server
+instructions at 2048 characters — that tells them to call `memory_digest` first,
+and the digest opens with the full policy. OpenAPI clients receive the full
+policy in `info.description` and `x-memory-policy`. If a client ignores protocol-level
 instructions, paste the policy into its global or system instructions. For Codex,
 the documented persistent fallback is `~/.codex/AGENTS.md`.
 
