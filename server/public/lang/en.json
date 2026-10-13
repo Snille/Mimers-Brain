@@ -136,6 +136,10 @@
       "months": "{count} months"
     },
     "sections": {
+      "brain": {
+        "title": "The brain",
+        "description": "Every current memory and what connects it to others. Memories that mean similar things sit in the same region. The more connections, the larger the memory and the deeper inside it sits."
+      },
       "health": {
         "title": "Memory health",
         "description": "What can be trusted and used now, separated from historical and archived records."
@@ -317,7 +321,30 @@
       "note": "Only affects the usage log and the recall receipts. Memories are never pruned.",
       "forever": "Keep everything"
     },
-    "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events and recall receipts are retained for {days} days and never contain queries, answers or memory content — only aggregate activity and UUID receipt state."
+    "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events and recall receipts are retained for {days} days and never contain queries, answers or memory content — only aggregate activity and UUID receipt state.",
+    "brain": {
+      "loading": "Wiring the brain …",
+      "empty": "No memories to show yet.",
+      "hint": "Drag to turn · scroll to zoom · grab a memory to see its connections",
+      "vault": "Vault",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "reset": "Reset view",
+      "close": "Close",
+      "closest": "Closest connections",
+      "connection": "{count} connection",
+      "connections": "{count} connections",
+      "summary": "{nodes} memories with {links} connections",
+      "types": {
+        "similar": "Similar content",
+        "kind": "Kind",
+        "task": "Tasks",
+        "project": "Project",
+        "topic": "Topics",
+        "person": "People",
+        "system": "Systems"
+      }
+    }
   },
   "connect": {
     "loading": "Loading …",

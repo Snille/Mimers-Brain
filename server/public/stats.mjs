@@ -3,6 +3,7 @@
 // either statistics endpoint.
 
 import { currentLanguage, formatDate, formatDateTime, t } from "./i18n.mjs";
+import { mountBrain } from "./brain.mjs";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -17,6 +18,7 @@ const EMPTY = {
 const key = (v) => String(v).slice(0, 10);
 
 let root = null;
+let stopBrain = () => {};
 
 function denseDays(rows, days) {
   const have = new Map(rows.map((r) => [key(r.bucket), r]));
@@ -154,8 +156,42 @@ function recallClientTable(recall) {
     </tr>`).join("")}</table>`;
 }
 
+// The brain loads on its own, after the numbers: computing every pair of
+// meanings is the slowest query on the page, and the figures below should not
+// wait for a picture.
+async function renderBrain(element) {
+  stopBrain();
+  stopBrain = () => {};
+  try {
+    const graph = await fetch("/api/graph").then((response) => {
+      if (!response.ok) throw new Error(response.statusText);
+      return response.json();
+    });
+    if (!element.isConnected) return;
+    const count = (key, value) => t(`stats.brain.${key}`, { count: value });
+    stopBrain = mountBrain(element, graph, {
+      hint: t("stats.brain.hint"),
+      empty: t("stats.brain.empty"),
+      vault: t("stats.brain.vault"),
+      zoomIn: t("stats.brain.zoomIn"),
+      zoomOut: t("stats.brain.zoomOut"),
+      reset: t("stats.brain.reset"),
+      close: t("stats.brain.close"),
+      closest: t("stats.brain.closest"),
+      types: Object.fromEntries(["similar", "kind", "task", "project", "topic", "person", "system"]
+        .map((key) => [key, t(`stats.brain.types.${key}`)])),
+      kindName: translatedValue,
+      connections: (n) => count(n === 1 ? "connection" : "connections", n),
+      summary: (nodes, links) => t("stats.brain.summary", { nodes, links }),
+    });
+  } catch (error) {
+    element.innerHTML = `<div class="err">${esc(error.message)}</div>`;
+  }
+}
+
 export async function render(element) {
   root = element;
+  stopBrain();
   root.innerHTML = `<div class="empty">${esc(t("stats.counting"))}</div>`;
   const [usage, mqtt] = await Promise.all([
     fetch("/api/usage").then((response) => response.json()),
@@ -169,6 +205,11 @@ export async function render(element) {
   const overdueTone = recall.overdue ? "danger" : "good";
 
   root.innerHTML = `
+  <section class="stats-section">
+    ${sectionHead(t("stats.sections.brain.title"), t("stats.sections.brain.description"))}
+    <div class="card brain-card" id="brain"><div class="empty">${esc(t("stats.brain.loading"))}</div></div>
+  </section>
+
   <section class="stats-section">
     ${sectionHead(t("stats.sections.health.title"), t("stats.sections.health.description"))}
     <div class="kpis">
@@ -288,6 +329,8 @@ export async function render(element) {
           esc(days ? t("stats.retention.days", { days }) : t("stats.retention.forever"))}</option>`).join("")}</select>
     </label> <span id="retention-msg"></span><br>${esc(t("stats.retention.note"))}</p>
   </section>`;
+
+  renderBrain(root.querySelector("#brain"));
 
   const retention = root.querySelector("#retention");
   if (retention) retention.onchange = async () => {

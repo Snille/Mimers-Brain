@@ -16,6 +16,7 @@ import {
   normaliseMeta,
 } from "./memory-model.mjs";
 import { fallbackAtoms, normalisePreviewCandidates } from "./smart-ingest.mjs";
+import { semanticAxes } from "./semantic.mjs";
 
 export { normaliseMeta } from "./memory-model.mjs";
 
@@ -1415,5 +1416,82 @@ export async function stats(tiers) {
     // never noticed.
     first: r.first || null,
     last: r.last || null,
+  };
+}
+
+// The brain on the statistics page. Memories connect through shared metadata
+// (kind, task status, project, topics, people, systems) and through meaning.
+// The metadata pairs are built in the browser from the arrays sent here, so the
+// reader can switch a kind of connection off without another round trip; only
+// the meaning pairs and each memory's place need the embeddings, so only they
+// are computed here. Only
+// current memories take part: a superseded row is history, and every
+// `supersedes` edge would otherwise give its replacement a connection it did
+// not earn.
+//
+// 0.60 is measured, not chosen: on 2026-10-13 the 287 current memories gave
+// 5105 pairs at 0.50 (everything touches everything), 1025 at 0.60 and 166 at
+// 0.70 (most memories alone).
+export const GRAPH_THRESHOLD = 0.6;
+const GRAPH_NODES = 600;
+const GRAPH_EDGES = 4000;
+
+const graphList = (value) => Array.isArray(value)
+  ? value.filter((item) => typeof item === "string" && item.trim()) : [];
+
+export async function memoryGraph(tiers, { threshold = GRAPH_THRESHOLD } = {}) {
+  const { rows: nodes } = await pool.query(
+    `SELECT id, tier,
+            coalesce(nullif(metadata->>'title', ''), left(content, 90)) AS title,
+            coalesce(nullif(metadata->>'kind', ''), metadata->>'type', 'unknown') AS kind,
+            metadata->>'project' AS project, metadata->>'task_status' AS task_status,
+            metadata->'topics' AS topics, metadata->'people' AS people, metadata->'systems' AS systems,
+            embedding::text AS vector
+       FROM thoughts
+      WHERE tier = ANY($1)
+        AND coalesce(metadata->>'lifecycle', 'current') = 'current'
+        AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected'
+      ORDER BY updated_at DESC LIMIT ${GRAPH_NODES}`,
+    [tiers],
+  );
+  const index = new Map(nodes.map((node, i) => [node.id, i]));
+  const ids = nodes.map((node) => node.id);
+  const { rows: similar } = await pool.query(
+    `WITH n AS (SELECT id, embedding FROM thoughts WHERE id = ANY($1::uuid[]) AND embedding IS NOT NULL)
+     SELECT a.id AS a, b.id AS b, 1 - (a.embedding <=> b.embedding) AS s
+       FROM n a JOIN n b ON a.id::text < b.id::text
+      WHERE 1 - (a.embedding <=> b.embedding) >= $2
+      ORDER BY s DESC LIMIT ${GRAPH_EDGES}`,
+    [ids, Number(threshold) || GRAPH_THRESHOLD],
+  );
+  const { rows: related } = await pool.query(
+    `SELECT from_id AS a, to_id AS b FROM thought_relations
+      WHERE from_id = ANY($1::uuid[]) AND to_id = ANY($1::uuid[])`,
+    [ids],
+  );
+
+  // Where each memory sits in the brain follows its meaning. A memory still
+  // waiting for its embedding gets no place and is laid out by its connections.
+  const embedded = nodes.filter((node) => node.vector);
+  const places = new Map(semanticAxes(embedded.map((node) => JSON.parse(node.vector)))
+    .map((place, i) => [embedded[i].id, place]));
+
+  const edges = new Map();
+  for (const row of similar)
+    edges.set([index.get(row.a), index.get(row.b)].sort((x, y) => x - y).join(), Number(row.s));
+  for (const row of related)
+    edges.set([index.get(row.a), index.get(row.b)].sort((x, y) => x - y).join(), 1);
+  return {
+    threshold: Number(threshold) || GRAPH_THRESHOLD,
+    nodes: nodes.map((node) => ({
+      id: node.id, tier: node.tier, title: node.title, kind: node.kind,
+      project: node.project || null, task_status: node.task_status || null,
+      // Free-form metadata: a hand-edited row whose topics is not an array
+      // must not break the page.
+      topics: graphList(node.topics), people: graphList(node.people), systems: graphList(node.systems),
+      place: places.get(node.id) || null,
+    })),
+    // [from, to, strength]: indices into nodes, so the payload stays small.
+    edges: [...edges].map(([pair, s]) => [...pair.split(",").map(Number), Math.round(s * 100) / 100]),
   };
 }

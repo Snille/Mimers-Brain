@@ -496,6 +496,7 @@ function makeListener(tiers, {
         if (!authOk(req, url, { allowAuthelia, allowReadKey }))
           return json(res, 401, { error: "Not signed in" });
         if (path === "/api/stats") return json(res, 200, await db.stats(tiers));
+        if (path === "/api/graph") return json(res, 200, await db.memoryGraph(tiers));
 
         if (path === "/api/connect")
           return json(res, 200, connectInfo(req, { tiers, allowUrlKey }));

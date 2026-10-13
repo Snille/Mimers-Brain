@@ -136,6 +136,10 @@
       "months": "{count} månader"
     },
     "sections": {
+      "brain": {
+        "title": "Hjärnan",
+        "description": "Alla aktuella minnen och vad som kopplar ihop dem. Minnen som betyder liknande saker hamnar i samma område. Ju fler kopplingar, desto större minne och desto längre in sitter det."
+      },
       "health": {
         "title": "Minneshälsa",
         "description": "Vad som går att lita på och använda nu, skilt från historiska och arkiverade poster."
@@ -317,7 +321,30 @@
       "note": "Gäller bara användningsloggen och återkallningskvittona. Minnen gallras aldrig.",
       "forever": "Spara allt"
     },
-    "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningshändelser och återkallningskvitton sparas i {days} dagar och innehåller aldrig frågor, svar eller minnesinnehåll — bara samlad aktivitet och UUID-kvittonas status."
+    "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningshändelser och återkallningskvitton sparas i {days} dagar och innehåller aldrig frågor, svar eller minnesinnehåll — bara samlad aktivitet och UUID-kvittonas status.",
+    "brain": {
+      "loading": "Kopplar ihop hjärnan …",
+      "empty": "Det finns inga minnen att visa ännu.",
+      "hint": "Dra för att vrida · scrolla för att zooma · ta tag i ett minne för att se dess kopplingar",
+      "vault": "Valvet",
+      "zoomIn": "Zooma in",
+      "zoomOut": "Zooma ut",
+      "reset": "Återställ vyn",
+      "close": "Stäng",
+      "closest": "Närmaste kopplingar",
+      "connection": "{count} koppling",
+      "connections": "{count} kopplingar",
+      "summary": "{nodes} minnen med {links} kopplingar",
+      "types": {
+        "similar": "Liknande innehåll",
+        "kind": "Sort",
+        "task": "Uppgifter",
+        "project": "Projekt",
+        "topic": "Ämnen",
+        "person": "Personer",
+        "system": "System"
+      }
+    }
   },
   "connect": {
     "loading": "Hämtar …",
