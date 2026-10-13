@@ -6,6 +6,18 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-13 — 0.9.27: what is in the digest
+
+The session digest had no view of its own: the only way to see what every model
+was handed was to open memories one at a time. The Thoughts sidebar now starts
+with a **Session digest** filter and its count. The filter, the count, the 📌
+tag and `memory_digest` itself share one SQL condition (`DIGEST_SQL`), so they
+cannot disagree. Writing that view turned up a gap: a memory pinned but not yet
+confirmed carried the tag although the digest left it out. It now says
+**digest: awaiting confirmation** instead.
+
+---
+
 ## 2026-10-13 — 0.9.26: the brain, and four ideas from Synapse
 
 **The brain.** The Statistics page now opens with a 3D picture of the whole

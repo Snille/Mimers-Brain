@@ -255,6 +255,7 @@
 
 <main class="on" id="view-thoughts">
   <aside>
+    <h2 data-i18n="filters.digest">Session digest</h2><div id="f-digest"></div>
     <h2 data-i18n="filters.kind">Kind</h2><div id="f-kinds"></div>
     <h2 data-i18n="filters.lifecycle">Lifecycle</h2><div id="f-lifecycles"></div>
     <h2 data-i18n="filters.taskStatus">Tasks</h2><div id="f-task-statuses"></div>
@@ -380,13 +381,13 @@ async function api(path, opts) {
   return d;
 }
 
-function chips(container, entries, key) {
+function chips(container, entries, key, label = (name) => name) {
   const el = $(container);
   el.innerHTML = "";
   for (const [name, count] of entries) {
     const b = document.createElement("button");
     b.className = "chip" + (state.filters[key] === name ? " on" : "");
-    b.innerHTML = `${esc(name)} <b>${count}</b>`;
+    b.innerHTML = `${esc(label(name))} <b>${count}</b>`;
     b.onclick = () => {
       state.filters[key] = state.filters[key] === name ? undefined : name;
       refresh();
@@ -396,10 +397,16 @@ function chips(container, entries, key) {
   if (!entries.length) el.innerHTML = '<span class="sub">–</span>';
 }
 
-// In the session digest: pinned by the reader, or a preference or profile
-// memory the reader has not taken out. Mirrors memoryDigest() in lib.mjs.
+// Meant for the session digest: pinned by the reader, or a preference or
+// profile memory the reader has not taken out. The edit box shows this.
 const DIGEST_KINDS = ["preference", "profile"];
 const inDigest = (m) => m.pinned === true || (m.pinned !== false && DIGEST_KINDS.includes(m.kind));
+// Actually sent to the models: meant for it, current and confirmed for use as
+// an instruction. Mirrors DIGEST_SQL in lib.mjs; the tag and the filter show this.
+const digestReady = (m) => inDigest(m)
+  && (m.lifecycle || "current") === "current"
+  && (m.review_status || "confirmed") === "confirmed"
+  && m.can_use_as_instruction !== false;
 
 function card(t) {
   const m = t.metadata || {};
@@ -410,7 +417,8 @@ function card(t) {
   const verified = m.verified_at ? new Date(`${m.verified_at}T00:00:00`) : null;
   const stale = verified && Number.isFinite(verified.valueOf()) && Date.now() - verified.valueOf() > 180 * 86400000;
   const tags = [
-    inDigest(m) ? `<span class="tag pinned" title="${esc(tr("thought.pinnedHint"))}">📌 ${esc(tr("thought.pinned"))}</span>` : "",
+    digestReady(m) ? `<span class="tag pinned" title="${esc(tr("thought.pinnedHint"))}">📌 ${esc(tr("thought.pinned"))}</span>`
+      : inDigest(m) && m.pinned === true ? `<span class="tag" title="${esc(tr("thought.pinnedWaitingHint"))}">📌 ${esc(tr("thought.pinnedWaiting"))}</span>` : "",
     t.tier === "vault" ? `<span class="tag vault">🔒 ${esc(tr("tiers.vault"))}</span>` : "",
     m.kind ? `<span class="tag type">${esc(m.kind)}</span>` : (m.type ? `<span class="tag type">${esc(m.type)}</span>` : ""),
     m.lifecycle && m.lifecycle !== "current" ? `<span class="tag">${esc(m.lifecycle)}</span>` : "",
@@ -564,6 +572,9 @@ async function refresh() {
           project: state.filters.project,
         }),
       });
+      // Semantic search has no digest filter of its own; the rule is the
+      // same one the tag uses, so filtering here gives the same answer.
+      if (state.filters.digest) rows = rows.filter((t) => digestReady(t.metadata || {}));
     } else {
       const p = new URLSearchParams();
       if (state.q) p.set("q", state.q);
@@ -581,6 +592,7 @@ async function refresh() {
 
     const s = await api("/api/stats");
     const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+    chips("#f-digest", [["1", s.digest || 0]], "digest", () => tr("filters.inDigest"));
     chips("#f-kinds", top(s.kinds || s.types, 15), "kind");
     chips("#f-lifecycles", top(s.lifecycles || { current: s.total }, 5), "lifecycle");
     chips("#f-task-statuses", top(s.taskStatuses || {}, 5), "task_status");

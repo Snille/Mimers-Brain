@@ -33,7 +33,9 @@
     "projects": "Projekt",
     "topics": "Ämnen",
     "people": "Personer",
-    "systems": "System"
+    "systems": "System",
+    "digest": "Startpaket",
+    "inDigest": "i startpaketet"
   },
   "search": {
     "placeholder": "Sök …",
@@ -78,7 +80,9 @@
     "evidenceOnly": "endast evidens",
     "stale": "verifieringen kan vara gammal",
     "pinned": "i startpaketet",
-    "pinnedHint": "I startpaketet som varje modell läser först"
+    "pinnedHint": "I startpaketet som varje modell läser först",
+    "pinnedWaiting": "startpaket: väntar på bekräftelse",
+    "pinnedWaitingHint": "Fäst, men bara bekräftade minnen kommer med i startpaketet. Bekräfta det på sidan Granska."
   },
   "ingest": {
     "title": "Granska föreslagna minnen",

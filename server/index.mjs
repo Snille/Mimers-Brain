@@ -592,6 +592,7 @@ function makeListener(tiers, {
                 topic: url.searchParams.get("topic") || undefined,
                 person: url.searchParams.get("person") || undefined,
                 system: url.searchParams.get("system") || undefined,
+                digest: url.searchParams.get("digest") === "1",
               })
             : await db.listThoughts(tiers, {
                 limit: Number(url.searchParams.get("limit")) || 100,
@@ -603,6 +604,7 @@ function makeListener(tiers, {
                 topic: url.searchParams.get("topic") || undefined,
                 person: url.searchParams.get("person") || undefined,
                 system: url.searchParams.get("system") || undefined,
+                digest: url.searchParams.get("digest") === "1",
               });
           return json(res, 200, rows);
         }

@@ -20,10 +20,13 @@ test("only the reader can put a memory in the digest", async () => {
   const lib = await source("../lib.mjs");
   const capture = lib.slice(lib.indexOf("export async function captureThought("));
   assert.match(capture.slice(0, capture.indexOf("normaliseMeta(")), /"captured_by", "pinned",?\s*\]\) delete proposed\[field\]/);
-  const digest = lib.slice(lib.indexOf("export async function memoryDigest("));
-  assert.match(digest, /review_status', 'confirmed'\) = 'confirmed'/);
-  assert.match(digest, /can_use_as_instruction', 'true'\) = 'true'/);
-  assert.match(digest, /lifecycle', 'current'\) = 'current'/);
+  const rule = lib.slice(lib.indexOf("const DIGEST_SQL = `"), lib.indexOf("`;", lib.indexOf("const DIGEST_SQL = `")));
+  assert.match(rule, /review_status', 'confirmed'\) = 'confirmed'/);
+  assert.match(rule, /can_use_as_instruction', 'true'\) = 'true'/);
+  assert.match(rule, /lifecycle', 'current'\) = 'current'/);
+  // One rule for the digest itself, the Thoughts filter and the sidebar count.
+  assert.match(lib.slice(lib.indexOf("export async function memoryDigest(")), /AND \$\{DIGEST_SQL\}/);
+  assert.equal(lib.match(/\$\{DIGEST_SQL\}/g).length, 4);
 });
 
 test("the Thoughts page and the server agree on what is in the digest", async () => {
@@ -32,6 +35,8 @@ test("the Thoughts page and the server agree on what is in the digest", async ()
   assert.match(lib, /metadata->>'kind' IN \('preference', 'profile'\) AND coalesce\(metadata->>'pinned', ''\) <> 'false'/);
   assert.match(page, /const DIGEST_KINDS = \["preference", "profile"\];/);
   assert.match(page, /m\.pinned === true \|\| \(m\.pinned !== false && DIGEST_KINDS\.includes\(m\.kind\)\)/);
+  assert.match(page, /const digestReady = \(m\) => inDigest\(m\)/);
+  assert.match(page, /chips\("#f-digest"/);
   for (const language of ["en", "sv"]) {
     const messages = JSON.parse(await source(`../public/lang/${language}.json`));
     assert.ok(messages.editor.pinned && messages.editor.pinnedHint && messages.thought.pinned);

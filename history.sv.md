@@ -6,6 +6,18 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-13 — 0.9.27: vad som finns i startpaketet
+
+Startpaketet saknade en egen vy: enda sättet att se vad varje modell fick var
+att öppna minnena ett i taget. Sidomenyn på sidan Tankar börjar nu med filtret
+**Startpaket** och dess antal. Filtret, antalet, 📌-märket och själva
+`memory_digest` delar ett och samma SQL-villkor (`DIGEST_SQL`), så de kan inte
+säga olika saker. Arbetet med vyn visade en lucka: ett minne som var fäst men
+inte bekräftat bar märket fast startpaketet hoppade över det. Nu står det
+**startpaket: väntar på bekräftelse** i stället.
+
+---
+
 ## 2026-10-13 — 0.9.26: hjärnan, och fyra idéer från Synapse
 
 **Hjärnan.** Sidan Statistik börjar nu med en 3D-bild av hela minnet: varje

@@ -228,9 +228,17 @@ async function extractAtoms(text) {
 
 const COLS = "id, content, metadata, tier, created_at, updated_at";
 
+// What the session digest contains, as one condition, so the digest, the
+// Thoughts filter and its count can never disagree. See memoryDigest().
+const DIGEST_SQL = `coalesce(metadata->>'lifecycle', 'current') = 'current'
+        AND coalesce(metadata->>'review_status', 'confirmed') = 'confirmed'
+        AND coalesce(metadata->>'can_use_as_instruction', 'true') = 'true'
+        AND (metadata->>'pinned' = 'true'
+             OR (metadata->>'kind' IN ('preference', 'profile') AND coalesce(metadata->>'pinned', '') <> 'false'))`;
+
 export async function listThoughts(tiers, {
   limit = 10, type, kind, lifecycle = "current", taskStatus, task_status, project,
-  topic, person, system, days,
+  topic, person, system, days, digest,
 } = {}) {
   taskStatus ||= task_status;
   const args = [tiers];
@@ -245,6 +253,7 @@ export async function listThoughts(tiers, {
   if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
   if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
   if (days) sql += ` AND created_at > now() - ($${args.push(String(days))} || ' days')::interval`;
+  if (digest) sql += ` AND ${DIGEST_SQL}`;
   sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 200))}`;
   return (await pool.query(sql, args)).rows;
 }
@@ -359,7 +368,7 @@ export async function searchThoughts(tiers, query, {
 }
 
 export async function textSearch(tiers, q, {
-  limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system,
+  limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system, digest,
 } = {}) {
   const args = [tiers, `%${q}%`];
   let sql = `SELECT ${COLS} FROM thoughts
@@ -373,6 +382,7 @@ export async function textSearch(tiers, q, {
   if (topic) sql += ` AND metadata @> $${args.push(JSON.stringify({ topics: [topic] }))}::jsonb`;
   if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
   if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
+  if (digest) sql += ` AND ${DIGEST_SQL}`;
   sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 500))}`;
   const { rows } = await pool.query(sql, args);
   return rows;
@@ -1435,6 +1445,7 @@ export async function stats(tiers) {
        (SELECT count(*)        FROM base) AS total,
        (SELECT min(created_at) FROM base) AS first,
        (SELECT max(created_at) FROM base) AS last,
+       (SELECT count(*) FROM base WHERE ${DIGEST_SQL}) AS digest,
        (SELECT jsonb_object_agg(tier, c)
           FROM (SELECT tier, count(*) AS c FROM base GROUP BY tier) x) AS by_tier,
        (SELECT jsonb_object_agg(type, c)
@@ -1476,6 +1487,7 @@ export async function stats(tiers) {
   const r = rows[0];
   return {
     total: Number(r.total),
+    digest: Number(r.digest || 0),
     byTier: r.by_tier || {},
     types: r.types || {},
     kinds: r.kinds || {},
@@ -1589,12 +1601,7 @@ export const DIGEST_BUDGET = 9000;
 export async function memoryDigest(tiers, { limit = DIGEST_LIMIT } = {}) {
   const { rows } = await pool.query(
     `SELECT ${COLS} FROM thoughts
-      WHERE tier = ANY($1)
-        AND coalesce(metadata->>'lifecycle', 'current') = 'current'
-        AND coalesce(metadata->>'review_status', 'confirmed') = 'confirmed'
-        AND coalesce(metadata->>'can_use_as_instruction', 'true') = 'true'
-        AND (metadata->>'pinned' = 'true'
-             OR (metadata->>'kind' IN ('preference', 'profile') AND coalesce(metadata->>'pinned', '') <> 'false'))
+      WHERE tier = ANY($1) AND ${DIGEST_SQL}
       ORDER BY (metadata->>'pinned' = 'true') DESC NULLS LAST,
                CASE metadata->>'kind' WHEN 'preference' THEN 0 WHEN 'profile' THEN 1 ELSE 2 END,
                updated_at DESC

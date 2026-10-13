@@ -217,7 +217,9 @@ nudge of a few hundredths, never enough to outrank a better match. Results not
 verified for six months carry an `AGE` note so a model checks before it asserts.
 Every model is told to call `memory_digest` once per session: the confirmed
 preferences and profile memories plus anything pinned on the Thoughts page, so
-a model that never reads a `CLAUDE.md` starts with the same standing rules.
+a model that never reads a `CLAUDE.md` starts with the same standing rules. The
+**Session digest** filter at the top of the Thoughts sidebar shows exactly what
+it contains.
 
 **Statistics** answers four separate questions: whether the memory is healthy,
 whether recalled memories prove useful, how activity changes over time, and

@@ -222,7 +222,8 @@ verifierats på sex månader får en `AGE`-notering så att en modell kontroller
 innan den påstår. Varje modell ombeds anropa `memory_digest` en gång per
 session: de bekräftade preferenserna och profilminnena plus allt som fästs på
 sidan Tankar, så att en modell som aldrig läser en `CLAUDE.md` börjar med samma
-grundregler.
+grundregler. Filtret **Startpaket** överst i sidomenyn på sidan Tankar visar
+exakt vad det innehåller.
 
 **Statistik** svarar på fyra separata frågor: om minnet mår bra, om återkallade
 minnen faktiskt blir användbara, hur aktiviteten förändras över tid och om
