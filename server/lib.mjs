@@ -169,8 +169,14 @@ export async function extractMetadata(text) {
           role: "user",
           content:
             `Extract long-term-memory metadata as JSON. Return only these keys:\n` +
-            `- "title": a factual title for THIS text, at most 180 characters\n` +
-            `- "summary": the current conclusion of THIS text, at most 500 characters\n` +
+            // The language rule and "never the opening words" are the two that
+            // matter: without them the model answered Swedish text in English
+            // and often returned the first 180 or 500 characters cut mid-word.
+            `Write "title" and "summary" in the SAME LANGUAGE as the text (Swedish text gets Swedish metadata).\n` +
+            `- "title": a short descriptive name for THIS text, at most 100 characters. Name the subject;\n` +
+            `  never copy or cut off the opening words of the text.\n` +
+            `- "summary": the current conclusion of THIS text in one to three complete sentences, at most\n` +
+            `  400 characters. Keep the key names, numbers and rules; never copy or cut off the text.\n` +
             `- "kind": one of ${MEMORY_KINDS.join(", ")}\n` +
             `  fact = stable current fact; reference = stable lookup information; procedure = reusable steps;\n` +
             `  decision = an explicit choice; lesson = a reusable conclusion; incident = an observed failure;\n` +

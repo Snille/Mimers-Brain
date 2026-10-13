@@ -408,7 +408,8 @@ Run `npm run audit` in `server/` for a read-only, deterministic quality pass.
 Besides metadata fields that would be normalized, it reports warning codes for
 oversized or multi-purpose current memories, completed work filed as tasks,
 session-history language, possible secret fragments, metadata not grounded in
-the content, and projects that disagree with an explicit workspace path. The
+the content, titles or summaries that are only the cut-off opening of the
+content, and projects that disagree with an explicit workspace path. The
 report contains UUIDs, fields and warning codes only — never memory content,
 titles, summaries or secret values. Warnings do not write to the database and
 do not turn the dry run into a failure.

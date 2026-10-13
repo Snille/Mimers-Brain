@@ -74,3 +74,20 @@ test("quality audit ignores historical rows and accepts a focused current proced
     },
   }), []);
 });
+
+test("a title or summary that is just the cut-off opening of the content is flagged", async () => {
+  const { memoryQualityWarnings } = await import("../memory-quality.mjs");
+  const content = "Eriks interna DNS ligger på gatewayen 10.0.0.1 och har lokala överstyrningar som pekar tjänstenamnen till Nginx Proxy Manager på 10.0.0.7 och mer därtill.";
+  const codes = (metadata) => memoryQualityWarnings({ content, metadata }).map((w) => w.code);
+  assert.ok(codes({ title: content.slice(0, 90), summary: content.slice(0, 120) }).includes("title-looks-cut"));
+  assert.ok(codes({ title: "x", summary: content.slice(0, 120) }).includes("summary-looks-cut"));
+  const clean = codes({ title: "Eriks interna DNS på 10.0.0.1", summary: "Tjänstenamnen pekar på Nginx Proxy Manager 10.0.0.7." });
+  assert.ok(!clean.includes("title-looks-cut") && !clean.includes("summary-looks-cut"));
+});
+
+test("the metadata model is told to keep the text's language and never cut it", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const lib = await readFile(new URL("../lib.mjs", import.meta.url), "utf8");
+  assert.match(lib, /SAME LANGUAGE as the text/);
+  assert.match(lib, /never copy or cut off the opening words/);
+});

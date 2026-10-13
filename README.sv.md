@@ -412,7 +412,8 @@ Kör `npm run audit` i `server/` för en skrivskyddad, deterministisk
 kvalitetskontroll. Utöver metadatafält som skulle normaliseras rapporterar den
 varningskoder för för stora eller mångsyftande aktuella minnen, färdigt arbete
 som lagts som uppgift, sessionshistoriskt språk, möjliga hemlighetsfragment,
-metadata som inte stöds av innehållet och projekt som inte stämmer med en
+metadata som inte stöds av innehållet, titlar eller sammanfattningar som bara är
+textens avklippta början och projekt som inte stämmer med en
 uttrycklig workspace-sökväg. Rapporten innehåller bara UUID:n, fält och
 varningskoder — aldrig minnesinnehåll, titlar, sammanfattningar eller hemliga
 värden. Varningarna skriver inget till databasen och gör inte torrkörningen till

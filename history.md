@@ -6,6 +6,35 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-13 — 0.9.29: titles that describe, summaries that finish
+
+An audit of all 287 current memories found 69 with a title or summary that was
+cut off mid-word, copied from the opening of the text, or missing, and 151
+Swedish memories with an English summary. Four causes, all fixed:
+
+- The metadata model was never told which language to write in, so Swedish text
+  got English titles and summaries. The prompt now says "the same language as
+  the text", asks for a short descriptive title of at most 100 characters and a
+  summary of one to three complete sentences, and forbids copying or cutting the
+  text — "at most 180/500 characters" had invited exactly that.
+- When the model's metadata was rejected, the fallback took the first 180 or 500
+  characters as they came. `shorten()` now stops at a sentence end or a whole
+  word and adds an ellipsis.
+- The grounding check read punctuation straight after a path as part of the
+  path ("...\README.md." was not found in the content), so correct summaries
+  were silently thrown away and replaced by that fallback. Trailing `.`, `:` and
+  `-` are now trimmed from path anchors.
+- 33 memories imported from the old system had never had a title or summary.
+
+`npm run audit` now reports `title-looks-cut` and `summary-looks-cut`. The 69
+broken memories and the 151 (plus one the audit missed) English summaries were
+rewritten by hand in the text's own language and checked against the grounding
+rule before saving; the audit now finds none. One trap remains by design: a
+title loses everything from the word "ersätter" or "kompletterar" onward, a rule
+for legacy replacement prose — reword rather than fight it.
+
+---
+
 ## 2026-10-13 — 0.9.28: a policy that arrives whole
 
 Rule 15 told every model to call `memory_digest` at the start of a session, and

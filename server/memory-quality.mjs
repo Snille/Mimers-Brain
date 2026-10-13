@@ -59,6 +59,16 @@ export function memoryQualityWarnings(row = {}) {
       add("metadata-not-grounded-in-content", field);
   }
 
+  // A title or summary that is just the opening of the content, stopped
+  // mid-sentence, is a cut, not a description.
+  const flat = content.replace(/\s+/g, " ");
+  const title = clean(metadata.title).replace(/\s+/g, " ");
+  const summary = clean(metadata.summary).replace(/\s+/g, " ");
+  if (title.length > 60 && flat.startsWith(title) && flat.length > title.length && !/[.!?…)]$/u.test(title))
+    add("title-looks-cut", "title");
+  if (summary && flat.startsWith(summary) && flat.length > summary.length && !/[.!?…)]$/u.test(summary))
+    add("summary-looks-cut", "summary");
+
   const project = slug(metadata.project);
   const owners = workspaceOwners(content);
   if (project && owners.length && !owners.includes(project))

@@ -9,6 +9,7 @@ import {
   applyReview,
   deriveSummary,
   deriveTitle,
+  shorten,
   describesContent,
   inheritsConfirmedTrust,
   memoryFreshness,
@@ -25,6 +26,24 @@ test("derives a compact title and summary without losing the content", () => {
   const content = "# Home Assistant SSH\n\nUse the root account.\n\nLong incident history.";
   assert.equal(deriveTitle(content), "Home Assistant SSH");
   assert.equal(deriveSummary(content), "Use the root account.");
+});
+
+test("a derived title or summary never stops in the middle of a word", () => {
+  const sentence = "Eriks interna DNS ligger på gatewayen 10.0.0.1 och har lokala överstyrningar för tjänstenamnen";
+  const long = `${sentence} som pekar mot Nginx Proxy Manager på 10.0.0.7, och brain.snille.net saknar en sådan post helt.`;
+  const title = deriveTitle(long);
+  assert.ok(title.length <= 120, title);
+  assert.match(title, /…$/u);
+  assert.ok(long.startsWith(title.slice(0, -1)));
+  // The kept text ends where a word ends in the original.
+  assert.match(long.slice(title.length - 1), /^[\s,]/u);
+
+  const paragraph = Array.from({ length: 12 }, (_, i) => `Mening nummer ${i + 1} beskriver en egen sak i detalj.`).join(" ");
+  const summary = deriveSummary(`Rubrik\n\n${paragraph}`);
+  assert.ok(summary.length <= 500);
+  assert.match(summary, /\.$/u, "cut at the end of a sentence");
+  assert.equal(shorten("Kort text.", 500), "Kort text.");
+  assert.equal(shorten("ett två tre fyra fem sex sju", 15), "ett två tre…");
 });
 
 test("legacy replacement prose is omitted from display titles", () => {
@@ -244,6 +263,14 @@ test("natural punctuation is not mistaken for a foreign technical identifier", (
     "Home Assistant:s API:er och en manual pickup/drop mechanism måste verifieras live.",
     content,
   ), true);
+});
+
+test("a path at the end of a sentence still matches the content", () => {
+  const content = String.raw`Inventeringen ligger i C:\Users\eripet\Coding\_secrets_\README.md och nycklarna i secrets.env per projekt.`;
+  assert.equal(describesContent(String.raw`Läs C:\Users\eripet\Coding\_secrets_\README.md.`, content), true);
+  assert.equal(describesContent(String.raw`Se C:\Users\eripet\Coding\_secrets_\README.md: den listar allt.`, content), true);
+  // A path that really is not in the content is still caught.
+  assert.equal(describesContent(String.raw`Läs C:\Users\eripet\Coding\_secrets_\OTHER.md.`, content), false);
 });
 
 test("non-task memories cannot carry a task status", () => {

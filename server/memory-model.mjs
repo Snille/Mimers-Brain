@@ -377,7 +377,12 @@ function technicalAnchors(value) {
     // A single prose dot such as Node.js is weak evidence. Underscores, digits,
     // or multiple separators are much stronger signs of a model, version or id.
     .filter((part) => part.includes("_") || /\d/u.test(part) || (part.match(/\./g) || []).length >= 2);
-  const paths = (text.match(/[\p{L}\p{N}.:-]+(?:[/\\][\p{L}\p{N}._:-]+){2,}/gu) || []);
+  // A path may end a sentence or a clause ("...\README.md." or "..\_secrets_:").
+  // The path characters include . : and -, so that trailing punctuation used to
+  // become part of the path, the path was then missing from the content, and a
+  // correct summary was silently replaced by the first 500 characters.
+  const paths = (text.match(/[\p{L}\p{N}.:-]+(?:[/\\][\p{L}\p{N}._:-]+){2,}/gu) || [])
+    .map((path) => path.replace(/[.:-]+$/u, ""));
   return [...new Set([...identifiers, ...paths]
     .map((part) => part.toLowerCase().replaceAll("\\", "/")))];
 }
@@ -401,9 +406,23 @@ export function describesContent(candidate, content) {
   return candidateAnchors.some((anchor) => contentTokens.has(anchor));
 }
 
+// Shortens prose without cutting a word in half: at the last sentence end that
+// keeps at least `keep` characters, otherwise at the last word, marked with an
+// ellipsis. A plain slice(0, n) is what produced titles and summaries ending
+// in "...ett git-rep" - 69 of 287 memories had one on 2026-10-13.
+export function shorten(text, max, { keep = Math.round(max * 0.4) } = {}) {
+  const value = clean(text);
+  if (value.length <= max) return value;
+  const head = value.slice(0, max);
+  const sentence = Math.max(...[". ", "! ", "? "].map((end) => head.lastIndexOf(end)));
+  if (sentence + 1 >= keep) return head.slice(0, sentence + 1);
+  const word = head.slice(0, max - 1).lastIndexOf(" ");
+  return `${head.slice(0, word > 0 ? word : max - 1).replace(/[\s,:;—–-]+$/u, "")}…`;
+}
+
 export function deriveTitle(content) {
   const line = String(content ?? "").split(/\r?\n/).map(clean).find(Boolean) || "Untitled memory";
-  return cleanTitle(line);
+  return shorten(cleanTitle(line), 120);
 }
 
 export function deriveSummary(content) {
@@ -411,7 +430,7 @@ export function deriveSummary(content) {
   const title = deriveTitle(content);
   const useful = paragraphs.find((part, index) =>
     index > 0 && part.replace(/^#+\s*/, "") !== title) || paragraphs[0] || content;
-  return clean(useful).slice(0, 500);
+  return shorten(useful, 500);
 }
 
 function trustDefaults(origin, userConfirmed = false) {

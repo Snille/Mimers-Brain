@@ -6,6 +6,38 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-13 — 0.9.29: titlar som beskriver, sammanfattningar som tar slut
+
+En granskning av alla 287 aktuella minnen hittade 69 med en titel eller
+sammanfattning som var avklippt mitt i ett ord, kopierad från textens början
+eller saknades, och 151 svenska minnen med engelsk sammanfattning. Fyra orsaker,
+alla rättade:
+
+- Metadatamodellen fick aldrig veta vilket språk den skulle skriva på, så svensk
+  text fick engelska titlar och sammanfattningar. Prompten säger nu "samma språk
+  som texten", ber om en kort beskrivande titel på högst 100 tecken och en
+  sammanfattning i en till tre hela meningar, och förbjuder att texten kopieras
+  eller klipps — "högst 180/500 tecken" hade bjudit in till just det.
+- När modellens metadata underkändes tog reservvägen de första 180 eller 500
+  tecknen rakt av. `shorten()` stannar nu vid en meningsgräns eller ett helt ord
+  och lägger till en ellips.
+- Förankringskontrollen läste skiljetecken direkt efter en sökväg som en del av
+  sökvägen ("...\README.md." hittades inte i texten), så korrekta
+  sammanfattningar kastades tyst och ersattes av reservvägen. Avslutande `.`,
+  `:` och `-` tas nu bort från sökvägsankare.
+- 33 minnen som importerats från det gamla systemet hade aldrig fått titel eller
+  sammanfattning.
+
+`npm run audit` rapporterar nu `title-looks-cut` och `summary-looks-cut`. De 69
+trasiga minnena och de 151 (plus ett som granskningen missade) engelska
+sammanfattningarna skrevs om för hand på textens eget språk och kontrollerades
+mot förankringsregeln innan de sparades; granskningen hittar nu inga. En fälla
+finns kvar med avsikt: en titel tappar allt från ordet "ersätter" eller
+"kompletterar" och framåt, en regel för äldre ersättningsprosa — formulera om
+hellre än att slåss mot den.
+
+---
+
 ## 2026-10-13 — 0.9.28: en policy som kommer fram hel
 
 Regel 15 sa åt varje modell att anropa `memory_digest` när sessionen startar,
