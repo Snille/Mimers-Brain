@@ -150,7 +150,7 @@
     },
     "contradictions": {
       "title": "Possible contradictions",
-      "description": "Two current memories about the same subject that the metadata model thinks cannot both be true. New pairs are checked every night; nothing is changed automatically.",
+      "description": "Two current memories about the same item that a language model thinks cannot both be true. New pairs are checked every night; nothing is changed automatically.",
       "check": "Check new pairs now",
       "checking": "Checking…",
       "nothingNew": "No new pairs to check."

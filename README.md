@@ -431,7 +431,7 @@ do not turn the dry run into a failure.
 
 The audit cannot see two memories that disagree, so the server looks for those
 itself. Pairs of current memories with a similarity of 0.6 or more are read by
-the metadata model, closest first, twenty a night or on demand from the Review page,
+an open-weights model (`CONTRADICTION_MODEL`, Qwen3-235B by default), closest first, twenty a night or on demand from the Review page,
 and the ones it judges incompatible are listed as *Possible contradictions*
 with the same choices as duplicates plus *Not a contradiction*. A verdict holds
 until either memory changes. Nothing is changed automatically.

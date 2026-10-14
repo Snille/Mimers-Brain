@@ -6,6 +6,30 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.10.1: en domare som inte larmar i onödan
+
+Motsägelsekontrollen i 0.10.0 frågade metadatamodellen, gpt-4o-mini, och mot det
+riktiga minnet kallade den 14 av sina första 20 par för motsägelser. Nästan alla
+var fel: att `cc/` går till Claude och `cx/` till Codex var "en konflikt", och
+det var även två maskiner med två olika sökvägar. En sådan lista lär läsaren att
+strunta i den.
+
+Paren den flaggade blev testmängden, med tre planterade motsägelser bredvid (en
+port, en preferens, en lagringstid). En striktare prompt — samma sak, samma
+egenskap, två värden; olika saker, saknad information och specialfall är alltid
+förenliga; vid tvekan, förenliga — lämnade ändå gpt-4o-mini med nio falsklarm.
+Qwen3-235B och DeepSeek V3.2, båda med öppna vikter, larmade inte en enda gång
+och hittade alla tre planterade. Qwen är den billigare av de två, ungefär en
+hundradels cent per par, och är nu standard som `CONTRADICTION_MODEL`; en annan
+endpoint än OpenRouter faller tillbaka på `META_MODEL`.
+
+Utlåtanden minns vilken modell som gav dem. Ett från en tidigare modell varken
+visas eller behålls: nattkörningen bedömer paret igen, så utlåtandena från
+0.10.0 byts ut utan att någon rör databasen för hand. Läsarens *Ingen
+motsägelse* sparas under modellen `user` och överlever ett modellbyte.
+
+---
+
 ## 2026-10-14 — 0.10.0: tre idéer från OB1
 
 Mimers Brain utgick från [OB1](https://github.com/NateBJones-Projects/OB1), och

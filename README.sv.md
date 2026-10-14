@@ -436,7 +436,7 @@ ett fel.
 
 Granskningen ser inte två minnen som säger emot varandra, så servern letar
 efter dem själv. Par av aktuella minnen med en likhet på 0,6 eller mer läses av
-metadatamodellen, de mest lika först, tjugo per natt eller på begäran från sidan
+en modell med öppna vikter (`CONTRADICTION_MODEL`, Qwen3-235B som standard), de mest lika först, tjugo per natt eller på begäran från sidan
 Granska, och de
 som bedöms oförenliga listas som *Möjliga motsägelser* med samma val som
 dubbletter plus *Ingen motsägelse*. Ett utlåtande gäller tills något av minnena

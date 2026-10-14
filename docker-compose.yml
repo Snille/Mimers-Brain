@@ -62,6 +62,9 @@ services:
       # for the Claude Code recall hook in tools/hooks/.
       CHANGE_LOG_DELETED_DAYS: ${CHANGE_LOG_DELETED_DAYS:-30}
       RECALL_HINT_FLOOR: ${RECALL_HINT_FLOOR:-0.5}
+      # The model that judges contradictions. Empty means Qwen3-235B on
+      # OpenRouter, or META_MODEL on any other endpoint.
+      CONTRADICTION_MODEL: ${CONTRADICTION_MODEL:-}
       # MQTT to Home Assistant. Leave MQTT_URL empty to publish nothing.
       MQTT_URL: ${MQTT_URL:-}
       MQTT_USERNAME: ${MQTT_USERNAME:-}

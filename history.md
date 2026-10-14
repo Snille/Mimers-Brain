@@ -6,6 +6,31 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.10.1: a judge that does not cry wolf
+
+The contradiction check in 0.10.0 asked the metadata model, gpt-4o-mini, and
+on the live brain it called 14 of its first 20 pairs contradictions. Nearly all
+were wrong: `cc/` routes to Claude and `cx/` to Codex was "a conflict", and so
+were two machines with two different paths. A list like that teaches the reader
+to ignore it.
+
+The pairs it flagged became the test set, with three planted contradictions
+beside them (a port, a preference, a retention period). A stricter prompt — same
+item, same property, two values; different items, missing information and
+special cases are always consistent; when in doubt, consistent — still left
+gpt-4o-mini at nine false alarms. Qwen3-235B and DeepSeek V3.2, both open
+weights, raised none and caught all three plants. Qwen is the cheaper of the
+two, about a hundredth of a cent per pair, and is now the default as
+`CONTRADICTION_MODEL`; another endpoint than OpenRouter falls back to
+`META_MODEL`.
+
+Verdicts remember the model that gave them. One from an earlier model is neither
+shown nor kept: the nightly run judges the pair again, so the 0.10.0 verdicts
+are replaced without touching the database by hand. A reader's *Not a
+contradiction* is filed under the model `user` and survives a change of model.
+
+---
+
 ## 2026-10-14 — 0.10.0: three ideas from OB1
 
 Mimers Brain started from [OB1](https://github.com/NateBJones-Projects/OB1), and

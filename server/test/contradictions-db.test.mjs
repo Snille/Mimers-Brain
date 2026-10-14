@@ -46,6 +46,12 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     // Nothing changed, so nothing is paid for twice.
     assert.equal((await db.checkContradictions(db.ALL)).checked, 0);
 
+    // A verdict from an earlier model is neither shown nor kept: it is judged again.
+    await db.pool.query(`UPDATE contradiction_checks SET model = 'an-earlier-model'`);
+    assert.equal((await db.contradictions(db.ALL)).length, 0);
+    assert.equal((await db.checkContradictions(db.ALL)).checked, 2);
+    assert.equal((await db.contradictions(db.ALL)).length, 1);
+
     // A changed memory is judged again.
     await db.pool.query(`UPDATE thoughts SET content = 'The brain listens on port 9001' WHERE id = $1`, [b]);
     assert.equal((await db.contradictions(db.ALL)).length, 0, "a verdict on old text is not shown");
@@ -59,7 +65,8 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     assert.equal((await db.checkContradictions(db.ALL)).checked, 0);
 
     // Superseding one side takes the pair off the list.
-    await db.pool.query(`UPDATE contradiction_checks SET verdict = 'conflict' WHERE verdict = 'dismissed'`);
+    await db.pool.query(`UPDATE contradiction_checks SET verdict = 'conflict', model = $1 WHERE verdict = 'dismissed'`,
+      [db.CONTRADICTION_MODEL]);
     assert.equal((await db.contradictions(db.ALL)).length, 1);
     await db.linkSupersession(db.ALL, a, [b]);
     assert.equal((await db.contradictions(db.ALL)).length, 0);

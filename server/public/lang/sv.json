@@ -150,7 +150,7 @@
     },
     "contradictions": {
       "title": "Möjliga motsägelser",
-      "description": "Två aktuella minnen om samma sak som metadatamodellen tror inte kan vara sanna samtidigt. Nya par kontrolleras varje natt; inget ändras automatiskt.",
+      "description": "Två aktuella minnen om samma sak som en språkmodell tror inte kan vara sanna samtidigt. Nya par kontrolleras varje natt; inget ändras automatiskt.",
       "check": "Kontrollera nya par nu",
       "checking": "Kontrollerar…",
       "nothingNew": "Inga nya par att kontrollera."

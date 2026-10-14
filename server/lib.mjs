@@ -807,10 +807,20 @@ export async function resolveDuplicate(tiers, {
 // new one, a rule and its reversal. Every pair alike enough to share a subject
 // is a candidate, the closest first, and that includes the duplicate band: the
 // clearest contradiction on a test brain, the same server on port 8790 in one
-// memory and 8795 in the other, scored 0.87. The metadata model reads each pair
-// once and says whether both can be true now. A verdict is kept until either
-// memory changes, so a pair is never paid for twice.
+// memory and 8795 in the other, scored 0.87. A model reads each pair once and
+// says whether both can be true now. A verdict is kept until either memory
+// changes, so a pair is never paid for twice.
 export const CONTRADICTION_FLOOR = 0.6;
+
+// Not the metadata model. On the live brain gpt-4o-mini called 14 of its first
+// 20 pairs contradictions, nearly all of them wrong: two prefixes that route to
+// two services, two machines with two paths. With a stricter prompt it still
+// flagged 9 of 16 false pairs. Qwen3-235B and DeepSeek V3.2, both open weights,
+// flagged none of them and caught all three planted conflicts; Qwen is the
+// cheaper of the two. Another endpoint than OpenRouter falls back to META_MODEL,
+// since the model id is OpenRouter's.
+export const CONTRADICTION_MODEL = process.env.CONTRADICTION_MODEL
+  || (META_URL.includes("openrouter.ai") ? "qwen/qwen3-235b-a22b-2507" : META_MODEL);
 
 async function contradictionPairs(tiers, { limit = 20 } = {}) {
   const { rows } = await pool.query(
@@ -829,32 +839,40 @@ async function contradictionPairs(tiers, { limit = 20 } = {}) {
         AND NOT EXISTS (
           SELECT 1 FROM contradiction_checks c
            WHERE c.left_id = a.id AND c.right_id = b.id
-             AND c.checked_at >= greatest(a.updated_at, b.updated_at))
+             AND c.checked_at >= greatest(a.updated_at, b.updated_at)
+             -- a verdict from an earlier model is checked again; the reader's is not
+             AND c.model IN ($4, 'user'))
         AND NOT EXISTS (
           SELECT 1 FROM thought_relations r
            WHERE (r.from_id = a.id AND r.to_id = b.id) OR (r.from_id = b.id AND r.to_id = a.id))
       ORDER BY similarity DESC LIMIT $3`,
-    [tiers, CONTRADICTION_FLOOR, Math.min(Number(limit) || 20, 100)],
+    [tiers, CONTRADICTION_FLOOR, Math.min(Number(limit) || 20, 100), CONTRADICTION_MODEL],
   );
   return rows;
 }
 
-// The instructions about the reason come after the two texts, for the same
-// reason topicReminder() exists: placed first, gpt-4o-mini answered Swedish
-// memories in English and called them "Memory A" and "Memory B", which means
-// nothing to the person reading the Review page.
+// The instructions come after the two texts, for the same reason topicReminder()
+// exists: placed first, the model answered Swedish memories in English and
+// called them "Memory A" and "Memory B", which means nothing to the person
+// reading the Review page. The bar is deliberately high - same item, same
+// property, two values - because a false alarm on that page costs the reader
+// more than a missed contradiction does.
 export function contradictionPrompt(left, right) {
   return `You check a personal long-term memory for contradictions. Two memories follow.\n\n` +
     `<<<FIRST\n${left}\nFIRST>>>\n\n<<<SECOND\n${right}\nSECOND>>>\n\n` +
-    `They contradict each other only when they state incompatible facts, rules or decisions about\n` +
-    `the same thing, so that both cannot be true now. These are NOT contradictions: different\n` +
-    `aspects of one subject, one memory being more detailed than the other, or a dated past event\n` +
-    `next to a newer one that does not claim the same thing.\n` +
+    `Answer "conflict" only when both memories make a claim about the SAME item and the SAME\n` +
+    `property, and the two claims cannot both be true at the same time: two different values for\n` +
+    `one setting, port, path, address, count or date, or one says a thing is so and the other that\n` +
+    `it is not. A difference in tone, scope or emphasis is not a conflict.\n` +
+    `These are always "consistent": the memories are about different items (two prefixes, two\n` +
+    `devices, two settings); one memory has information the other lacks; one is more general and\n` +
+    `the other a special case; a past event and a current rule; two rules that can both be followed.\n` +
+    `When in doubt, answer "consistent".\n` +
     `Return JSON {"verdict":"conflict"|"consistent","reason":"..."}. "reason" is empty when\n` +
     `consistent. Otherwise it is one sentence that a person reads next to both texts: write it in\n` +
-    `the language the memories are written in (Swedish memories get a Swedish sentence), and say\n` +
-    `what the two claim, for example "Det ena säger port 8790, det andra port 8795". Never write\n` +
-    `"first", "second", "memory A" or "memory B".`;
+    `the language the memories are written in (Swedish memories get a Swedish sentence), and name\n` +
+    `the item and both values, for example "Det ena säger port 8790, det andra port 8795". Never\n` +
+    `write "first", "second", "memory A" or "memory B".`;
 }
 
 async function judgeContradiction(left, right) {
@@ -862,13 +880,17 @@ async function judgeContradiction(left, right) {
     method: "POST",
     headers: aiHeaders(),
     body: JSON.stringify({
-      model: META_MODEL,
+      model: CONTRADICTION_MODEL,
       response_format: { type: "json_object" },
+      temperature: 0,
       messages: [{ role: "user", content: contradictionPrompt(left, right) }],
     }),
   });
   if (!r.ok) throw new Error(`Contradiction check failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
-  const parsed = JSON.parse((await r.json()).choices[0].message.content);
+  // Some providers wrap the JSON in a code fence even when asked not to.
+  const raw = String((await r.json()).choices[0].message.content || "")
+    .trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+  const parsed = JSON.parse(raw);
   const verdict = parsed.verdict === "conflict" ? "conflict" : "consistent";
   return { verdict, reason: verdict === "conflict" ? String(parsed.reason || "").slice(0, 500) : "" };
 }
@@ -888,7 +910,7 @@ export async function checkContradictions(tiers, { limit = 20 } = {}) {
        ON CONFLICT (left_id, right_id) DO UPDATE
          SET verdict = EXCLUDED.verdict, reason = EXCLUDED.reason,
              model = EXCLUDED.model, checked_at = now()`,
-      [pair.left_id, pair.right_id, verdict, reason || null, META_MODEL],
+      [pair.left_id, pair.right_id, verdict, reason || null, CONTRADICTION_MODEL],
     );
     checked += 1;
     if (verdict === "conflict") conflicts += 1;
@@ -912,21 +934,23 @@ export async function contradictions(tiers, { limit = 50 } = {}) {
         AND coalesce(a.metadata->>'lifecycle', 'current') = 'current'
         AND coalesce(b.metadata->>'lifecycle', 'current') = 'current'
         AND c.checked_at >= greatest(a.updated_at, b.updated_at)
+        AND c.model = $3
       ORDER BY c.checked_at DESC LIMIT $2`,
-    [tiers, Math.min(Number(limit) || 50, 200)],
+    [tiers, Math.min(Number(limit) || 50, 200), CONTRADICTION_MODEL],
   );
   return rows;
 }
 
 // "Not a contradiction" from the reader. Kept until either memory changes, at
 // which point the pair is checked again - the text it was judged on is gone.
+// Filed under the model "user", so a later change of model does not overrule it.
 export async function dismissContradiction(tiers, { left_id, right_id } = {}) {
   const left = await getThought(tiers, left_id);
   const right = await getThought(tiers, right_id);
   if (!left || !right) throw new Error("Contradiction pair not found");
   const [a, b] = [left.id, right.id].sort();
   const { rowCount } = await pool.query(
-    `UPDATE contradiction_checks SET verdict = 'dismissed', checked_at = now()
+    `UPDATE contradiction_checks SET verdict = 'dismissed', model = 'user', checked_at = now()
       WHERE left_id = $1 AND right_id = $2`,
     [a, b],
   );
