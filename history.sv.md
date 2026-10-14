@@ -6,6 +6,26 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.9.31: en ersättning får behålla sin titel
+
+När en detalj i ett minne rättades med `supersede_thought` bytte minnet också
+namn: verktyget tog bara emot texten, och metadatamodellen skrev en helt ny
+titel. Ett minne med titeln "OmniRoute-LXC:n (10.0.0.42): CLI:t och tjänsten
+måste dela samma .env" kom tillbaka som "Felsökning av omniroute-CLI och
+systemd-tjänst" — vagare, och inte längre namnet en läsare letade efter.
+
+Inget krävde det. Agenter skickar bara text för att servern, aldrig den som
+anropar, ska bestämma förtroendet, men en titel är inget förtroendefält — och
+webbens eget `POST /api/thoughts/supersede` tar redan emot hela metadatan.
+MCP- och OpenAPI-verktygen visade bara aldrig fältet.
+
+`supersede_thought` tar nu emot en valfri `title` på högst 100 tecken. Den
+ersätter bara den extraherade titeln och prövas fortfarande mot
+`describesContent()`, så en titel som hör till ett annat minne ersätts av en
+härledd. Svaret anger titeln som sparades, så att anroparen ser när det hände.
+
+---
+
 ## 2026-10-14 — 0.9.30: fyra granskningsval, inte fem
 
 Sidan Granska hade Begränsa bredvid Endast evidens, och ingen kunde säga vad

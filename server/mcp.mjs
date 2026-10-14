@@ -274,8 +274,10 @@ export function buildServer(tiers, ctx = {}) {
         tier: z.enum(["open", "vault"]).default("open"),
         user_confirmed: z.boolean().default(false).describe(
           "True only when the user directly confirmed or requested this exact replacement text; work approval, wrap-up, or permission to continue is not confirmation"),
+        title: z.string().max(100).optional().describe(
+          "Optional title for the replacement, in the text's language; usually the old title when the subject is unchanged. Omit it to let the server write one"),
       },
-    }, track("supersede_thought", "write", async ({ old_ids, content, tier, user_confirmed }, note) => {
+    }, track("supersede_thought", "write", async ({ old_ids, content, tier, user_confirmed, title }, note) => {
       try {
         if (content.length >= SMART_INGEST_THRESHOLD)
           throw new Error(`Long replacement text must be split into atomic memories below ${SMART_INGEST_THRESHOLD} characters`);
@@ -283,13 +285,13 @@ export function buildServer(tiers, ctx = {}) {
         const inherited = await db.supersessionTrust(tiers, old_ids);
         const saved = await db.captureThought(tiers, content, {
           tier, origin: "agent", userConfirmed: user_confirmed || inherited,
-          client: ctx.client,
+          client: ctx.client, title,
         });
         const linked = await db.linkSupersession(tiers, saved.id, old_ids);
         note.tier = saved.tier;
         note.count = old_ids.length + 1;
         publishSoon();
-        return text(`Saved replacement ${saved.id}; preserved ${linked.superseded_ids.length} superseded memories.` +
+        return text(`Saved replacement ${saved.id} titled "${saved.metadata.title}"; preserved ${linked.superseded_ids.length} superseded memories.` +
           (saved.metadata.review_status === "confirmed" ? "" : " The replacement is pending review, because what it replaces was."));
       } catch (e) { return fail(e); }
     }));

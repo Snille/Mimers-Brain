@@ -6,6 +6,26 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.9.31: a replacement may keep its title
+
+Correcting one detail of a memory with `supersede_thought` also renamed it: the
+tool took only the text, and the metadata model wrote a new title from scratch.
+A memory titled "OmniRoute-LXC:n (10.0.0.42): CLI:t och tjänsten måste dela
+samma .env" came back as "Felsökning av omniroute-CLI och systemd-tjänst" —
+vaguer, and no longer the name a reader had learned to look for.
+
+Nothing required that. Agents send only text so that trust is decided by the
+server, never by the caller, but a title is not a trust field — and the web
+API's own `POST /api/thoughts/supersede` already accepts whole metadata. The
+MCP and OpenAPI tools simply never exposed it.
+
+`supersede_thought` now takes an optional `title` of at most 100 characters.
+It replaces only the extracted title and is still held to `describesContent()`,
+so a title that belongs to another memory falls back to a derived one. The
+reply names the title that was saved, so the caller sees when that happened.
+
+---
+
 ## 2026-10-14 — 0.9.30: four review choices, not five
 
 The Review page offered Restrict next to Evidence only, and nobody could say

@@ -345,9 +345,14 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
             default: false,
             description: "True only when the user directly confirmed or requested this exact replacement text; work approval, wrap-up, or permission to continue is not confirmation",
           },
+          title: {
+            type: "string",
+            maxLength: 100,
+            description: "Optional title for the replacement, in the text's language; usually the old title when the subject is unchanged. Omit it to let the server write one",
+          },
         },
       },
-      async run({ old_ids, content, tier = "open", user_confirmed = false }) {
+      async run({ old_ids, content, tier = "open", user_confirmed = false, title = "" }) {
         if (!Array.isArray(old_ids) || !old_ids.length) throw new BadRequest("old_ids is required");
         const ids = old_ids.map(uuid);
         if (!String(content || "").trim()) throw new BadRequest("content is required");
@@ -357,13 +362,14 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
         const inherited = await db.supersessionTrust(tiers, ids);
         const saved = await db.captureThought(tiers, String(content).trim(), {
           tier, origin: "agent", userConfirmed: Boolean(user_confirmed) || inherited,
-          client: ctx.client,
+          client: ctx.client, title: String(title || "").slice(0, 100),
         });
         const linked = await db.linkSupersession(tiers, saved.id, ids);
         publishSoon();
         return {
           id: saved.id,
           tier: saved.tier,
+          title: saved.metadata.title,
           review_status: saved.metadata.review_status,
           superseded_ids: linked.superseded_ids,
         };

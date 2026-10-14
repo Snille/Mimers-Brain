@@ -511,7 +511,7 @@ export async function linkRelations(tiers, fromId, toIds, relation = "related_to
 
 export async function captureThought(tiers, content, {
   tier = "open", metadata, origin = "agent", userConfirmed = false,
-  sourceRefs = [], artifactRefs = [], client = "",
+  sourceRefs = [], artifactRefs = [], client = "", title = "",
 } = {}) {
   if (!tiers.includes(tier))
     throw new Error(`This endpoint may not write to tier "${tier}"`);
@@ -520,8 +520,12 @@ export async function captureThought(tiers, content, {
   refuseSecrets(content, metadata, sourceRefs, artifactRefs);
 
   const auto = metadata ? null : await extractMetadata(content);
+  // A caller-chosen title replaces only the extracted one. It is not a trust
+  // field, and normaliseMeta still holds it to describesContent(), so a title
+  // that names another memory falls back to a derived one like any other.
+  const chosenTitle = String(title || "").trim();
   const proposed = {
-    ...(auto || {}), ...(metadata || {}),
+    ...(auto || {}), ...(metadata || {}), ...(chosenTitle ? { title: chosenTitle } : {}),
     lifecycle: metadata?.lifecycle || "current", source: "mimers-brain", origin,
     source_refs: [...new Set([...(metadata?.source_refs || []), ...sourceRefs])],
     artifact_refs: [...new Set([...(metadata?.artifact_refs || []), ...artifactRefs])],

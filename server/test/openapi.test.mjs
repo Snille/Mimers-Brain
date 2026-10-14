@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { spec, toolsFor } from "../openapi.mjs";
-import { MEMORY_POLICY, SMART_INGEST_THRESHOLD } from "../memory-model.mjs";
+import { MEMORY_POLICY, SMART_INGEST_THRESHOLD, normaliseMeta } from "../memory-model.mjs";
 import { recallReference } from "../recall.mjs";
 
 test("open and full OpenAPI surfaces keep the tier boundary", () => {
@@ -72,4 +72,23 @@ test("supersede cannot bypass atomic ingest for long replacement text", async ()
     }),
     /Long replacement text must be split into atomic memories below 1200 characters/,
   );
+});
+
+test("supersede accepts a caller-chosen title, still held to the content", () => {
+  const supersede = toolsFor(["open", "vault"]).find((tool) => tool.name === "supersede_thought");
+  assert.equal(supersede.schema.properties.title.type, "string");
+  assert.equal(supersede.schema.properties.title.maxLength, 100);
+  assert.equal(supersede.schema.required.includes("title"), false);
+
+  // The case that prompted it: a replacement kept the subject, but the server
+  // renamed it. The old title describes the new text and must survive.
+  const content = "Fälla på OmniRoute-LXC:n omniroute01 (10.0.0.42): omniroute-CLI:t läser inte " +
+    "samma env som systemd-tjänsten. Tjänsten kör med DATA_DIR=/opt/omniroute, men CLI:t utgår " +
+    "från /root/.omniroute/. Åtgärden är att /root/.omniroute/.env är en symlänk till " +
+    "/opt/omniroute/.env, så CLI:t och tjänsten delar samma .env och samma nyckel.";
+  const kept = "OmniRoute-LXC:n (10.0.0.42): CLI:t och tjänsten måste dela samma .env";
+  assert.equal(normaliseMeta({ title: kept }, content).title, kept);
+  // A title from another memory is not let through just because a caller chose it.
+  assert.notEqual(normaliseMeta({ title: "Glance Clock: release med gh --repo Snille/glance_clock_ha" }, content).title,
+    "Glance Clock: release med gh --repo Snille/glance_clock_ha");
 });
