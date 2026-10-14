@@ -6,6 +6,28 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.13.1: betydelse väger tyngre än titelord
+
+Den första ändringen som mätningen gjorde. En variant med mer vikt på betydelse
+(0,80 i stället för 0,65) och mindre på gemensamma titelord (0,15 i stället för
+0,30) låg före på startfrågorna, 83 % mot 75 % rätt minne först. Det bevisade
+lite i sig, eftersom startfrågorna skrevs med minnena framför sig. En första
+`/review-sessions`-genomgång tog därför fram åtta frågor som Erik faktiskt
+ställt under veckan, var och en med det minne som sessionens kvitto markerade
+som använt, plus en som inget minne ska svara på. På de åtta satte varianten
+rätt minne först fem gånger, de gamla vikterna tre.
+
+| 44 frågor med svar | hit@1 | hit@5 | MRR |
+| --- | --- | --- | --- |
+| 0,65 betydelse, 0,30 titel | 68 % | 98 % | 0,808 |
+| 0,80 betydelse, 0,15 titel | 80 % | 98 % | 0,868 |
+
+Hookens golv ligger kvar på 0,5. Vid 0,45 visar den rätt minne något oftare
+(91 % mot 86 %) och fortfarande inget för de sju frågorna utan svar, men vid
+0,40 börjar bruset, och sju frågor räcker inte för att hitta gränsen.
+
+---
+
 ## 2026-10-14 — 0.13.0: sökträffar mäts i stället för att gissas
 
 Varje tal i rankingen sattes för hand mot en handfull prov: 0,65 för betydelse,

@@ -309,8 +309,12 @@ export async function rarelyUseful(tiers, { minimum = 8, limit = 50 } = {}) {
 // (scripts/eval-recall.mjs) can try a variant against the live memories
 // before anything is changed here; a change to a default belongs with the
 // numbers that justified it.
+//
+// semantic 0.80 and title 0.15 since 0.13.1 (were 0.65 and 0.30): on 44
+// answerable questions, 8 of them from real sessions, the right memory came
+// first 80% of the time instead of 68%, with hit@5 unchanged at 98%.
 export const RANK_WEIGHTS = Object.freeze({
-  semantic: 0.65, title: 0.30, lexical: 0.05, titlePhrase: 0.15,
+  semantic: 0.80, title: 0.15, lexical: 0.05, titlePhrase: 0.15,
   confirmed: 0.06, pending: -0.02, evidenceOnly: -0.03, stale: -0.05,
   instruction: 0.02, usefulness: 1,
 });

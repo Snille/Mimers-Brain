@@ -6,6 +6,28 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.13.1: meaning counts for more than title words
+
+The first change made by the measurement. A variant with more weight on
+meaning (0.80 instead of 0.65) and less on shared title words (0.15 instead of
+0.30) was ahead on the seed questions, 83% against 75% right memory first. That
+alone proved little: the seed set was written by looking at the memories. So a
+first `/review-sessions` pass took eight questions Erik had actually asked in
+the past week, each paired with the memory its session's receipt marked as
+used, plus one that nothing should answer. On those eight the variant put the
+right memory first five times; the old weights three.
+
+| 44 answerable questions | hit@1 | hit@5 | MRR |
+| --- | --- | --- | --- |
+| 0.65 meaning, 0.30 title | 68% | 98% | 0.808 |
+| 0.80 meaning, 0.15 title | 80% | 98% | 0.868 |
+
+The hook's floor stays at 0.5. At 0.45 it shows the right memory a little more
+often (91% against 86%) and still nothing for the seven questions without an
+answer, but at 0.40 noise starts, and seven is too few to place the edge.
+
+---
+
 ## 2026-10-14 — 0.13.0: recall is measured, not guessed
 
 Every number in the ranking was set by hand against a handful of probes: 0.65
