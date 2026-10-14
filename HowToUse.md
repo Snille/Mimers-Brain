@@ -17,14 +17,15 @@ machine has to be reinstalled.
 ## What it is, briefly
 
 Mimers Brain is an **MCP server** (Model Context Protocol) — a standard way for a
-language model to call tools. It exposes six:
+language model to call tools. These are its tools:
 
 | Tool | What it does |
 | --- | --- |
 | `memory_digest` | Call once at session start: the standing rules and preferences you confirmed, pinned on the Thoughts page |
 | `search_thoughts` | Search by meaning, not words. This is the important one. |
 | `list_thoughts` | List recent memories, filtered by type, topic, person, time |
-| `capture_thought` | Save a new memory |
+| `capture_thought` | Save a new memory; an optional `title` replaces the one the server would write |
+| `supersede_thought` | Replace memories and keep the old ones as history; takes the same optional `title` (trusted LAN connection only) |
 | `preview_ingest` + `apply_ingest` | Preview and save approved atomic memories from long source text |
 | `report_memory_usage` | Report which recalled ids materially influenced the answer, without query content |
 | `review_memory` | Confirm, keep as evidence, mark stale or reject agent-authored memories (trusted LAN connection only) |
@@ -34,7 +35,7 @@ language model to call tools. It exposes six:
 
 Agent-written memories are evidence by default. A client may set
 `user_confirmed=true` only when you directly confirmed or requested that exact
-memory. Text longer than 1,500 characters goes through `preview_ingest` and an
+memory. Text of 1,200 characters or more goes through `preview_ingest` and an
 approval step instead of being stored as one transcript-sized memory. Every write
 path refuses text that looks like a credential (private keys, API keys, tokens,
 `password: ...`) before it reaches the metadata model, the embedder or the
