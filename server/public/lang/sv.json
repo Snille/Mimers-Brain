@@ -503,5 +503,63 @@
       "fetch": "Hämta ett minne med id",
       "delete_thought": "Endast LAN-lyssnaren"
     }
+  },
+  "models": {
+    "title": "Modeller",
+    "description": "Vilken leverantör och modell varje uppgift använder. Nycklarna stannar i .env: en leverantör utan nyckel visas men kan inte väljas. Visas bara på LAN-lyssnaren, eftersom modellerna även läser valvminnen.",
+    "job": "Uppgift",
+    "inUse": "Används",
+    "change": "Byt",
+    "role": {
+      "embedding": "Inbäddning",
+      "metadata": "Metadata",
+      "contradiction": "Motsägelser"
+    },
+    "roleHint": {
+      "embedding": "Sökning, recall-hooken och varje sparning",
+      "metadata": "Titel, sammanfattning och fält vid sparning",
+      "contradiction": "Nattens kontroll av par"
+    },
+    "source": {
+      "environment": ".env",
+      "settings": "vald här"
+    },
+    "dimensions": "{n} dimensioner",
+    "provider": "Leverantör",
+    "model": "Modell",
+    "needs": "sätt {key} i .env",
+    "price": "${input} in / ${output} ut per miljon tokens",
+    "test": "Testa",
+    "testing": "Arbetar…",
+    "save": "Spara",
+    "saving": "Sparar…",
+    "startReembed": "Starta ny inbäddning",
+    "testOk": "Fungerar ({ms} ms).",
+    "testOkEmbedding": "Fungerar ({ms} ms, {n} dimensioner).",
+    "testFailed": "Fungerade inte: {error}",
+    "embeddingWarning": "En ny inbäddningsmodell bäddar in alla minnen igen i bakgrunden. Sökningen använder den nuvarande modellen tills du byter, och inget ändras om du avbryter.",
+    "reembedConfirm": "Bädda in alla minnen igen med {model}? Sökningen påverkas inte förrän du byter.",
+    "thresholds": "Likhetsgränserna - sökning 0,3, recall-hooken 0,5, dubbletter 0,86, motsägelser 0,6 - är uppmätta med text-embedding-3-small. En annan inbäddningsmodell kan ge högre eller lägre värden; jämför några sökningar innan du byter.",
+    "migration": {
+      "title": "Ny inbäddning med {model}",
+      "status": {
+        "running": "Pågår i bakgrunden.",
+        "ready": "Klar. Jämför, och byt sedan eller avbryt.",
+        "failed": "Stoppad."
+      },
+      "progress": "{done} av {total} minnen",
+      "failed": "{n} gick inte att bädda in och görs om efter bytet",
+      "compareHint": "Ställ samma fråga till båda modellerna. Värdena går inte att jämföra mellan modeller; titta på ordningen.",
+      "comparePlaceholder": "En fråga du vet svaret på",
+      "compare": "Jämför",
+      "now": "Nu",
+      "after": "Efter bytet",
+      "switch": "Byt till den nya modellen",
+      "switchConfirm": "Byta sökningen till {model}? De gamla vektorerna tas bort.",
+      "resume": "Fortsätt",
+      "cancel": "Avbryt",
+      "cancelConfirm": "Avbryta och ta bort de nya vektorerna?"
+    },
+    "priceIn": "${input} per miljon tokens"
   }
 }

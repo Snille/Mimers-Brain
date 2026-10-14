@@ -1,14 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { CHANGE_LOG_SQL, CONTRADICTION_SQL } from "../lib.mjs";
+import { CHANGE_LOG_SQL, CONTRADICTION_SQL, UPDATED_AT_SQL } from "../lib.mjs";
 
 const squash = (sql) => sql.replace(/--[^\n]*/g, "").replace(/\s+/g, " ").trim();
 
-test("init.sql and the boot-time upgrade define the same change log and contradiction schema", async () => {
+test("init.sql and the boot-time upgrade define the same triggers and tables", async () => {
   const schema = squash(await readFile(new URL("../../db/init.sql", import.meta.url), "utf8"));
   assert.ok(schema.includes(squash(CHANGE_LOG_SQL)), "CHANGE_LOG_SQL differs from db/init.sql");
   assert.ok(schema.includes(squash(CONTRADICTION_SQL)), "CONTRADICTION_SQL differs from db/init.sql");
+  assert.ok(schema.includes(squash(UPDATED_AT_SQL)), "UPDATED_AT_SQL differs from db/init.sql");
 });
 
 test("the record of a delete outlives the row it describes", () => {

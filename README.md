@@ -182,6 +182,19 @@ Code, the Claude Desktop connector, Open WebUI, ChatGPT, a generic MCP client �
 rendered with *this* instance's addresses, keys and tool list rather than
 placeholders. Copy buttons hand over ready-made commands and JSON.
 
+On the LAN listener the page also has a **Models** card: which provider and
+model does the embedding, the metadata and the contradiction check. Providers
+come from `.env` — OpenRouter, OpenAI, Ollama or any OpenAI-compatible server —
+and a provider without a key is listed but cannot be chosen, so no key ever
+passes through the browser. Each choice can be tested with a real call before
+it is saved, and model lists come with prices where the provider publishes
+them. The metadata and contradiction models change at once. A new embedding
+model is filled in beside the old one in the background; search keeps the old
+model while it runs, a comparison shows the same question answered by both, and
+only *Switch* replaces the vectors. The card is absent on the open listener,
+which refuses `/api/ai` outright: choosing a model chooses where vault text is
+sent.
+
 The same page also exposes one copyable **memory policy** for every model. MCP
 clients receive a short form during initialization — Claude Code cuts server
 instructions at 2048 characters — that tells them to call `memory_digest` first,

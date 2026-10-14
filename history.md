@@ -6,6 +6,50 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.11.0: models chosen from the web UI
+
+Which provider and model each job used lived in `.env`, and the one model that
+had changed in practice — the contradiction judge — changed by an edit, a commit
+and a deploy. The Connect page now has a **Models** card on the LAN listener:
+the embedding, metadata and contradiction models, each with a provider, a model
+picked from the provider's own list (with prices where OpenRouter publishes
+them), and a *Test* button that makes a real call before anything is saved.
+
+Providers come from the environment: OpenRouter, OpenAI (`OPENAI_API_KEY`),
+Ollama (`OLLAMA_URL`) and one custom OpenAI-compatible server (`CUSTOM_AI_URL`).
+Keys never pass through the browser: a key typed into the UI would be stored in
+`app_settings` and copied into every nightly `pg_dump`, which is precisely where
+the secret store rule says it may not go. A provider without its key is listed
+and cannot be chosen. An old `.env` with `EMBED_URL` or `META_URL` keeps working;
+those become providers of their own.
+
+The two chat models change at once. The embedding model cannot: every stored
+vector belongs to the model that made it, and bge-m3, for one, answers in 1024
+dimensions where text-embedding-3-small has 1536. So a new embedding model is
+filled into a second column, `embedding_next`, in batches in the background,
+while search keeps using the old column. An edit during the run clears the row's
+new vector so it is done again. When every row is done the card offers a
+comparison — one question, the top five from each model — and *Switch*, which
+drops the old column, renames the new one and rebuilds the HNSW index in one
+transaction (above 2000 dimensions, where HNSW stops, the column goes
+unindexed). *Cancel* removes the new column and changes nothing. A run
+interrupted by a restart resumes on boot. The nightly pass now also gives a
+vector to any current memory that has none.
+
+A new vector is not a new version of a memory. Until now every UPDATE moved
+`updated_at`, and duplicate decisions and contradiction verdicts are only valid
+while `updated_at` stands still — a re-embed would have voided every one of
+them. `update_updated_at()` now moves only when content, metadata or tier
+changes.
+
+On a test brain the switch to bge-m3 took seconds and every memory came back
+searchable, but the comparison also showed why the card warns about thresholds:
+bge-m3 scores an unrelated memory around 0.40 where text-embedding-3-small gives
+0.30, so the search, hook, duplicate and contradiction floors — all measured on
+text-embedding-3-small — would need measuring again after a switch.
+
+---
+
 ## 2026-10-14 — 0.10.1: a judge that does not cry wolf
 
 The contradiction check in 0.10.0 asked the metadata model, gpt-4o-mini, and

@@ -28,6 +28,8 @@ import { buildServer } from "./mcp.mjs";
 import { MEMORY_POLICY, SMART_INGEST_THRESHOLD } from "./memory-model.mjs";
 import { spec, callTool } from "./openapi.mjs";
 import * as db from "./lib.mjs";
+import * as ai from "./ai.mjs";
+import * as models from "./model-settings.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -583,6 +585,56 @@ function makeListener(tiers, {
           return json(res, 200, out);
         }
 
+        // --- models ---------------------------------------------------------
+        //
+        // Which provider and model each job uses. A vault-listener decision,
+        // like retention, and for a stronger reason: the embedding and metadata
+        // models read every memory, vault included, so choosing them chooses
+        // where that text is sent. The open listener answers 403 and its
+        // Connect page never shows the card.
+        if (path.startsWith("/api/ai")) {
+          if (!tiers.includes("vault"))
+            return json(res, 403, { error: "Models are chosen on the full listener" });
+          if (path === "/api/ai" && req.method === "GET")
+            return json(res, 200, await models.modelSettings());
+          if (path === "/api/ai/models" && req.method === "GET")
+            return json(res, 200, await ai.listModels(url.searchParams.get("provider"),
+              url.searchParams.get("kind") === "embedding" ? "embedding" : "chat"));
+          if (path === "/api/ai/test" && req.method === "POST") {
+            const { role, provider, model } = await body(req);
+            if (!ai.ROLES.includes(role)) return json(res, 400, { error: "Unknown role" });
+            try {
+              return json(res, 200, await ai.testRole(role, { provider, model: String(model || "").trim() }));
+            } catch (error) {
+              return json(res, 200, { ok: false, error: String(error.message || error).slice(0, 300) });
+            }
+          }
+          if (path === "/api/ai/role" && req.method === "POST") {
+            const { role, provider, model } = await body(req);
+            const saved = await models.saveRole(role, { provider, model });
+            note("ui.ai.role", "write", { results: 1 });
+            return json(res, 200, saved);
+          }
+          if (path === "/api/ai/reembed" && req.method === "POST") {
+            const out = await models.startReembed(await body(req));
+            note("ui.ai.reembed", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          if (path === "/api/ai/reembed/compare" && req.method === "POST")
+            return json(res, 200, await models.compareSearch(tiers, (await body(req)).query));
+          if (path === "/api/ai/reembed/switch" && req.method === "POST") {
+            const out = await models.switchEmbedding();
+            note("ui.ai.switch", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          if (path === "/api/ai/reembed/cancel" && req.method === "POST") {
+            const out = await models.cancelReembed();
+            note("ui.ai.cancel", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          return json(res, 404, { error: "Unknown endpoint" });
+        }
+
         // For the Claude Code hook that brings memories to a prompt unasked.
         // See recallHint() in lib.mjs and tools/hooks/mimer-recall.py.
         if (path === "/api/recall-hint" && req.method === "POST") {
@@ -758,6 +810,9 @@ console.log("Database connected.");
 // init.sql only ever runs on an empty volume, so this is what gives an existing
 // brain the tables a new version needs.
 await db.ensureSchema();
+// Before the listeners open: the first save must already use the chosen models.
+await models.loadModelSettings();
+await models.resumeReembed();
 await loadLearnedLan();
 
 const listeners = [
@@ -787,6 +842,9 @@ const prune = async () => {
   await db.pruneDeletedSnapshots()
     .then((n) => n && console.log(`Forgot the text of ${n} change log rows for deleted memories.`))
     .catch((e) => console.error("change log prune:", e.message));
+  await models.fillMissingEmbeddings()
+    .then((n) => n && console.log(`Embedded ${n} current memories that had no vector.`))
+    .catch((e) => console.error("fill embeddings:", e.message));
   await db.runAs("contradiction-check", () => db.checkContradictions(db.ALL, { limit: 20 }))
     .then((r) => r.checked && console.log(`Checked ${r.checked} memory pairs, ${r.conflicts} contradictions.`))
     .catch((e) => console.error("contradiction check:", e.message));
@@ -813,5 +871,5 @@ if (READ_KEY) console.log("MCP_READ_KEY set - read-only listener accepts it as a
 else console.log("MCP_READ_KEY is empty - the read-only listener falls back to MCP_ACCESS_KEY.");
 if (READ_KEY && (READ_KEY === ACCESS_KEY || READ_KEY === OPEN_KEY))
   console.log("WARNING: MCP_READ_KEY equals another key - a read-only client can then also write.");
-if (!process.env.OPENROUTER_API_KEY)
-  console.log("WARNING: OPENROUTER_API_KEY missing - no embeddings, semantic search disabled.");
+if (!ai.roleReady("embedding"))
+  console.log(`WARNING: embedding provider "${ai.role("embedding").provider}" is not configured - semantic search disabled.`);

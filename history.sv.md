@@ -6,6 +6,50 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.11.0: modeller väljs i webbgränssnittet
+
+Vilken leverantör och modell varje uppgift använde låg i `.env`, och den enda
+modell som faktiskt hade bytts — motsägelsedomaren — byttes med en ändring, en
+commit och en deploy. Sidan Anslut har nu rutan **Modeller** på LAN-lyssnaren:
+inbäddnings-, metadata- och motsägelsemodellen, var och en med en leverantör, en
+modell vald ur leverantörens egen lista (med pris där OpenRouter publicerar det)
+och en *Testa*-knapp som gör ett riktigt anrop innan något sparas.
+
+Leverantörerna kommer från miljön: OpenRouter, OpenAI (`OPENAI_API_KEY`), Ollama
+(`OLLAMA_URL`) och en egen OpenAI-kompatibel server (`CUSTOM_AI_URL`). Nycklarna
+passerar aldrig webbläsaren: en nyckel inskriven i gränssnittet skulle sparas i
+`app_settings` och kopieras till varje nattlig `pg_dump`, precis där regeln för
+hemligheter säger att den inte får hamna. En leverantör utan nyckel visas men går
+inte att välja. En gammal `.env` med `EMBED_URL` eller `META_URL` fungerar som
+förut; de blir egna leverantörer.
+
+De två chattmodellerna byts direkt. Inbäddningsmodellen kan inte det: varje
+lagrad vektor hör till modellen som gjorde den, och bge-m3 till exempel svarar
+med 1024 dimensioner där text-embedding-3-small har 1536. En ny inbäddningsmodell
+fylls därför i en andra kolumn, `embedding_next`, i omgångar i bakgrunden, medan
+sökningen använder den gamla kolumnen. En ändring under körningen nollställer
+radens nya vektor så att den görs om. När alla rader är klara erbjuder rutan en
+jämförelse — en fråga, de fem bästa från varje modell — och *Byt*, som tar bort
+den gamla kolumnen, döper om den nya och bygger om HNSW-indexet i en enda
+transaktion (över 2000 dimensioner, där HNSW tar slut, blir kolumnen utan index).
+*Avbryt* tar bort den nya kolumnen och ändrar inget. En körning som avbryts av en
+omstart fortsätter vid start. Nattkörningen ger nu också en vektor till varje
+aktuellt minne som saknar en.
+
+En ny vektor är ingen ny version av ett minne. Hittills flyttade varje UPDATE
+`updated_at`, och dubblettbeslut och motsägelseutlåtanden gäller bara så länge
+`updated_at` står still — en ny inbäddning hade gjort alla ogiltiga.
+`update_updated_at()` flyttar nu bara när innehåll, metadata eller nivå ändras.
+
+På en testdatabas tog bytet till bge-m3 några sekunder och varje minne gick att
+hitta efteråt, men jämförelsen visade också varför rutan varnar för
+gränsvärdena: bge-m3 ger ett orelaterat minne runt 0,40 där
+text-embedding-3-small ger 0,30, så gränserna för sökning, hook, dubbletter och
+motsägelser — alla uppmätta med text-embedding-3-small — skulle behöva mätas om
+efter ett byte.
+
+---
+
 ## 2026-10-14 — 0.10.1: en domare som inte larmar i onödan
 
 Motsägelsekontrollen i 0.10.0 frågade metadatamodellen, gpt-4o-mini, och mot det

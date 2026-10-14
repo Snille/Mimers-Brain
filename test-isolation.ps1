@@ -86,6 +86,11 @@ if (-not $Write) {
     Check "OPEN memory API is readable" ($openResponse.StatusCode -eq 200) "HTTP $($openResponse.StatusCode)"
     $openStats = Invoke-RestMethod "$OPEN/api/stats" -Headers $H
     Check "OPEN statistics expose no vault count" (-not $openStats.byTier.vault) "vault count leaked"
+    # Choosing a model chooses where vault text is sent, so it is a LAN-only act.
+    $aiOpen = try { (Invoke-WebRequest "$OPEN/api/ai" -Headers $H -UseBasicParsing).StatusCode } catch { [int]$_.Exception.Response.StatusCode }
+    Check "OPEN refuses the model settings" ($aiOpen -eq 403) "HTTP $aiOpen"
+    $aiFull = Invoke-RestMethod "$FULL/api/ai" -Headers $H
+    Check "FULL model settings never carry a key" (-not (($aiFull | ConvertTo-Json -Depth 6) -match '"key"\s*:')) "a key field was sent"
 
     # The read-only listener. What is checked is an absence, so check it on the
     # document the client actually reads rather than on the source.

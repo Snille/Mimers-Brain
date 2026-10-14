@@ -5,6 +5,7 @@
 // when the page is served through the proxy - see connectInfo() in index.mjs.
 
 import { t } from "./i18n.mjs";
+import { renderModels } from "./models.mjs";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -239,7 +240,11 @@ function clientCards() {
 }
 
 function draw() {
-  root.innerHTML = addresses() + policyCard() + keyCard() + clientCards();
+  // The Models card exists only on the full listener; see models.mjs.
+  const full = cfg.listener === "full";
+  root.innerHTML = addresses() + (full ? `<div id="models-host"></div>` : "")
+    + policyCard() + keyCard() + clientCards();
+  if (full) renderModels(root.querySelector("#models-host"));
 
   root.querySelector("#reveal").onclick = () => { reveal = !reveal; draw(); };
 

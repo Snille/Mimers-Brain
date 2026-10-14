@@ -242,6 +242,12 @@ zone, for example `Europe/Stockholm` or `America/New_York`.
 restorable, and `RECALL_HINT_FLOOR` (default 0.5) tunes the optional Claude Code
 hook in `tools/hooks/`.
 
+`OPENROUTER_API_KEY` is the only provider most installations need. Set
+`OPENAI_API_KEY`, `OLLAMA_URL` or `CUSTOM_AI_URL` (with `CUSTOM_AI_KEY`) as well
+to make those providers selectable on the **Models** card of the Connect page,
+which is where the embedding, metadata and contradiction models are chosen once
+the server runs. Keys are only ever read from `.env`.
+
 ## 3. Start the stack
 
 From the repository root:

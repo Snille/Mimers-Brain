@@ -11,6 +11,7 @@
 // the one place secrets already belong on this box is .env.
 
 import mqtt from "mqtt";
+import * as ai from "./ai.mjs";
 import * as db from "./lib.mjs";
 
 const URL_ = process.env.MQTT_URL || "";
@@ -204,8 +205,8 @@ export async function publishNow() {
   try {
     const counters = await db.liveCounters();
     const problems = [];
-    if (!process.env.OPENROUTER_API_KEY)
-      problems.push("No OPENROUTER_API_KEY: semantic search is off");
+    if (!ai.roleReady("embedding"))
+      problems.push("No embedding provider configured: semantic search is off");
     if (counters.memories_unembedded)
       problems.push(`${counters.memories_unembedded} memories have no embedding`);
     // One missing receipt is a session that closed before it could report -

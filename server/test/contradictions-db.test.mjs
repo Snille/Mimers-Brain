@@ -66,7 +66,7 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
 
     // Superseding one side takes the pair off the list.
     await db.pool.query(`UPDATE contradiction_checks SET verdict = 'conflict', model = $1 WHERE verdict = 'dismissed'`,
-      [db.CONTRADICTION_MODEL]);
+      [db.contradictionModel()]);
     assert.equal((await db.contradictions(db.ALL)).length, 1);
     await db.linkSupersession(db.ALL, a, [b]);
     assert.equal((await db.contradictions(db.ALL)).length, 0);

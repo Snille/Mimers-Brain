@@ -65,6 +65,14 @@ services:
       # The model that judges contradictions. Empty means Qwen3-235B on
       # OpenRouter, or META_MODEL on any other endpoint.
       CONTRADICTION_MODEL: ${CONTRADICTION_MODEL:-}
+      # More providers for the Models card on the Connect page. A provider is
+      # offered there only when it has what it needs here; keys never go
+      # through the web UI.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_URL: ${OLLAMA_URL:-}
+      CUSTOM_AI_URL: ${CUSTOM_AI_URL:-}
+      CUSTOM_AI_KEY: ${CUSTOM_AI_KEY:-}
+      CUSTOM_AI_NAME: ${CUSTOM_AI_NAME:-}
       # MQTT to Home Assistant. Leave MQTT_URL empty to publish nothing.
       MQTT_URL: ${MQTT_URL:-}
       MQTT_USERNAME: ${MQTT_USERNAME:-}

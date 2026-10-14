@@ -503,5 +503,63 @@
       "fetch": "Fetch one memory by id",
       "delete_thought": "LAN listener only"
     }
+  },
+  "models": {
+    "title": "Models",
+    "description": "Which provider and model each job uses. Keys stay in .env: a provider without one is listed but cannot be chosen. Only shown on the LAN listener, because these models read vault memories too.",
+    "job": "Job",
+    "inUse": "In use",
+    "change": "Change",
+    "role": {
+      "embedding": "Embedding",
+      "metadata": "Metadata",
+      "contradiction": "Contradictions"
+    },
+    "roleHint": {
+      "embedding": "Search, the recall hook and every save",
+      "metadata": "Title, summary and facets on save",
+      "contradiction": "The nightly pair check"
+    },
+    "source": {
+      "environment": ".env",
+      "settings": "set here"
+    },
+    "dimensions": "{n} dimensions",
+    "provider": "Provider",
+    "model": "Model",
+    "needs": "set {key} in .env",
+    "price": "${input} in / ${output} out per million tokens",
+    "test": "Test",
+    "testing": "Working…",
+    "save": "Save",
+    "saving": "Saving…",
+    "startReembed": "Start re-embedding",
+    "testOk": "Works ({ms} ms).",
+    "testOkEmbedding": "Works ({ms} ms, {n} dimensions).",
+    "testFailed": "Did not work: {error}",
+    "embeddingWarning": "A new embedding model embeds every memory again in the background. Search keeps the current model until you switch, and nothing changes if you cancel.",
+    "reembedConfirm": "Embed every memory again with {model}? Search is not affected until you switch.",
+    "thresholds": "The similarity thresholds - search 0.3, recall hook 0.5, duplicates 0.86, contradictions 0.6 - were measured with text-embedding-3-small. Another embedding model may score higher or lower; compare a few searches before switching.",
+    "migration": {
+      "title": "Re-embedding with {model}",
+      "status": {
+        "running": "Running in the background.",
+        "ready": "Ready. Compare, then switch or cancel.",
+        "failed": "Stopped."
+      },
+      "progress": "{done} of {total} memories",
+      "failed": "{n} could not be embedded and will be retried after the switch",
+      "compareHint": "Ask the same question of both models. The scores are not comparable between models; look at the order.",
+      "comparePlaceholder": "A question you know the answer to",
+      "compare": "Compare",
+      "now": "Now",
+      "after": "After the switch",
+      "switch": "Switch to the new model",
+      "switchConfirm": "Switch search to {model}? The old vectors are removed.",
+      "resume": "Resume",
+      "cancel": "Cancel",
+      "cancelConfirm": "Cancel and remove the new vectors?"
+    },
+    "priceIn": "${input} per million tokens"
   }
 }

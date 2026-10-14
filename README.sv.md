@@ -185,6 +185,18 @@ VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient 
 återgivna med *den här* instansens adresser, nycklar och verktygslista i stället
 för platshållare. Kopieringsknappar ger färdiga kommandon och färdig JSON.
 
+På LAN-lyssnaren har sidan också rutan **Modeller**: vilken leverantör och modell
+som sköter inbäddningen, metadatan och motsägelsekontrollen. Leverantörerna kommer
+från `.env` — OpenRouter, OpenAI, Ollama eller en annan OpenAI-kompatibel server —
+och en leverantör utan nyckel visas men kan inte väljas, så ingen nyckel passerar
+någonsin webbläsaren. Varje val kan testas med ett riktigt anrop innan det sparas,
+och modellistorna visar pris när leverantören publicerar det. Metadata- och
+motsägelsemodellen byts direkt. En ny inbäddningsmodell fylls i bredvid den gamla
+i bakgrunden; sökningen använder den gamla så länge, en jämförelse visar samma
+fråga besvarad av båda, och först *Byt* ersätter vektorerna. Rutan finns inte på
+den öppna lyssnaren, som vägrar `/api/ai` helt: att välja modell är att välja vart
+valvets text skickas.
+
 Samma sida visar också en kopierbar **minnespolicy** för alla modeller. MCP-klienter
 får en kort form vid initieringen — Claude Code klipper serverinstruktioner vid
 2048 tecken — som säger åt dem att anropa `memory_digest` först, och

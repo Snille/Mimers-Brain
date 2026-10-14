@@ -20,6 +20,7 @@ import {
 import { fallbackAtoms, normalisePreviewCandidates } from "./smart-ingest.mjs";
 import { semanticAxes } from "./semantic.mjs";
 import { refuseSecrets } from "./secret-gate.mjs";
+import * as ai from "./ai.mjs";
 
 export { normaliseMeta } from "./memory-model.mjs";
 
@@ -64,26 +65,6 @@ export async function transaction(work) {
   }
 }
 
-const EMBED_URL = process.env.EMBED_URL || "https://openrouter.ai/api/v1/embeddings";
-const EMBED_MODEL = process.env.EMBED_MODEL || "openai/text-embedding-3-small";
-const EMBED_KEY = process.env.OPENROUTER_API_KEY || "";
-const META_URL = process.env.META_URL || "https://openrouter.ai/api/v1/chat/completions";
-const META_MODEL = process.env.META_MODEL || "openai/gpt-4o-mini";
-
-// OpenRouter attributes spend by these two headers and lists the request as
-// "Unknown" without them. Harmless to send to any other OpenAI-compatible API.
-const APP_NAME = process.env.APP_NAME || "Mimers Brain";
-const APP_URL = process.env.APP_URL || "https://github.com/Snille/Mimers-Brain";
-
-function aiHeaders() {
-  return {
-    Authorization: `Bearer ${EMBED_KEY}`,
-    "Content-Type": "application/json",
-    "HTTP-Referer": APP_URL,
-    "X-Title": APP_NAME,
-  };
-}
-
 export function fingerprint(content) {
   return createHash("sha256")
     .update(content.replace(/\s+/g, " ").trim().toLowerCase(), "utf8")
@@ -98,15 +79,14 @@ export function searchTerms(query) {
     .filter((word) => word.length > 2))];
 }
 
+// A vector the column cannot hold is no vector at all. It happens in one narrow
+// window: a save that asked the old model just before a switch, and wrote just
+// after it. Saved unembedded, the row is picked up by fillMissingEmbeddings().
 export async function embed(text) {
-  if (!EMBED_KEY) return null;
-  const r = await fetch(EMBED_URL, {
-    method: "POST",
-    headers: aiHeaders(),
-    body: JSON.stringify({ model: EMBED_MODEL, input: text }),
-  });
-  if (!r.ok) throw new Error(`Embedding failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
-  return (await r.json()).data[0].embedding;
+  if (!ai.roleReady("embedding")) return null;
+  const [vector] = await ai.embedInputs(text);
+  const { dimensions } = ai.role("embedding");
+  return Array.isArray(vector) && (!dimensions || vector.length === dimensions) ? vector : null;
 }
 
 // The model invents a project name whenever it cannot see the ones already in
@@ -191,18 +171,10 @@ export function projectRule(existing) {
 // The model proposes metadata, but memory-model.mjs owns the vocabulary and
 // validation. Free-form output is never written directly.
 export async function extractMetadata(text) {
-  if (!EMBED_KEY) return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
+  if (!ai.roleReady("metadata")) return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
   const existingProjects = await knownProjects();
   try {
-    const r = await fetch(META_URL, {
-      method: "POST",
-      headers: aiHeaders(),
-      body: JSON.stringify({
-        model: META_MODEL,
-        response_format: { type: "json_object" },
-        messages: [{
-          role: "user",
-          content:
+    return await ai.chatJson(ai.role("metadata"),
             `Extract long-term-memory metadata as JSON. Return only these keys:\n` +
             // The language rule and "never the opening words" are the two that
             // matter: without them the model answered Swedish text in English
@@ -228,39 +200,21 @@ export async function extractMetadata(text) {
             `- "verified_at": YYYY-MM-DD when the text states a verification date, or empty\n` +
             `Do not invent facts. lifecycle is always set by the server.\n\n` +
             `<<<TEXT\n${text}\nTEXT>>>\n\n` +
-            topicReminder(),
-        }],
-      }),
-    });
-    if (!r.ok) throw new Error(String(r.status));
-    return JSON.parse((await r.json()).choices[0].message.content);
+            topicReminder());
   } catch {
     return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
   }
 }
 
 async function extractAtoms(text) {
-  if (!EMBED_KEY) return fallbackAtoms(text).map((content) => ({ content }));
+  if (!ai.roleReady("metadata")) return fallbackAtoms(text).map((content) => ({ content }));
   try {
-    const r = await fetch(META_URL, {
-      method: "POST",
-      headers: aiHeaders(),
-      body: JSON.stringify({
-        model: META_MODEL,
-        response_format: { type: "json_object" },
-        messages: [{
-          role: "user",
-          content:
+    const parsed = await ai.chatJson(ai.role("metadata"),
             `Split this source into durable, standalone, atomic long-term memories. ` +
             `Return JSON {"memories":[{"content":"..."}]}. Keep decisions, facts, procedures, ` +
             `preferences, lessons and concrete future tasks. Omit greetings, transcript noise, ` +
             `tentative reasoning, repetitions, raw secrets and anything without lasting value. ` +
-            `Do not invent information. Maximum 30 memories, each below 1800 characters.\n\n${text}`,
-        }],
-      }),
-    });
-    if (!r.ok) throw new Error(String(r.status));
-    const parsed = JSON.parse((await r.json()).choices[0].message.content);
+            `Do not invent information. Maximum 30 memories, each below 1800 characters.\n\n${text}`);
     return normalisePreviewCandidates(parsed.memories);
   } catch {
     return fallbackAtoms(text).map((content) => ({ content }));
@@ -362,7 +316,7 @@ export async function searchThoughts(tiers, query, {
     taskStatus = "pending";
   }
   const vector = await embed(query);
-  if (!vector) throw new Error("Semantic search needs OPENROUTER_API_KEY");
+  if (!vector) throw new Error("Semantic search needs a configured embedding model");
   const terms = searchTerms(query);
   const args = [JSON.stringify(vector), query, tiers, threshold, terms];
   let filters = `tier = ANY($3) AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected'`;
@@ -427,7 +381,7 @@ export async function recallHint(tiers, prompt, { exclude = [], floor = HINT_FLO
   const text = String(prompt || "").trim().slice(0, HINT_PROMPT_CHARS);
   if (text.length < 12) return { hits: [], skipped: "short" };
   try { refuseSecrets(text); } catch { return { hits: [], skipped: "secret" }; }
-  if (!EMBED_KEY) return { hits: [], skipped: "no OPENROUTER_API_KEY" };
+  if (!ai.roleReady("embedding")) return { hits: [], skipped: "no embedding model configured" };
   const skip = new Set((Array.isArray(exclude) ? exclude : []).map(String));
   const rows = await searchThoughts(tiers, text, { limit: 8, threshold: floor });
   const hits = rows
@@ -812,15 +766,14 @@ export async function resolveDuplicate(tiers, {
 // changes, so a pair is never paid for twice.
 export const CONTRADICTION_FLOOR = 0.6;
 
-// Not the metadata model. On the live brain gpt-4o-mini called 14 of its first
-// 20 pairs contradictions, nearly all of them wrong: two prefixes that route to
-// two services, two machines with two paths. With a stricter prompt it still
-// flagged 9 of 16 false pairs. Qwen3-235B and DeepSeek V3.2, both open weights,
-// flagged none of them and caught all three planted conflicts; Qwen is the
-// cheaper of the two. Another endpoint than OpenRouter falls back to META_MODEL,
-// since the model id is OpenRouter's.
-export const CONTRADICTION_MODEL = process.env.CONTRADICTION_MODEL
-  || (META_URL.includes("openrouter.ai") ? "qwen/qwen3-235b-a22b-2507" : META_MODEL);
+// Not the metadata model by default. On the live brain gpt-4o-mini called 14 of
+// its first 20 pairs contradictions, nearly all of them wrong: two prefixes that
+// route to two services, two machines with two paths. With a stricter prompt it
+// still flagged 9 of 16 false pairs. Qwen3-235B and DeepSeek V3.2, both open
+// weights, flagged none of them and caught all three planted conflicts; Qwen is
+// the cheaper of the two. The role lives in ai.mjs and can be changed on the
+// Models card; a verdict remembers the model that gave it.
+export const contradictionModel = () => ai.role("contradiction").model;
 
 async function contradictionPairs(tiers, { limit = 20 } = {}) {
   const { rows } = await pool.query(
@@ -846,7 +799,7 @@ async function contradictionPairs(tiers, { limit = 20 } = {}) {
           SELECT 1 FROM thought_relations r
            WHERE (r.from_id = a.id AND r.to_id = b.id) OR (r.from_id = b.id AND r.to_id = a.id))
       ORDER BY similarity DESC LIMIT $3`,
-    [tiers, CONTRADICTION_FLOOR, Math.min(Number(limit) || 20, 100), CONTRADICTION_MODEL],
+    [tiers, CONTRADICTION_FLOOR, Math.min(Number(limit) || 20, 100), contradictionModel()],
   );
   return rows;
 }
@@ -876,21 +829,7 @@ export function contradictionPrompt(left, right) {
 }
 
 async function judgeContradiction(left, right) {
-  const r = await fetch(META_URL, {
-    method: "POST",
-    headers: aiHeaders(),
-    body: JSON.stringify({
-      model: CONTRADICTION_MODEL,
-      response_format: { type: "json_object" },
-      temperature: 0,
-      messages: [{ role: "user", content: contradictionPrompt(left, right) }],
-    }),
-  });
-  if (!r.ok) throw new Error(`Contradiction check failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
-  // Some providers wrap the JSON in a code fence even when asked not to.
-  const raw = String((await r.json()).choices[0].message.content || "")
-    .trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-  const parsed = JSON.parse(raw);
+  const parsed = await ai.chatJson(ai.role("contradiction"), contradictionPrompt(left, right), { temperature: 0 });
   const verdict = parsed.verdict === "conflict" ? "conflict" : "consistent";
   return { verdict, reason: verdict === "conflict" ? String(parsed.reason || "").slice(0, 500) : "" };
 }
@@ -898,7 +837,7 @@ async function judgeContradiction(left, right) {
 // Checks up to `limit` unchecked pairs. One failed call stops the run rather
 // than recording a guess: an unchecked pair is simply picked up next time.
 export async function checkContradictions(tiers, { limit = 20 } = {}) {
-  if (!EMBED_KEY) return { checked: 0, conflicts: 0, skipped: "no OPENROUTER_API_KEY" };
+  if (!ai.roleReady("contradiction")) return { checked: 0, conflicts: 0, skipped: "no contradiction model configured" };
   const pairs = await contradictionPairs(tiers, { limit });
   let checked = 0;
   let conflicts = 0;
@@ -910,7 +849,7 @@ export async function checkContradictions(tiers, { limit = 20 } = {}) {
        ON CONFLICT (left_id, right_id) DO UPDATE
          SET verdict = EXCLUDED.verdict, reason = EXCLUDED.reason,
              model = EXCLUDED.model, checked_at = now()`,
-      [pair.left_id, pair.right_id, verdict, reason || null, CONTRADICTION_MODEL],
+      [pair.left_id, pair.right_id, verdict, reason || null, contradictionModel()],
     );
     checked += 1;
     if (verdict === "conflict") conflicts += 1;
@@ -936,7 +875,7 @@ export async function contradictions(tiers, { limit = 50 } = {}) {
         AND c.checked_at >= greatest(a.updated_at, b.updated_at)
         AND c.model = $3
       ORDER BY c.checked_at DESC LIMIT $2`,
-    [tiers, Math.min(Number(limit) || 50, 200), CONTRADICTION_MODEL],
+    [tiers, Math.min(Number(limit) || 50, 200), contradictionModel()],
   );
   return rows;
 }
@@ -1243,9 +1182,26 @@ export async function ensureSchema() {
         updated_at timestamptz NOT NULL DEFAULT now()
     );
   `);
+  await pool.query(UPDATED_AT_SQL);
   await pool.query(CHANGE_LOG_SQL);
   await pool.query(CONTRADICTION_SQL);
 }
+
+// A new embedding is not a new version of the memory. Duplicate decisions and
+// contradiction verdicts hold until updated_at moves, so bumping it for a
+// vector would void every one of them the day the embedding model changes.
+// An UPDATE that sets updated_at itself still gets its own value.
+export const UPDATED_AT_SQL = `
+    CREATE OR REPLACE FUNCTION update_updated_at() RETURNS trigger AS $$
+    BEGIN
+        IF NEW.content IS DISTINCT FROM OLD.content OR NEW.metadata IS DISTINCT FROM OLD.metadata
+           OR NEW.tier IS DISTINCT FROM OLD.tier THEN
+            NEW.updated_at = now();
+        END IF;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+`;
 
 // Kept word for word in db/init.sql as well; test/change-log-schema.test.mjs
 // fails when the two drift apart.

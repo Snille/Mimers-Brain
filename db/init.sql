@@ -80,10 +80,15 @@ CREATE TABLE IF NOT EXISTS recall_traces (
 );
 CREATE INDEX IF NOT EXISTS recall_traces_created_idx ON recall_traces (created_at DESC);
 
+-- Only a real change moves updated_at; a new embedding does not. Kept identical
+-- to UPDATED_AT_SQL in server/lib.mjs.
 CREATE OR REPLACE FUNCTION update_updated_at() RETURNS trigger AS $$
 BEGIN
-    new.updated_at = now();
-    RETURN new;
+    IF NEW.content IS DISTINCT FROM OLD.content OR NEW.metadata IS DISTINCT FROM OLD.metadata
+       OR NEW.tier IS DISTINCT FROM OLD.tier THEN
+        NEW.updated_at = now();
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
