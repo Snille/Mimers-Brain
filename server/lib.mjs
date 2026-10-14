@@ -305,8 +305,29 @@ export async function rarelyUseful(tiers, { minimum = 8, limit = 50 } = {}) {
   return rows;
 }
 
+// The weights of the ranking below. Named so that the recall evaluation
+// (scripts/eval-recall.mjs) can try a variant against the live memories
+// before anything is changed here; a change to a default belongs with the
+// numbers that justified it.
+export const RANK_WEIGHTS = Object.freeze({
+  semantic: 0.65, title: 0.30, lexical: 0.05, titlePhrase: 0.15,
+  confirmed: 0.06, pending: -0.02, evidenceOnly: -0.03, stale: -0.05,
+  instruction: 0.02, usefulness: 1,
+});
+
+export function rankWeights(overrides = {}) {
+  const out = { ...RANK_WEIGHTS };
+  for (const [key, value] of Object.entries(overrides || {})) {
+    if (!(key in RANK_WEIGHTS)) throw new Error(`Unknown rank weight: ${key}`);
+    if (!Number.isFinite(Number(value))) throw new Error(`Rank weight ${key} must be a number`);
+    out[key] = Number(value);
+  }
+  return out;
+}
+
 export async function searchThoughts(tiers, query, {
   limit = 10, threshold = 0.3, kind, lifecycle = "current", taskStatus, project,
+  vector: given, weights,
 } = {}) {
   // A generic semantic query for "what remains" otherwise ranks incident
   // reports that contain those words above the actual pending tasks. Treat this
@@ -315,10 +336,11 @@ export async function searchThoughts(tiers, query, {
     kind = "task";
     taskStatus = "pending";
   }
-  const vector = await embed(query);
+  const vector = given || await embed(query);
   if (!vector) throw new Error("Semantic search needs a configured embedding model");
   const terms = searchTerms(query);
-  const args = [JSON.stringify(vector), query, tiers, threshold, terms];
+  const args = [JSON.stringify(vector), query, tiers, threshold, terms, JSON.stringify(rankWeights(weights))];
+  const w = (key) => `($6::jsonb->>'${key}')::float8`;
   let filters = `tier = ANY($3) AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected'`;
   if (lifecycle && lifecycle !== "all")
     filters += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
@@ -345,13 +367,14 @@ export async function searchThoughts(tiers, query, {
         WHERE ${filters}
      )
      SELECT *, semantic_score AS similarity,
-            semantic_score * 0.65 + least(title_score, 1) * 0.30 + least(lexical_score, 1) * 0.05 +
-            CASE WHEN coalesce(metadata->>'title', '') ILIKE '%' || $2 || '%' THEN 0.15 ELSE 0 END +
+            semantic_score * ${w("semantic")} + least(title_score, 1) * ${w("title")} +
+            least(lexical_score, 1) * ${w("lexical")} +
+            CASE WHEN coalesce(metadata->>'title', '') ILIKE '%' || $2 || '%' THEN ${w("titlePhrase")} ELSE 0 END +
             CASE coalesce(metadata->>'review_status', 'confirmed')
-              WHEN 'confirmed' THEN 0.06 WHEN 'pending' THEN -0.02
-              WHEN 'evidence_only' THEN -0.03 WHEN 'stale' THEN -0.05 ELSE 0 END +
-            CASE WHEN coalesce(metadata->>'can_use_as_instruction', 'true') = 'true' THEN 0.02 ELSE 0 END +
-            usefulness
+              WHEN 'confirmed' THEN ${w("confirmed")} WHEN 'pending' THEN ${w("pending")}
+              WHEN 'evidence_only' THEN ${w("evidenceOnly")} WHEN 'stale' THEN ${w("stale")} ELSE 0 END +
+            CASE WHEN coalesce(metadata->>'can_use_as_instruction', 'true') = 'true' THEN ${w("instruction")} ELSE 0 END +
+            usefulness * ${w("usefulness")}
             AS rank_score
        FROM ranked
       WHERE semantic_score > $4 OR lexical_score > 0

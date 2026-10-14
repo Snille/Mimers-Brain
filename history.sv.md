@@ -6,6 +6,29 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.13.0: sökträffar mäts i stället för att gissas
+
+Varje tal i rankingen sattes för hand mot en handfull prov: 0,65 för betydelse,
+0,30 för titelord, knuffen från kvittona, hookens golv på 0,5. Inget sa om nästa
+ändring skulle hjälpa eller i tysthet göra saken sämre. Idén kommer från
+[ai-memory](https://github.com/akitaonrails/ai-memory), där ingen
+rankingändring slås på som standard förrän deras sökmätning säger ja.
+
+`scripts/eval-recall.mjs` läser en frågeuppsättning från stdin — riktiga frågor,
+var och en med de minnen som besvarar den, plus frågor som inget minne ska svara
+på — och rapporterar hit@1, hit@5 och reciprok rang, och för recall-hooken, vid
+golv från 0,40 till 0,60, hur ofta den visar rätt minne, bara fel minnen eller
+brus. Vikterna blev `RANK_WEIGHTS` i `lib.mjs`, och `searchThoughts` tar emot
+ändrade vikter och en färdig vektor, så att varianter jämförs i samma körning med
+samma embeddings. Standardrankingen är oförändrad.
+
+Frågorna hålls utanför git (`eval/*.local.json`) och utanför imagen, eftersom de
+nämner riktiga system. En första uppsättning med 36 frågor som har svar och 6 som
+inte har det skrevs utifrån de levande minnena; frågor från riktiga sessioner bör
+ersätta den med tiden.
+
+---
+
 ## 2026-10-14 — 0.12.1: att bekräfta ett minne tömmer inte längre titeln
 
 Ett minne som bekräftades på sidan Granska kunde komma tillbaka med titeln

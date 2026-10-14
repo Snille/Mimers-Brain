@@ -7,6 +7,10 @@
 # placeholders so the repo can be made public without publishing a network map.
 docs/deployment.local.md
 
+# Recall evaluation questions. Real questions about real systems, with the ids
+# of the memories that answer them - see eval/recall-questions.example.json.
+eval/*.local.json
+
 # Migration input. These files carry real credentials in the vault-tier rows -
 # they are kept on disk as a record of what was imported, never committed.
 migrate/*.tsv

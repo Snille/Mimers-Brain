@@ -78,7 +78,9 @@ test("old memories carry an age note, history and incidents do not", () => {
 
 test("receipts nudge ranking and feed the review list", async () => {
   const source = await readFile(new URL("../lib.mjs", import.meta.url), "utf8");
-  assert.match(source, /usefulness\s+AS rank_score/);
+  assert.match(source, /usefulness \* \$\{w\("usefulness"\)\}\s+AS rank_score/);
+  const { RANK_WEIGHTS } = await import("../lib.mjs");
+  assert.equal(RANK_WEIGHTS.usefulness, 1);
   assert.match(source, /export async function rarelyUseful/);
   for (const language of ["en", "sv"]) {
     const messages = JSON.parse(await readFile(new URL(`../public/lang/${language}.json`, import.meta.url), "utf8"));

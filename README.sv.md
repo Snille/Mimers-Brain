@@ -458,3 +458,29 @@ Granska, och de
 som bedöms oförenliga listas som *Möjliga motsägelser* med samma val som
 dubbletter plus *Ingen motsägelse*. Ett utlåtande gäller tills något av minnena
 ändras. Inget ändras automatiskt.
+
+## Mäta sökträffar
+
+Vikterna i rankingen och recall-hookens golv på 0,5 sattes för hand mot några
+få prov. `scripts/eval-recall.mjs` mäter dem mot en fast uppsättning frågor, var
+och en med de minnen som besvarar den, så att en ändring i rankingen bedöms med
+siffror innan den går ut: hit@1, hit@5 och reciprok rang för sökningen, och för
+hooken, vid golv från 0,40 till 0,60, hur ofta den visar rätt minne, bara fel
+minnen, eller något alls för en fråga som inget minne ska svara på.
+
+Frågorna är riktiga frågor om riktiga system och hålls därför utanför git:
+kopiera [eval/recall-questions.example.json](eval/recall-questions.example.json)
+till `eval/recall-questions.local.json` (gitignorerad) och fyll i den. Den når
+skriptet via stdin och hamnar därför inte heller i imagen:
+
+```bash
+ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs" < eval/recall-questions.local.json
+ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs --variant 'no-title={\"title\":0}'" < eval/recall-questions.local.json
+```
+
+En variant ändrar valfria värden i `RANK_WEIGHTS` i `server/lib.mjs`; `current`
+körs alltid först, och alla varianter söker med samma embedding av varje fråga.
+Körningen läser bara och skriver inget recall-kvitto, så den rubbar inte de
+kvitton den mäter. Ett förväntat minne som har ersatts, tagits bort eller ligger
+utanför `--tiers` rapporteras som en varning i stället för att räknas som ett
+rankingfel. Rapporten nämner frågor med id och minnen med UUID, inget annat.

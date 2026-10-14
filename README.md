@@ -453,6 +453,32 @@ and the ones it judges incompatible are listed as *Possible contradictions*
 with the same choices as duplicates plus *Not a contradiction*. A verdict holds
 until either memory changes. Nothing is changed automatically.
 
+## Measuring recall
+
+The ranking weights and the recall hook's 0.5 floor were set by hand against a
+few probes. `scripts/eval-recall.mjs` measures them against a fixed set of
+questions, each listed with the memories that answer it, so a ranking change is
+judged by numbers before it ships: hit@1, hit@5 and reciprocal rank for search,
+and for the hook, at floors 0.40 to 0.60, how often it shows the right memory,
+only wrong ones, or anything at all for a question nothing should answer.
+
+The question set holds real questions about real systems, so it stays out of
+git: copy [eval/recall-questions.example.json](eval/recall-questions.example.json)
+to `eval/recall-questions.local.json` (gitignored) and fill it in. It reaches
+the script on stdin, so it never enters the image either:
+
+```bash
+ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs" < eval/recall-questions.local.json
+ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs --variant 'no-title={\"title\":0}'" < eval/recall-questions.local.json
+```
+
+A variant overrides any of `RANK_WEIGHTS` in `server/lib.mjs`; `current` always
+runs first, and every variant searches with the same embedding of each
+question. The run is read-only and writes no recall trace, so it does not move
+the receipts it measures. An expected memory that has been superseded, deleted
+or sits outside `--tiers` is reported as a warning rather than counted as a
+ranking failure. The report names questions by id and memories by UUID only.
+
 ## Naming
 
 Container names, the Docker volume, and the compose project are `valv`-prefixed

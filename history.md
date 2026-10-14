@@ -6,6 +6,29 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.13.0: recall is measured, not guessed
+
+Every number in the ranking was set by hand against a handful of probes: 0.65
+for meaning, 0.30 for title words, the receipt nudge, the hook's floor of 0.5.
+Nothing said whether the next change would help or quietly make things worse.
+The idea comes from [ai-memory](https://github.com/akitaonrails/ai-memory), which
+lets no ranking change on by default until its retrieval benchmark says so.
+
+`scripts/eval-recall.mjs` reads a question set on stdin — real questions, each
+with the memories that answer it, plus questions nothing should answer — and
+reports hit@1, hit@5 and reciprocal rank, and for the recall hook, at floors
+from 0.40 to 0.60, how often it shows the right memory, only wrong ones, or
+noise. The weights became `RANK_WEIGHTS` in `lib.mjs`, and `searchThoughts`
+accepts overrides and a precomputed vector, so variants are compared in one run
+on the same embeddings. The default ranking is unchanged.
+
+The question set stays out of git (`eval/*.local.json`) and out of the image: it
+names real systems. A seed set of 36 answerable and 6 unanswerable questions was
+written from the live memories; questions from real sessions should replace it
+over time.
+
+---
+
 ## 2026-10-14 — 0.12.1: confirming a memory no longer blanks its title
 
 A memory confirmed on the Review page could come back titled "Untitled memory"

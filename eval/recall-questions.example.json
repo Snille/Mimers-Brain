@@ -1,0 +1,20 @@
+{
+  "about": "Copy to recall-questions.local.json (gitignored) and replace with real questions. q is asked as written; expect lists the memories that answer it, any one of which counts as a hit. expect: [] marks a question no memory should answer, which measures noise from the recall hook.",
+  "questions": [
+    {
+      "id": "deploy-the-brain",
+      "q": "How do I update the memory server after a new commit?",
+      "expect": ["00000000-0000-4000-8000-000000000001"]
+    },
+    {
+      "id": "which-port-to-proxy",
+      "q": "Which port should the reverse proxy forward to?",
+      "expect": ["00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-000000000003"]
+    },
+    {
+      "id": "unrelated-weather",
+      "q": "What will the weather be like this weekend?",
+      "expect": []
+    }
+  ]
+}
