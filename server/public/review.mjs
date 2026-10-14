@@ -67,7 +67,7 @@ export async function render(root) {
       <div id="review-recalls"></div>
     </section>`;
 
-  // Both lists take the same five review actions. On a rarely useful memory,
+  // Both lists take the same four review actions. On a rarely useful memory,
   // Confirm means "keep it as it is": the review resets its receipt count, so
   // it only comes back if it keeps being passed over.
   const reviewCards = (target, rows, note = () => "") => {
@@ -76,7 +76,7 @@ export async function render(root) {
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `${note(row)}${memorySummary(row)}<div class="actions review-actions">
-        ${["confirm", "evidence_only", "restrict", "stale", "reject"].map((action) =>
+        ${["confirm", "evidence_only", "stale", "reject"].map((action) =>
           `<button class="${action === "reject" ? "ghost danger" : "ghost"}" data-action="${action}">${esc(tr(`review.actions.${action}`))}</button>`).join("")}
       </div>`;
       for (const button of card.querySelectorAll("button")) button.onclick = async () => {

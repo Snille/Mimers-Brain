@@ -307,7 +307,7 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       name: "review_memory",
       action: "write",
       summary: "Review an agent memory",
-      description: "Confirm, restrict, reject, mark stale, or retain a memory as evidence only.",
+      description: "Confirm, reject, mark stale, or retain a memory as evidence only.",
       schema: {
         type: "object", required: ["id", "action"],
         properties: {

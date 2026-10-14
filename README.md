@@ -387,8 +387,8 @@ source relationships. A superseded row is hidden from current-only searches,
 not deleted. Permanent deletion remains a separate confirmed operation.
 
 Agent-authored memories default to pending evidence and cannot be treated as
-user instructions. `review_memory` or the Review page can confirm, restrict,
-mark stale, retain as evidence, or reject them. `captured_by` records the client
+user instructions. `review_memory` or the Review page can confirm, mark
+stale, retain as evidence, or reject them. `captured_by` records the client
 that wrote the memory — taken from the MCP handshake, never from the caller's
 own metadata — and the review queue shows it, so a brain written to by several
 harnesses at once can still say which one wrote a given memory. `recall_traces` records only the

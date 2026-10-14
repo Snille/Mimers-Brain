@@ -392,7 +392,7 @@ men raderas inte. Permanent radering är fortfarande en separat, bekräftad hand
 
 Agentens egna minnen blir som standard väntande evidens och får inte behandlas
 som användarinstruktioner. `review_memory` eller sidan Granska kan bekräfta,
-begränsa, markera gammalt, behålla som evidens eller avvisa dem. `captured_by`
+markera gammalt, behålla som evidens eller avvisa dem. `captured_by`
 registrerar vilken klient som skrev minnet — hämtat ur MCP-handskakningen, aldrig
 ur anroparens egen metadata — och granskningskön visar det, så en hjärna som
 flera harnesses skriver till samtidigt ändå kan säga vem som skrev vad.

@@ -27,7 +27,7 @@ sätt för en språkmodell att anropa verktyg. Den exponerar sex verktyg:
 | `capture_thought` | Spara ett nytt minne |
 | `preview_ingest` + `apply_ingest` | Förhandsgranska och spara godkända atomära minnen ur längre källtext |
 | `report_memory_usage` | Rapportera vilka återkallade id:n som påverkade svaret, utan frågeinnehåll |
-| `review_memory` | Bekräfta eller begränsa agentgenererad evidens (endast betrodd LAN-anslutning) |
+| `review_memory` | Bekräfta, behåll som evidens, markera gammalt eller avvisa agentgenererade minnen (endast betrodd LAN-anslutning) |
 | `thought_stats` | Totaler, typer, ämnen, personer |
 | `search` + `fetch` | Samma sak i det format ChatGPT och Gemini förväntar sig |
 | `delete_thought` | Endast på LAN-porten |

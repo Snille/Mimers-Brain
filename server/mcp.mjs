@@ -247,7 +247,7 @@ export function buildServer(tiers, ctx = {}) {
   if (full) {
     registerWrite("review_memory", {
       title: "Review an agent memory",
-      description: "Confirm, restrict, reject, mark stale, or keep a memory as evidence only. Full trusted connection only.",
+      description: "Confirm, reject, mark stale, or keep a memory as evidence only. Full trusted connection only.",
       inputSchema: {
         id: z.string().uuid(),
         action: z.enum(REVIEW_ACTIONS),

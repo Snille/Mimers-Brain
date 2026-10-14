@@ -16,7 +16,10 @@ export const MEMORY_PROVENANCE = [
   "observed", "inferred", "user_confirmed", "imported", "generated", "disputed",
 ];
 export const REVIEW_STATUSES = ["confirmed", "pending", "evidence_only", "rejected", "stale"];
-export const REVIEW_ACTIONS = ["confirm", "evidence_only", "restrict", "stale", "reject"];
+// "restrict" is gone: search never read can_use_as_evidence, so it acted as
+// evidence_only, and hiding the memory would have made it reject by another
+// name. Memories restricted before keep their flags and are counted as such.
+export const REVIEW_ACTIONS = ["confirm", "evidence_only", "stale", "reject"];
 export const SMART_INGEST_THRESHOLD = 1200;
 
 export const CANONICAL_TOPICS = [
@@ -565,7 +568,6 @@ export function applyReview(meta, action, { actor = "user", at = new Date().toIS
   const changes = {
     confirm: { review_status: "confirmed", provenance: "user_confirmed", can_use_as_instruction: true, can_use_as_evidence: true, requires_user_confirmation: false },
     evidence_only: { review_status: "evidence_only", can_use_as_instruction: false, can_use_as_evidence: true, requires_user_confirmation: false },
-    restrict: { review_status: "evidence_only", can_use_as_instruction: false, can_use_as_evidence: false, requires_user_confirmation: true },
     stale: { review_status: "stale", can_use_as_instruction: false, can_use_as_evidence: true, requires_user_confirmation: true },
     reject: { review_status: "rejected", lifecycle: "archived", can_use_as_instruction: false, can_use_as_evidence: false, requires_user_confirmation: false },
   }[action];

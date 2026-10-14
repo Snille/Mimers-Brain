@@ -108,7 +108,6 @@
     "actions": {
       "confirm": "Confirm",
       "evidence_only": "Evidence only",
-      "restrict": "Restrict",
       "stale": "Mark stale",
       "reject": "Reject",
       "keep_both": "Keep both",

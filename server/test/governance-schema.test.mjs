@@ -15,9 +15,10 @@ test("schema contains review, duplicate and privacy-preserving recall records", 
 
 test("review UI exposes all non-destructive resolution choices", async () => {
   const source = await readFile(new URL("../public/review.mjs", import.meta.url), "utf8");
-  for (const action of ["confirm", "evidence_only", "restrict", "stale", "reject",
+  for (const action of ["confirm", "evidence_only", "stale", "reject",
     "keep_both", "related", "supersede", "merge"])
     assert.match(source, new RegExp(action));
+  assert.doesNotMatch(source, /"restrict"/);
 });
 
 test("review queues and counters only treat current memories as actionable", async () => {

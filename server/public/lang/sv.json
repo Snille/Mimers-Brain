@@ -108,7 +108,6 @@
     "actions": {
       "confirm": "Bekräfta",
       "evidence_only": "Endast evidens",
-      "restrict": "Begränsa",
       "stale": "Markera gammalt",
       "reject": "Avvisa",
       "keep_both": "Behåll båda",

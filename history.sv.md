@@ -6,6 +6,28 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.9.30: fyra granskningsval, inte fem
+
+Sidan Granska hade Begränsa bredvid Endast evidens, och ingen kunde säga vad
+som skilde dem åt. Begränsa skrev `can_use_as_evidence=false`, men sökningen
+läste aldrig den flaggan, så ett begränsat minne hittades, rankades och
+märktes precis som ett minne med endast evidens. Att låta knappen dölja minnet
+i sökningen hade inte hjälpt heller: Avvisa gör redan det, och arkiverar i
+stället för att radera, så Begränsa hade blivit Avvisa under ett annat namn.
+
+Begränsa är borttagen från sidan Granska, från `review_memory` och från
+HTTP-API:t. De fyra val som är kvar gör var sin sak som de andra inte gör:
+
+- **Bekräfta** — minnet blir en regel som agenten får följa som Eriks egen.
+- **Endast evidens** — en ledtråd att kontrollera, aldrig en instruktion.
+- **Markera gammalt** — endast evidens, och tillbaka i granskningskön för att
+  uppdateras.
+- **Avvisa** — arkiveras och försvinner ur sökningen.
+
+Minnen som begränsats tidigare behåller sina flaggor, fungerar fortfarande som
+endast evidens och räknas fortfarande som begränsade på statistiksidan. Ett
+test fallerar nu om knappen kommer tillbaka.
+
 ## 2026-10-13 — 0.9.29: titlar som beskriver, sammanfattningar som tar slut
 
 En granskning av alla 287 aktuella minnen hittade 69 med en titel eller

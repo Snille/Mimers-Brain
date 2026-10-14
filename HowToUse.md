@@ -27,7 +27,7 @@ language model to call tools. It exposes six:
 | `capture_thought` | Save a new memory |
 | `preview_ingest` + `apply_ingest` | Preview and save approved atomic memories from long source text |
 | `report_memory_usage` | Report which recalled ids materially influenced the answer, without query content |
-| `review_memory` | Confirm or restrict agent-authored evidence (trusted LAN connection only) |
+| `review_memory` | Confirm, keep as evidence, mark stale or reject agent-authored memories (trusted LAN connection only) |
 | `thought_stats` | Totals, types, topics, people |
 | `search` + `fetch` | The same thing in the shape ChatGPT and Gemini expect |
 | `delete_thought` | LAN listener only |

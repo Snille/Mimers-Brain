@@ -6,6 +6,27 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.9.30: four review choices, not five
+
+The Review page offered Restrict next to Evidence only, and nobody could say
+what set them apart. Restrict wrote `can_use_as_evidence=false`, but search
+never read that flag, so a restricted memory was found, ranked and labelled
+exactly like an evidence-only one. Making it hide the memory from search would
+not have helped either: Reject already does that, and archives rather than
+deletes, so Restrict would have become Reject by another name.
+
+Restrict is removed from the Review page, from `review_memory` and from the
+HTTP API. The four choices left each do something the others do not:
+
+- **Confirm** — the memory becomes a rule the agent may follow as Erik's own.
+- **Evidence only** — a lead to check, never an instruction.
+- **Mark stale** — evidence only, and back in the review queue to be updated.
+- **Reject** — archived and gone from search.
+
+Memories restricted before keep their flags, still behave as evidence only and
+are still counted as restricted on the statistics page. A test now fails if the
+button comes back.
+
 ## 2026-10-13 — 0.9.29: titles that describe, summaries that finish
 
 An audit of all 287 current memories found 69 with a title or summary that was
