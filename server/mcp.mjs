@@ -387,7 +387,7 @@ export function buildServer(tiers, ctx = {}) {
   if (full) {
     registerWrite("delete_thought", {
       title: "Delete a memory",
-      description: "Permanently delete a memory. Confirm with the user first.",
+      description: `Delete a memory. Its text can be restored from the Review page for ${db.DELETED_SNAPSHOT_DAYS} days, then only the record of the delete remains. Confirm with the user first.`,
       inputSchema: { id: z.string() },
     }, track("delete_thought", "delete", async ({ id }, note) => {
       try {

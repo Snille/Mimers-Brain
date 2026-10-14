@@ -58,6 +58,18 @@ export async function render(root) {
       <div id="review-duplicates"></div>
     </section>
     <section class="review-section">
+      <h2>${esc(tr("review.contradictions.title"))} <span class="tag">${(data.contradictions || []).length}</span></h2>
+      <p class="sub">${esc(tr("review.contradictions.description"))}
+        <button class="ghost small" id="contradictions-check">${esc(tr("review.contradictions.check"))}</button>
+        <span id="contradictions-status"></span></p>
+      <div id="review-contradictions"></div>
+    </section>
+    <section class="review-section">
+      <h2>${esc(tr("review.deleted.title"))} <span class="tag">${(data.deleted || []).length}</span></h2>
+      <p class="sub">${esc(tr("review.deleted.description", { days: data.deletedSnapshotDays ?? 30 }))}</p>
+      <div id="review-deleted"></div>
+    </section>
+    <section class="review-section">
       <h2>${esc(tr("review.recalls.title"))}</h2>
       <p class="sub">${esc(tr("review.recalls.description"))}
         <label>${esc(tr("review.recalls.show"))}
@@ -125,6 +137,85 @@ export async function render(root) {
       catch (error) { button.disabled = false; alert(error.message); }
     };
     duplicates.appendChild(card);
+  }
+
+  // Same choices as a duplicate, minus "related": two memories that disagree
+  // are either both right (not a contradiction) or one of them goes.
+  const contradictions = root.querySelector("#review-contradictions");
+  const conflictRows = data.contradictions || [];
+  contradictions.innerHTML = conflictRows.length ? "" : `<div class="empty">${esc(tr("review.empty"))}</div>`;
+  for (const pair of conflictRows) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `${pair.reason ? `<div class="summary">${esc(pair.reason)}</div>` : ""}
+      <div class="duplicate-grid">${memorySummary(pair, "left_")}${memorySummary(pair, "right_")}</div>
+      <div class="actions review-actions">
+        <button class="ghost" data-action="dismiss">${esc(tr("review.actions.not_conflict"))}</button>
+        <button class="ghost" data-action="left">${esc(tr("review.actions.keep_left"))}</button>
+        <button class="ghost" data-action="right">${esc(tr("review.actions.keep_right"))}</button>
+        <button class="ghost" data-action="merge">${esc(tr("review.actions.merge"))}</button>
+      </div>`;
+    for (const button of card.querySelectorAll("button")) button.onclick = async () => {
+      const action = button.dataset.action;
+      const ids = { left_id: pair.left_id, right_id: pair.right_id };
+      let path = "/api/duplicates/resolve";
+      let payload;
+      if (action === "dismiss") {
+        path = "/api/contradictions/dismiss";
+        payload = ids;
+      } else if (action === "merge") {
+        const merged = prompt(tr("review.mergePrompt"), `${pair.left_content}
+
+${pair.right_content}`);
+        if (!merged) return;
+        payload = { ...ids, action: "merge", merged_content: merged };
+      } else {
+        payload = { ...ids, action: "supersede", canonical_id: action === "left" ? pair.left_id : pair.right_id };
+      }
+      button.disabled = true;
+      try { await post(path, payload); await render(root); }
+      catch (error) { button.disabled = false; alert(error.message); }
+    };
+    contradictions.appendChild(card);
+  }
+
+  const check = root.querySelector("#contradictions-check");
+  check.onclick = async () => {
+    check.disabled = true;
+    const status = root.querySelector("#contradictions-status");
+    status.textContent = tr("review.contradictions.checking");
+    try {
+      const result = await post("/api/contradictions/check", { limit: 20 });
+      if (result.checked) await render(root);
+      else status.textContent = tr("review.contradictions.nothingNew");
+    } catch (error) { status.textContent = error.message; check.disabled = false; }
+  };
+
+  // A delete keeps the text for a while; this is where it comes back from.
+  const deleted = root.querySelector("#review-deleted");
+  const deletedRows = data.deleted || [];
+  deleted.innerHTML = deletedRows.length ? "" : `<div class="empty">${esc(tr("review.empty"))}</div>`;
+  for (const change of deletedRows) {
+    const before = change.before || {};
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<div class="meta"><span class="tag">${esc(tr("review.deleted.when", {
+        when: formatStamp(change.at), actor: change.actor }))}</span></div>
+      ${memorySummary({ content: before.content, metadata: before.metadata, created_at: before.created_at })}
+      <div class="actions review-actions">
+        <button class="ghost" data-action="restore">${esc(tr("review.actions.restore"))}</button>
+        <button class="ghost danger" data-action="forget">${esc(tr("review.actions.forget"))}</button>
+      </div>`;
+    for (const button of card.querySelectorAll("button")) button.onclick = async () => {
+      const forget = button.dataset.action === "forget";
+      if (forget && !confirm(tr("review.deleted.forgetConfirm"))) return;
+      button.disabled = true;
+      try {
+        await post(forget ? `/api/thoughts/${change.thought_id}/forget` : `/api/changes/${change.id}/restore`, {});
+        await render(root);
+      } catch (error) { button.disabled = false; alert(error.message); }
+    };
+    deleted.appendChild(card);
   }
 
   const limitPicker = root.querySelector("#recall-limit");

@@ -6,6 +6,59 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.10.0: tre idéer från OB1
+
+Mimers Brain utgick från [OB1](https://github.com/NateBJones-Projects/OB1), och
+OB1 har fortsatt att växa. Det mesta som kommit till sedan finns redan här i en
+annan form — dubblettstopp med fingeravtryck, hybridsökning, typade relationer,
+proveniens, en kvalitetsgranskning. Tre saker fanns inte, och den här versionen
+tar in dem.
+
+**Minnena kommer till frågan.** Den stående regeln säger att man ska söka innan
+man agerar, och modellerna följer den ojämnt: den 2026-08-06 felsöktes ett
+ESPHome-bygge i nittio minuter medan svaret låg i minnet. OB1:s recept *live
+retrieval* angriper det från andra hållet, och det gör även
+`tools/hooks/mimer-recall.py` — en `UserPromptSubmit`-hook för Claude Code som
+söker en gång på varje fråga och lägger till upp till tre minnen i modellens
+kontext. Serversidan är `POST /api/recall-hint`. Den använder ett semantiskt golv
+på 0,5 i stället för sökningens 0,3, uppmätt mot det riktiga minnet:
+ESPHome-regeln fick 0,54 mot en verklig byggfråga, medan orelaterade frågor
+stannade på högst 0,49. Den skapar inget recall-kvitto, eftersom modellen aldrig
+frågade, sparar ingen fråga, och vägrar att bädda in en fråga som
+hemlighetsspärren skulle vägra att spara.
+
+**Varje ändring loggas, och en radering kan ångras.** OB1:s schema *thought
+audit*, gjort som en trigger så att den även ser det som aldrig går genom
+servern: en psql-session, ett skript, loopen med fel filter som tömde databasen
+2026-08-04. `thought_changes` sparar skapande, ändring och radering med
+skribentens namn och fälten som de var före. Namnet når triggern som en
+transaktionslokal inställning: varje anrop körs under sin klients namn, och en
+skrivning utan namn loggas som `sql:<roll>`. En ändring i webbgränssnittet skrev
+förut över den gamla texten för gott; varje kort har nu listan **Ändringar** med
+*Återställ den här versionen*. Ett raderat minne behåller sin text, relationerna
+inräknade, i 30 dagar (`CHANGE_LOG_DELETED_DAYS`) och kan återställas från sidan
+Granska under sitt eget id, eller glömmas direkt med *Glöm nu*.
+
+**Motsägelser letas upp.** Granskningen prövar varje minne för sig och
+dubblettlistan hittar två som säger samma sak; inget märkte två som säger olika
+saker om samma ämne. Det gör OB1:s *lint sweep*. Här läses varje par av
+aktuella minnen med en likhet på 0,6 eller mer av metadatamodellen, de mest lika
+först, och den avgör om båda kan vara sanna nu. Första utkastet stannade vid
+0,86, där dubblettlistan börjar; en testdatabas visade varför det var fel — den
+tydligaste motsägelsen, samma server på port 8790 i ett minne och på 8795 i det
+andra, fick 0,87. Tjugo par per natt, eller på begäran från sidan Granska; ett
+utlåtande gäller tills något av minnena ändras, så inget par betalas två gånger.
+Motsägelser visas med samma val som dubbletter, plus *Ingen motsägelse*. Inget
+ändras automatiskt.
+
+Två mindre ändringar följde med. Databastesterna bygger nu en egen databas från
+`db/init.sql`, så att de kan köras sida vid sida och om igen utan städning
+(`server/testing/db.mjs` beskriver hur). `test-isolation.ps1` kontrollerar att den
+öppna lyssnaren inte ser någon valvrad genom ändringsloggen eller recall-hinten,
+och städar bort sina kanariefåglar ur ändringsloggen efteråt.
+
+---
+
 ## 2026-10-14 — 0.9.32: ett nytt minne får namnge sig själv
 
 `capture_thought` tar emot samma valfria `title` som `supersede_thought` fick i

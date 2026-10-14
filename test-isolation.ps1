@@ -107,6 +107,9 @@ if (-not $Write) {
 function Cleanup {
     foreach ($id in @($createdIds)) {
         try { Invoke-RestMethod "$FULL/api/thoughts/$id" -Method Delete -Headers $H | Out-Null } catch {}
+        # A delete keeps the text in the change log for a month. Test canaries
+        # have no business on the Review page's "Recently deleted" list.
+        try { Invoke-RestMethod "$FULL/api/thoughts/$id/forget" -Method Post -Headers $H -Body '{}' | Out-Null } catch {}
     }
 }
 
@@ -145,6 +148,20 @@ try {
         content = "Attempt to smuggle a secret in from outside."; tier = "vault" } | ConvertTo-Json)
     Check "OPEN refuses vault writes" $false "the write went through"
 } catch { Check "OPEN refuses vault writes" $true "" }
+
+Write-Host "`nThe change log and the recall hint" -ForegroundColor Cyan
+# Both are new doors onto memory text: the change log keeps old versions, and the
+# hint answers a free-text prompt. Neither may hand the open listener a vault row.
+# Assigned first: @(Invoke-RestMethod ...) wraps an empty JSON array as one
+# element, so a correct empty answer would count as a leak.
+$changesOpen = Invoke-RestMethod "$OPEN/api/thoughts/$($v.id)/changes" -Headers $H
+$changesFull = Invoke-RestMethod "$FULL/api/thoughts/$($v.id)/changes" -Headers $H
+Check "OPEN change log hides the vault row" (@($changesOpen).Count -eq 0) "got $(@($changesOpen).Count) changes"
+Check "FULL change log recorded the vault write" (@($changesFull).Count -ge 1) "no change recorded"
+$hintOpen = Invoke-RestMethod "$OPEN/api/recall-hint" -Method Post -Headers $H -Body (@{
+    prompt = "What is the password for the test system?" } | ConvertTo-Json)
+Check "OPEN recall hint returns no vault row" (-not ($hintOpen.hits | Where-Object { $_.tier -eq "vault" })) "vault leaked"
+Check "OPEN recall hint never shows the secret" (-not (($hintOpen | ConvertTo-Json -Depth 6) -match "CANARY")) "secret leaked"
 
 Write-Host "`nStatistics" -ForegroundColor Cyan
 # ConvertFrom-Json's object model is case-insensitive, so an object with keys
@@ -212,7 +229,10 @@ if ($initRaw.StartsWith("{")) {
     $dataLine = $initRaw -split "`n" | Where-Object { $_ -match '^data:\s*' } | Select-Object -First 1
     $initResult = ($dataLine -replace '^data:\s*', '') | ConvertFrom-Json
 }
-Check "MCP initialize publishes the central memory policy" ($initResult.result.instructions -match "search Mimers Brain first" -and
+# The handshake carries the short form (Claude Code cuts instructions at 2048
+# characters); it sends the model to memory_digest for the full policy.
+Check "MCP initialize publishes the central memory policy" ($initResult.result.instructions -match "memory_digest" -and
+    $initResult.result.instructions -match "Search Mimers Brain before" -and
     $initResult.result.instructions -match "Connection scope") "instructions missing"
 Check "MCP reports the deployed app version" ($initResult.result.serverInfo.version -eq $specFull.info.version) "MCP and OpenAPI versions differ"
 

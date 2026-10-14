@@ -82,7 +82,22 @@
     "pinned": "i startpaketet",
     "pinnedHint": "I startpaketet som varje modell läser först",
     "pinnedWaiting": "startpaket: väntar på bekräftelse",
-    "pinnedWaitingHint": "Fäst, men bara bekräftade minnen kommer med i startpaketet. Bekräfta det på sidan Granska."
+    "pinnedWaitingHint": "Fäst, men bara bekräftade minnen kommer med i startpaketet. Bekräfta det på sidan Granska.",
+    "changes": "Ändringar",
+    "changesEmpty": "Inga ändringar sparade än.",
+    "restoreVersion": "Återställ den här versionen",
+    "restoreConfirm": "Sätta tillbaka fälten som de var före den här ändringen?",
+    "action": {
+      "create": "skapad",
+      "update": "ändrad",
+      "delete": "raderad",
+      "restore": "återställd"
+    },
+    "field": {
+      "content": "text",
+      "metadata": "metadata",
+      "tier": "nivå"
+    }
   },
   "ingest": {
     "title": "Granska föreslagna minnen",
@@ -114,7 +129,10 @@
       "related": "Relaterade",
       "keep_left": "Behåll vänster",
       "keep_right": "Behåll höger",
-      "merge": "Slå ihop"
+      "merge": "Slå ihop",
+      "not_conflict": "Ingen motsägelse",
+      "restore": "Återställ",
+      "forget": "Glöm nu"
     },
     "capturedBy": "via {client}",
     "mergePrompt": "Redigera det sammanslagna minnet:",
@@ -129,6 +147,19 @@
       "status": "Status",
       "reported": "rapporterat",
       "awaiting": "väntar på rapport"
+    },
+    "contradictions": {
+      "title": "Möjliga motsägelser",
+      "description": "Två aktuella minnen om samma sak som metadatamodellen tror inte kan vara sanna samtidigt. Nya par kontrolleras varje natt; inget ändras automatiskt.",
+      "check": "Kontrollera nya par nu",
+      "checking": "Kontrollerar…",
+      "nothingNew": "Inga nya par att kontrollera."
+    },
+    "deleted": {
+      "title": "Nyligen raderade",
+      "description": "Ett raderat minne kan återställas i {days} dagar. Därefter finns bara uppgiften om att det raderades kvar.",
+      "when": "Raderat {when} av {actor}",
+      "forgetConfirm": "Ta bort alla sparade kopior av texten nu? Minnet kan då inte längre återställas."
     }
   },
   "tiers": {

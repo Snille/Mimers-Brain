@@ -88,6 +88,8 @@
   .card .summary { color: var(--muted); margin-bottom: 10px; }
   .history-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .card .body { white-space: pre-wrap; word-break: break-word; }
+  .change-log:not(:empty) { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 8px; }
+  .change-log .change .body { color: var(--muted); font-size: 13px; margin: 2px 0 4px; }
   .editfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 12px; }
   .editfields input, .editfields select { width: 100%; }
   .card .actions { margin-top: 10px; display: none; gap: 8px; }
@@ -447,8 +449,10 @@ function card(t) {
       `<button class="ghost small history" data-id="${esc(id)}">${esc(tr("thought.history"))} ${esc(String(id).slice(0, 8))}</button>`).join("")}</div>` : ""}
     <div class="actions">
       <button class="ghost edit">${esc(tr("thought.edit"))}</button>
+      <button class="ghost changes">${esc(tr("thought.changes"))}</button>
       <button class="ghost danger del">${esc(tr("thought.delete"))}</button>
-    </div>`;
+    </div>
+    <div class="change-log"></div>`;
 
   for (const button of el.querySelectorAll(".history")) {
     button.onclick = async () => {
@@ -542,6 +546,42 @@ function card(t) {
         refresh();
       } catch (e) { showError(e.message); save.disabled = false; save.textContent = tr("editor.save"); }
     };
+  };
+
+  // Every create, edit and delete of this memory, newest first, from the change
+  // log. An edit kept the fields as they were before it, so that version can be
+  // put back; the restore is itself an edit and shows up at the top.
+  el.querySelector(".changes").onclick = async () => {
+    const log = el.querySelector(".change-log");
+    if (log.childElementCount) { log.replaceChildren(); return; }
+    try {
+      const changes = await api(`/api/thoughts/${t.id}/changes`);
+      if (!changes.length) { log.innerHTML = `<div class="sub">${esc(tr("thought.changesEmpty"))}</div>`; return; }
+      for (const [index, change] of changes.entries()) {
+        const before = change.before || {};
+        // Undoing a delete inserts the row again, which the log can only call
+        // a create. Following a delete, it is a restore.
+        const restored = change.action === "create" && changes.slice(index + 1).some((c) => c.action === "delete");
+        const row = document.createElement("div");
+        row.className = "change";
+        const fields = change.action === "update"
+          ? ` · ${change.fields.map((f) => tr(`thought.field.${f}`)).join(", ")}` : "";
+        const old = before.content ?? (before.metadata ? [before.metadata.title, before.metadata.summary].filter(Boolean).join(" — ") : "");
+        row.innerHTML = `<div class="sub">${esc(fmt(change.at))} · ${esc(tr(`thought.action.${restored ? "restore" : change.action}`))}${esc(fields)} · ${esc(change.actor)}</div>
+          ${change.action === "update" && old ? `<div class="body">${esc(String(old).slice(0, 600))}</div>` : ""}
+          ${change.action === "update" && change.before ? `<button class="ghost small">${esc(tr("thought.restoreVersion"))}</button>` : ""}`;
+        const button = row.querySelector("button");
+        if (button) button.onclick = async () => {
+          if (!confirm(tr("thought.restoreConfirm"))) return;
+          button.disabled = true;
+          try {
+            await api(`/api/changes/${change.id}/restore`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+            refresh();
+          } catch (e) { button.disabled = false; showError(e.message); }
+        };
+        log.appendChild(row);
+      }
+    } catch (e) { showError(e.message); }
   };
 
   el.querySelector(".del").onclick = async () => {

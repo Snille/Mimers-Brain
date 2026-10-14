@@ -82,7 +82,22 @@
     "pinned": "in digest",
     "pinnedHint": "In the session digest every model reads first",
     "pinnedWaiting": "digest: awaiting confirmation",
-    "pinnedWaitingHint": "Pinned, but only confirmed memories go into the session digest. Confirm it on the Review page."
+    "pinnedWaitingHint": "Pinned, but only confirmed memories go into the session digest. Confirm it on the Review page.",
+    "changes": "Changes",
+    "changesEmpty": "No changes recorded yet.",
+    "restoreVersion": "Restore this version",
+    "restoreConfirm": "Put back the fields as they were before this change?",
+    "action": {
+      "create": "created",
+      "update": "changed",
+      "delete": "deleted",
+      "restore": "restored"
+    },
+    "field": {
+      "content": "text",
+      "metadata": "metadata",
+      "tier": "tier"
+    }
   },
   "ingest": {
     "title": "Review proposed memories",
@@ -114,7 +129,10 @@
       "related": "Related",
       "keep_left": "Keep left",
       "keep_right": "Keep right",
-      "merge": "Merge"
+      "merge": "Merge",
+      "not_conflict": "Not a contradiction",
+      "restore": "Restore",
+      "forget": "Forget now"
     },
     "capturedBy": "via {client}",
     "mergePrompt": "Edit the merged memory:",
@@ -129,6 +147,19 @@
       "status": "Status",
       "reported": "reported",
       "awaiting": "awaiting report"
+    },
+    "contradictions": {
+      "title": "Possible contradictions",
+      "description": "Two current memories about the same subject that the metadata model thinks cannot both be true. New pairs are checked every night; nothing is changed automatically.",
+      "check": "Check new pairs now",
+      "checking": "Checking…",
+      "nothingNew": "No new pairs to check."
+    },
+    "deleted": {
+      "title": "Recently deleted",
+      "description": "A deleted memory can be restored for {days} days. After that only the record of the delete remains.",
+      "when": "Deleted {when} by {actor}",
+      "forgetConfirm": "Remove every kept copy of this text now? The memory can then no longer be restored."
     }
   },
   "tiers": {

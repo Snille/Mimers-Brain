@@ -1,6 +1,6 @@
 {
   "name": "mimers-valv",
-  "version": "0.9.32",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "Self-hosted MCP memory server with a LAN-only vault tier",

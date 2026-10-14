@@ -29,7 +29,7 @@
 
 import { embeddingText, normaliseMeta } from "../memory-model.mjs";
 import { memoryQualityWarnings } from "../memory-quality.mjs";
-import { embed, pool } from "../lib.mjs";
+import { embed, pool, runAs, transaction } from "../lib.mjs";
 
 const argv = process.argv.slice(2);
 const args = new Set(argv);
@@ -110,14 +110,15 @@ if (changed.length !== expectedCount) {
 
 for (const { row, next } of changed) {
   const vector = await embed(embeddingText(row.content, next)).catch(() => null);
-  await pool.query(
+  // Named in the change log, so a cleanup pass can be told apart from an edit.
+  await runAs("renormalise-script", () => transaction((client) => client.query(
     `UPDATE thoughts
         SET metadata = $2::jsonb,
             embedding = COALESCE($3::vector, embedding),
             updated_at = now()
       WHERE id = $1`,
     [row.id, JSON.stringify(next), vector ? JSON.stringify(vector) : null],
-  );
+  )));
 }
 
 console.log(JSON.stringify({ ...report, applied: changed.length }, null, 2));

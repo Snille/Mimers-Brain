@@ -58,6 +58,10 @@ services:
       # Statistics. The timezone decides where a day and a month break.
       STATS_TZ: ${STATS_TZ:-Europe/Stockholm}
       USAGE_RETENTION_DAYS: ${USAGE_RETENTION_DAYS:-730}
+      # How long a deleted memory stays restorable, and the similarity floor
+      # for the Claude Code recall hook in tools/hooks/.
+      CHANGE_LOG_DELETED_DAYS: ${CHANGE_LOG_DELETED_DAYS:-30}
+      RECALL_HINT_FLOOR: ${RECALL_HINT_FLOOR:-0.5}
       # MQTT to Home Assistant. Leave MQTT_URL empty to publish nothing.
       MQTT_URL: ${MQTT_URL:-}
       MQTT_USERNAME: ${MQTT_USERNAME:-}

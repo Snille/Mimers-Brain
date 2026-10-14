@@ -132,6 +132,11 @@ claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header
 From outside — and for other models — use the proxied hostname, which points at
 8791. See [HowToUse.md](HowToUse.md) for every client.
 
+To have memories come to the prompt without the model having to search, add the
+`UserPromptSubmit` hook in [tools/hooks/](tools/hooks/README.md). It searches
+each prompt once and adds up to three clear hits to the context; a miss adds
+nothing.
+
 ## Authentication
 
 Four ways in, in the order the server tries them:
@@ -384,7 +389,17 @@ field stays empty.
 `thought_relations` stores full UUID links between replacements and the memories
 they supersede, as well as `derived_from`, `related_to`, conflict, merge and
 source relationships. A superseded row is hidden from current-only searches,
-not deleted. Permanent deletion remains a separate confirmed operation.
+not deleted. Deletion remains a separate confirmed operation.
+
+`thought_changes` is the change log, written by a trigger on `thoughts` so that
+it also records what never passes through the server, such as a psql session.
+Each create, update and delete is one row with the writer's name and the
+changed fields as they were before. The web UI uses it for a per-memory
+**Changes** list with *Restore this version*, and for *Recently deleted* on the
+Review page: a deleted memory keeps its text and relations for
+`CHANGE_LOG_DELETED_DAYS` (30) days and comes back under its own id. *Forget
+now* drops the kept text at once. A change that ever touched the vault is
+filed as vault and never shown on the open listener.
 
 Agent-authored memories default to pending evidence and cannot be treated as
 user instructions. `review_memory` or the Review page can confirm, mark
@@ -413,6 +428,13 @@ content, and projects that disagree with an explicit workspace path. The
 report contains UUIDs, fields and warning codes only — never memory content,
 titles, summaries or secret values. Warnings do not write to the database and
 do not turn the dry run into a failure.
+
+The audit cannot see two memories that disagree, so the server looks for those
+itself. Pairs of current memories with a similarity of 0.6 or more are read by
+the metadata model, closest first, twenty a night or on demand from the Review page,
+and the ones it judges incompatible are listed as *Possible contradictions*
+with the same choices as duplicates plus *Not a contradiction*. A verdict holds
+until either memory changes. Nothing is changed automatically.
 
 ## Naming
 

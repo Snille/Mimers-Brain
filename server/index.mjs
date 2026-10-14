@@ -324,7 +324,24 @@ function makeListener(tiers, {
   const label = tiers.includes("vault") ? "full" : "open";
   const allowReadKey = !writable && Boolean(READ_KEY);
 
-  return createServer(async (req, res) => {
+  // Who a request is, for the usage log, for captured_by and for the change
+  // log alike - one answer, so the three can never name different writers.
+  //
+  // A cookie or a forward-auth header means a browser really is on the other
+  // end; a bearer token on /api means a script is. Calling both "web-ui" would
+  // file every curl and every backup job under a person sitting at the page.
+  const whoIsFor = (req, url) => {
+    const auth = authMode(req, url, { allowAuthelia, allowUrlKey, allowReadKey });
+    const browser = auth === "cookie" || auth === "authelia";
+    return browser ? { name: "web-ui", version: VERSION } : clientOf(req);
+  };
+
+  // Every write a request causes runs under its writer's name, which is how
+  // the change log trigger learns who made a change. See runAs() in lib.mjs.
+  return createServer((req, res) =>
+    db.runAs(whoIsFor(req, new URL(req.url, "http://localhost")).name, () => handle(req, res)));
+
+  async function handle(req, res) {
     const url = new URL(req.url, "http://localhost");
     const path = url.pathname;
 
@@ -332,18 +349,7 @@ function makeListener(tiers, {
     // answer that includes you. Only deliberate actions are logged - searching,
     // creating, editing, deleting - not the list and stats calls the page makes
     // on every keystroke, which would bury everything else.
-    //
-    // A cookie or a forward-auth header means a browser really is on the other
-    // end; a bearer token on /api means a script is. Calling both "web-ui" would
-    // file every curl and every backup job under a person sitting at the page.
-    //
-    // The same answer names the writer on a captured memory, so `whoIs` is
-    // shared rather than computed twice with a chance of drifting apart.
-    const whoIs = () => {
-      const auth = authMode(req, url, { allowAuthelia, allowUrlKey, allowReadKey });
-      const browser = auth === "cookie" || auth === "authelia";
-      return browser ? { name: "web-ui", version: VERSION } : clientOf(req);
-    };
+    const whoIs = () => whoIsFor(req, url);
     const note = (tool, action, extra = {}) => {
       const who = whoIs();
       db.logUsage({
@@ -542,7 +548,50 @@ function makeListener(tiers, {
             recalls: await db.recallTraces(tiers, {
               limit: Math.min(Number(url.searchParams.get("recalls")) || 25, 500),
             }),
+            contradictions: await db.contradictions(tiers),
+            deleted: await db.deletedThoughts(tiers),
+            deletedSnapshotDays: db.DELETED_SNAPSHOT_DAYS,
           });
+
+        // Spends one metadata-model call per pair, so it is a button, not a
+        // side effect of opening the page. The nightly run does the same.
+        if (path === "/api/contradictions/check" && req.method === "POST") {
+          const { limit } = await body(req);
+          const out = await db.checkContradictions(tiers, { limit: Math.min(Number(limit) || 20, 50) });
+          note("ui.contradictions.check", "read", { results: out.checked });
+          return json(res, 200, out);
+        }
+
+        if (path === "/api/contradictions/dismiss" && req.method === "POST") {
+          const out = await db.dismissContradiction(tiers, await body(req));
+          note("ui.contradictions.dismiss", "write", { results: 1 });
+          return json(res, 200, out);
+        }
+
+        const restore = path.match(/^\/api\/changes\/(\d+)\/restore$/);
+        if (restore && req.method === "POST") {
+          const row = await db.restoreChange(tiers, restore[1]);
+          note("ui.restore", "write", { tier: row?.tier, results: 1 });
+          publishSoon();
+          return json(res, 200, row);
+        }
+
+        const forget = path.match(/^\/api\/thoughts\/([0-9a-f-]{36})\/forget$/i);
+        if (forget && req.method === "POST") {
+          const out = await db.forgetDeleted(tiers, forget[1]);
+          note("ui.forget", "delete", { results: out.forgotten });
+          return json(res, 200, out);
+        }
+
+        // For the Claude Code hook that brings memories to a prompt unasked.
+        // See recallHint() in lib.mjs and tools/hooks/mimer-recall.py.
+        if (path === "/api/recall-hint" && req.method === "POST") {
+          const t0 = Date.now();
+          const { prompt, exclude } = await body(req);
+          const out = await db.recallHint(tiers, prompt, { exclude });
+          note("hook.recall", "read", { results: out.hits.length, ms: Date.now() - t0 });
+          return json(res, 200, out);
+        }
 
         if (path === "/api/ingest/preview" && req.method === "POST") {
           const { content, metadata } = await body(req);
@@ -656,6 +705,10 @@ function makeListener(tiers, {
           return json(res, 200, row);
         }
 
+        const changes = path.match(/^\/api\/thoughts\/([0-9a-f-]{36})\/changes$/i);
+        if (changes && req.method === "GET")
+          return json(res, 200, await db.thoughtChanges(tiers, changes[1]));
+
         const m = path.match(/^\/api\/thoughts\/([0-9a-f-]{36})$/i);
         if (m && req.method === "GET") {
           const row = await db.getThought(tiers, m[1]);
@@ -694,7 +747,7 @@ function makeListener(tiers, {
       console.error(`[${label}]`, err);
       json(res, 500, { error: String(err.message || err) });
     }
-  });
+  }
 }
 
 // Boot ------------------------------------------------------------------------
@@ -722,9 +775,22 @@ startMqtt();
 
 // Once a day, and once at boot. The usage log is small - a few hundred bytes a
 // call - but it is the one table that grows without anyone deciding to add to it.
-const prune = () => db.pruneUsage()
-  .then((n) => n && console.log(`Pruned ${n} telemetry rows past retention.`))
-  .catch((e) => console.error("prune:", e.message));
+//
+// The same daily pass forgets the text of memories deleted longer ago than
+// CHANGE_LOG_DELETED_DAYS, and checks a small batch of new memory pairs for
+// contradictions - twenty a night costs a fraction of a cent, and a backlog
+// after an import is worked off without anyone pressing a button.
+const prune = async () => {
+  await db.pruneUsage()
+    .then((n) => n && console.log(`Pruned ${n} telemetry rows past retention.`))
+    .catch((e) => console.error("prune:", e.message));
+  await db.pruneDeletedSnapshots()
+    .then((n) => n && console.log(`Forgot the text of ${n} change log rows for deleted memories.`))
+    .catch((e) => console.error("change log prune:", e.message));
+  await db.runAs("contradiction-check", () => db.checkContradictions(db.ALL, { limit: 20 }))
+    .then((r) => r.checked && console.log(`Checked ${r.checked} memory pairs, ${r.conflicts} contradictions.`))
+    .catch((e) => console.error("contradiction check:", e.message));
+};
 prune();
 setInterval(prune, 24 * 60 * 60 * 1000).unref();
 

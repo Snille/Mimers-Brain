@@ -180,3 +180,91 @@ BEGIN
     RETURN jsonb_build_object('id', v_id, 'fingerprint', v_fingerprint);
 END;
 $$ LANGUAGE plpgsql;
+
+-- Change log. A trigger writes one row per create, edit and delete, with the
+-- fields as they were before, so an edit can be undone and a deleted memory
+-- restored. Kept identical to CHANGE_LOG_SQL in server/lib.mjs, which upgrades
+-- an existing brain on boot. thought_id has no foreign key on purpose: the
+-- record of a delete has to outlive the row.
+CREATE TABLE IF NOT EXISTS thought_changes (
+    id         bigserial PRIMARY KEY,
+    thought_id uuid NOT NULL,
+    tier       text NOT NULL CHECK (tier IN ('open', 'vault')),
+    at         timestamptz NOT NULL DEFAULT now(),
+    action     text NOT NULL CHECK (action IN ('create', 'update', 'delete')),
+    actor      text NOT NULL,
+    fields     text[] NOT NULL DEFAULT '{}',
+    before     jsonb
+);
+CREATE INDEX IF NOT EXISTS thought_changes_thought_idx ON thought_changes (thought_id, at DESC);
+CREATE INDEX IF NOT EXISTS thought_changes_at_idx ON thought_changes (at DESC);
+
+CREATE OR REPLACE FUNCTION log_thought_change() RETURNS trigger AS $$
+DECLARE
+    v_actor  text := coalesce(nullif(current_setting('mimers.actor', true), ''), 'sql:' || current_user);
+    v_fields text[] := '{}';
+    v_before jsonb := '{}'::jsonb;
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO thought_changes (thought_id, tier, action, actor, fields)
+        VALUES (NEW.id, NEW.tier, 'create', v_actor, ARRAY['content', 'metadata', 'tier']);
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        INSERT INTO thought_changes (thought_id, tier, action, actor, fields, before)
+        VALUES (OLD.id, OLD.tier, 'delete', v_actor, ARRAY['content', 'metadata', 'tier'],
+                jsonb_build_object(
+                    'content', OLD.content, 'metadata', OLD.metadata, 'tier', OLD.tier,
+                    'created_at', OLD.created_at,
+                    'relations', (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                                    'from_id', r.from_id, 'to_id', r.to_id,
+                                    'relation', r.relation, 'created_at', r.created_at)), '[]'::jsonb)
+                                    FROM thought_relations r
+                                   WHERE r.from_id = OLD.id OR r.to_id = OLD.id)));
+        RETURN OLD;
+    END IF;
+
+    -- A new embedding or a touched updated_at is not a change anyone reads.
+    IF OLD.content IS DISTINCT FROM NEW.content THEN
+        v_fields := v_fields || 'content'::text;
+        v_before := v_before || jsonb_build_object('content', OLD.content);
+    END IF;
+    IF OLD.metadata IS DISTINCT FROM NEW.metadata THEN
+        v_fields := v_fields || 'metadata'::text;
+        v_before := v_before || jsonb_build_object('metadata', OLD.metadata);
+    END IF;
+    IF OLD.tier IS DISTINCT FROM NEW.tier THEN
+        v_fields := v_fields || 'tier'::text;
+        v_before := v_before || jsonb_build_object('tier', OLD.tier);
+    END IF;
+    IF cardinality(v_fields) = 0 THEN RETURN NEW; END IF;
+
+    INSERT INTO thought_changes (thought_id, tier, action, actor, fields, before)
+    VALUES (NEW.id, CASE WHEN 'vault' IN (OLD.tier, NEW.tier) THEN 'vault' ELSE 'open' END,
+            'update', v_actor, v_fields, v_before);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- BEFORE DELETE, so the relations are still there to be copied: the
+-- cascade removes them before any AFTER trigger would run.
+DROP TRIGGER IF EXISTS thoughts_change_log ON thoughts;
+CREATE TRIGGER thoughts_change_log AFTER INSERT OR UPDATE ON thoughts
+    FOR EACH ROW EXECUTE FUNCTION log_thought_change();
+DROP TRIGGER IF EXISTS thoughts_delete_log ON thoughts;
+CREATE TRIGGER thoughts_delete_log BEFORE DELETE ON thoughts
+    FOR EACH ROW EXECUTE FUNCTION log_thought_change();
+
+-- Contradiction verdicts from the metadata model, one per memory pair, kept
+-- until either memory changes. Kept identical to CONTRADICTION_SQL in lib.mjs.
+CREATE TABLE IF NOT EXISTS contradiction_checks (
+    left_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+    right_id   uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+    verdict    text NOT NULL CHECK (verdict IN ('conflict', 'consistent', 'dismissed')),
+    reason     text,
+    model      text,
+    checked_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (left_id, right_id),
+    CHECK (left_id::text < right_id::text)
+);

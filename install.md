@@ -238,6 +238,9 @@ LAN_URL=
 The remaining variables are optional. Leave `MQTT_URL` empty unless Home
 Assistant integration is wanted. Set `STATS_TZ` to the installation's IANA time
 zone, for example `Europe/Stockholm` or `America/New_York`.
+`CHANGE_LOG_DELETED_DAYS` (default 30) is how long a deleted memory stays
+restorable, and `RECALL_HINT_FLOOR` (default 0.5) tunes the optional Claude Code
+hook in `tools/hooks/`.
 
 ## 3. Start the stack
 

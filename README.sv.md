@@ -135,6 +135,11 @@ claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header
 Utifrån (och för andra LLM:er) används `https://brain.example.net/mcp`, som pekar
 på 8791.
 
+Vill du att minnena ska komma till frågan utan att modellen behöver söka, lägg
+till `UserPromptSubmit`-hooken i [tools/hooks/](tools/hooks/README.md). Den söker
+en gång på varje fråga och lägger till upp till tre tydliga träffar i kontexten;
+en miss lägger inte till något.
+
 ## Inloggning
 
 Fyra vägar in, i den ordning servern provar dem:
@@ -388,7 +393,17 @@ workspace-sökvägar går före; när ägarskapet är oklart lämnas fältet tom
 `thought_relations` lagrar fullständiga UUID-länkar mellan ersättare och minnena
 de ersätter, samt `derived_from`, relaterade, konflikt-, sammanslagnings- och
 källrelationer. En överspelad rad döljs från sökningar efter aktuellt innehåll
-men raderas inte. Permanent radering är fortfarande en separat, bekräftad handling.
+men raderas inte. Radering är fortfarande en separat, bekräftad handling.
+
+`thought_changes` är ändringsloggen. Den skrivs av en trigger på `thoughts`, så
+den sparar även det som aldrig går genom servern, till exempel en psql-session.
+Varje skapande, ändring och radering blir en rad med skribentens namn och de
+ändrade fälten som de var före. Webbgränssnittet använder den till listan
+**Ändringar** på varje minne, med *Återställ den här versionen*, och till
+*Nyligen raderade* på sidan Granska: ett raderat minne behåller sin text och sina
+relationer i `CHANGE_LOG_DELETED_DAYS` (30) dagar och kommer tillbaka under sitt
+eget id. *Glöm nu* tar bort den sparade texten direkt. En ändring som någon gång
+rört valvet räknas som valv och visas aldrig på den öppna lyssnaren.
 
 Agentens egna minnen blir som standard väntande evidens och får inte behandlas
 som användarinstruktioner. `review_memory` eller sidan Granska kan bekräfta,
@@ -418,3 +433,11 @@ uttrycklig workspace-sökväg. Rapporten innehåller bara UUID:n, fält och
 varningskoder — aldrig minnesinnehåll, titlar, sammanfattningar eller hemliga
 värden. Varningarna skriver inget till databasen och gör inte torrkörningen till
 ett fel.
+
+Granskningen ser inte två minnen som säger emot varandra, så servern letar
+efter dem själv. Par av aktuella minnen med en likhet på 0,6 eller mer läses av
+metadatamodellen, de mest lika först, tjugo per natt eller på begäran från sidan
+Granska, och de
+som bedöms oförenliga listas som *Möjliga motsägelser* med samma val som
+dubbletter plus *Ingen motsägelse*. Ett utlåtande gäller tills något av minnena
+ändras. Inget ändras automatiskt.

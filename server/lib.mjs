@@ -5,11 +5,13 @@
 // anything else the caller can influence.
 
 import pg from "pg";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import {
   CANONICAL_TOPICS,
   MEMORY_KINDS,
   SMART_INGEST_THRESHOLD,
+  ageNote,
   applyReview,
   embeddingText,
   inheritsConfirmedTrust,
@@ -28,6 +30,39 @@ export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   max: 8,
 });
+
+// --- who is writing -----------------------------------------------------------
+//
+// The change log is written by a trigger, so it also catches what never passes
+// through this file: a psql session, a one-off script, a loop with the wrong
+// filter. A trigger cannot see the HTTP request, though, so the writer's name
+// travels as a transaction-local setting. Each request runs inside runAs(), and
+// every write here goes through transaction(), which hands the name to Postgres before
+// the first statement. Anything that writes without it is logged as
+// "sql:<role>" - which is exactly the honest answer for a direct SQL session.
+const actorStore = new AsyncLocalStorage();
+
+export function runAs(actor, work) {
+  return actorStore.run(String(actor || "unknown").trim().slice(0, 80) || "unknown", work);
+}
+
+export const currentActor = () => actorStore.getStore() || "server";
+
+export async function transaction(work) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('mimers.actor', $1, true)", [currentActor()]);
+    const out = await work(client);
+    await client.query("COMMIT");
+    return out;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 const EMBED_URL = process.env.EMBED_URL || "https://openrouter.ai/api/v1/embeddings";
 const EMBED_MODEL = process.env.EMBED_MODEL || "openai/text-embedding-3-small";
@@ -373,6 +408,48 @@ export async function searchThoughts(tiers, query, {
   return rows;
 }
 
+// --- live recall --------------------------------------------------------------
+//
+// The read side of a Claude Code hook (tools/hooks/mimer-recall.py): every prompt
+// the user sends is searched once, and only clear hits come back. "Clear" is a
+// semantic floor rather than the 0.3 search uses, because nobody asked this
+// question - a weak hit here is noise in front of every answer, not recall.
+//
+// No recall trace is created. The model did not search, so it owes no receipt;
+// a trace it was never told about would only sit in the statistics as overdue.
+// The prompt itself is never stored, like every other query. It does reach the
+// embedder, so a prompt with a credential pasted into it is not searched at all.
+export const HINT_FLOOR = Number(process.env.RECALL_HINT_FLOOR || 0.5);
+const HINT_MAX = 3;
+const HINT_PROMPT_CHARS = 2000;
+
+export async function recallHint(tiers, prompt, { exclude = [], floor = HINT_FLOOR } = {}) {
+  const text = String(prompt || "").trim().slice(0, HINT_PROMPT_CHARS);
+  if (text.length < 12) return { hits: [], skipped: "short" };
+  try { refuseSecrets(text); } catch { return { hits: [], skipped: "secret" }; }
+  if (!EMBED_KEY) return { hits: [], skipped: "no OPENROUTER_API_KEY" };
+  const skip = new Set((Array.isArray(exclude) ? exclude : []).map(String));
+  const rows = await searchThoughts(tiers, text, { limit: 8, threshold: floor });
+  const hits = rows
+    .filter((row) => row.semantic_score >= floor && !skip.has(row.id))
+    .slice(0, HINT_MAX)
+    .map((row) => {
+      const m = row.metadata || {};
+      return {
+        id: row.id,
+        title: m.title || row.content.replace(/\s+/g, " ").slice(0, 100),
+        summary: m.summary || row.content.replace(/\s+/g, " ").slice(0, 300),
+        kind: m.kind || null,
+        project: m.project || null,
+        tier: row.tier,
+        similarity: Number(row.semantic_score.toFixed(3)),
+        evidence_only: m.can_use_as_instruction === false,
+        age: ageNote(m, row.created_at) || null,
+      };
+    });
+  return { hits };
+}
+
 export async function textSearch(tiers, q, {
   limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system, digest,
 } = {}) {
@@ -448,9 +525,7 @@ export async function linkSupersession(tiers, replacementId, oldIds) {
   const replacement = await getThought(tiers, replacementId);
   if (!replacement) throw new Error("Replacement memory not found");
   const ids = await validateSupersession(tiers, oldIds, replacement.tier);
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  await transaction(async (client) => {
     await client.query(
       `INSERT INTO thought_relations (from_id, to_id, relation)
        SELECT $1::uuid, old_id, 'supersedes'
@@ -481,13 +556,7 @@ export async function linkSupersession(tiers, replacementId, oldIds) {
           SELECT 1 FROM thoughts old WHERE old.id = ANY($2::uuid[]) AND old.metadata->>'pinned' = 'true')`,
       [replacementId, ids],
     );
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
   return { replacement_id: replacementId, superseded_ids: ids };
 }
 
@@ -555,15 +624,17 @@ export async function captureThought(tiers, content, {
   if (capturedBy) meta.captured_by = capturedBy;
   const vector = await embed(embeddingText(content, meta)).catch(() => null);
 
-  const { rows } = await pool.query(
-    `SELECT upsert_thought($1, $2::jsonb, $3) AS result`,
-    [content, JSON.stringify({ metadata: meta }), tier],
-  );
-  const { id } = rows[0].result;
-
-  if (vector)
-    await pool.query(`UPDATE thoughts SET embedding = $1::vector WHERE id = $2`,
-      [JSON.stringify(vector), id]);
+  const id = await transaction(async (client) => {
+    const { rows } = await client.query(
+      `SELECT upsert_thought($1, $2::jsonb, $3) AS result`,
+      [content, JSON.stringify({ metadata: meta }), tier],
+    );
+    const saved = rows[0].result.id;
+    if (vector)
+      await client.query(`UPDATE thoughts SET embedding = $1::vector WHERE id = $2`,
+        [JSON.stringify(vector), saved]);
+    return saved;
+  });
 
   return { id, tier, metadata: meta, embedded: Boolean(vector) };
 }
@@ -572,9 +643,7 @@ export async function reviewThought(tiers, id, action, { actor = "user", note = 
   const existing = await getThought(tiers, id);
   if (!existing) throw new Error("Not found");
   const metadata = applyReview(existing.metadata, action, { actor });
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+  return transaction(async (client) => {
     const { rows } = await client.query(
       `UPDATE thoughts SET metadata = $2::jsonb WHERE id = $1 AND tier = ANY($3) RETURNING ${COLS}`,
       [id, JSON.stringify(metadata), tiers],
@@ -584,14 +653,8 @@ export async function reviewThought(tiers, id, action, { actor = "user", note = 
        VALUES ($1, $2, $3, $4::jsonb)`,
       [id, action, actor, JSON.stringify(note ? { note: String(note).slice(0, 500) } : {})],
     );
-    await client.query("COMMIT");
     return rows[0];
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export async function reviewQueue(tiers, { limit = 100 } = {}) {
@@ -648,11 +711,11 @@ export async function applyIngest(tiers, {
     summary: `Archived source for ${atoms.length} reviewed atomic memories.`,
     kind: "reference", lifecycle: "archived", source_refs: [],
   }, source, { origin, userConfirmed: origin === "user" || user_confirmed });
-  const sourceRow = await pool.query(
+  const sourceRow = await transaction((client) => client.query(
     `INSERT INTO thoughts (content, metadata, tier, content_fingerprint)
      VALUES ($1, $2::jsonb, $3, NULL) RETURNING id`,
     [source, JSON.stringify(sourceMeta), tier],
-  );
+  ));
   const sourceId = sourceRow.rows[0].id;
   const saved = [];
   for (const atom of atoms) {
@@ -736,6 +799,141 @@ export async function resolveDuplicate(tiers, {
   return result;
 }
 
+// --- contradictions ------------------------------------------------------------
+//
+// The audit checks the shape of each memory on its own, and the duplicate list
+// finds two memories that say the same thing. Neither notices two memories that
+// say *different* things about the same subject - an old port number next to a
+// new one, a rule and its reversal. Every pair alike enough to share a subject
+// is a candidate, the closest first, and that includes the duplicate band: the
+// clearest contradiction on a test brain, the same server on port 8790 in one
+// memory and 8795 in the other, scored 0.87. The metadata model reads each pair
+// once and says whether both can be true now. A verdict is kept until either
+// memory changes, so a pair is never paid for twice.
+export const CONTRADICTION_FLOOR = 0.6;
+
+async function contradictionPairs(tiers, { limit = 20 } = {}) {
+  const { rows } = await pool.query(
+    `WITH candidates AS (
+       SELECT ${COLS}, embedding FROM thoughts
+        WHERE tier = ANY($1) AND embedding IS NOT NULL
+          AND coalesce(metadata->>'lifecycle', 'current') = 'current'
+          AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected'
+        ORDER BY updated_at DESC LIMIT 750
+     )
+     SELECT a.id AS left_id, a.content AS left_content, a.metadata AS left_metadata,
+            b.id AS right_id, b.content AS right_content, b.metadata AS right_metadata,
+            1 - (a.embedding <=> b.embedding) AS similarity
+       FROM candidates a JOIN candidates b ON a.id::text < b.id::text
+      WHERE 1 - (a.embedding <=> b.embedding) >= $2
+        AND NOT EXISTS (
+          SELECT 1 FROM contradiction_checks c
+           WHERE c.left_id = a.id AND c.right_id = b.id
+             AND c.checked_at >= greatest(a.updated_at, b.updated_at))
+        AND NOT EXISTS (
+          SELECT 1 FROM thought_relations r
+           WHERE (r.from_id = a.id AND r.to_id = b.id) OR (r.from_id = b.id AND r.to_id = a.id))
+      ORDER BY similarity DESC LIMIT $3`,
+    [tiers, CONTRADICTION_FLOOR, Math.min(Number(limit) || 20, 100)],
+  );
+  return rows;
+}
+
+// The instructions about the reason come after the two texts, for the same
+// reason topicReminder() exists: placed first, gpt-4o-mini answered Swedish
+// memories in English and called them "Memory A" and "Memory B", which means
+// nothing to the person reading the Review page.
+export function contradictionPrompt(left, right) {
+  return `You check a personal long-term memory for contradictions. Two memories follow.\n\n` +
+    `<<<FIRST\n${left}\nFIRST>>>\n\n<<<SECOND\n${right}\nSECOND>>>\n\n` +
+    `They contradict each other only when they state incompatible facts, rules or decisions about\n` +
+    `the same thing, so that both cannot be true now. These are NOT contradictions: different\n` +
+    `aspects of one subject, one memory being more detailed than the other, or a dated past event\n` +
+    `next to a newer one that does not claim the same thing.\n` +
+    `Return JSON {"verdict":"conflict"|"consistent","reason":"..."}. "reason" is empty when\n` +
+    `consistent. Otherwise it is one sentence that a person reads next to both texts: write it in\n` +
+    `the language the memories are written in (Swedish memories get a Swedish sentence), and say\n` +
+    `what the two claim, for example "Det ena säger port 8790, det andra port 8795". Never write\n` +
+    `"first", "second", "memory A" or "memory B".`;
+}
+
+async function judgeContradiction(left, right) {
+  const r = await fetch(META_URL, {
+    method: "POST",
+    headers: aiHeaders(),
+    body: JSON.stringify({
+      model: META_MODEL,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: contradictionPrompt(left, right) }],
+    }),
+  });
+  if (!r.ok) throw new Error(`Contradiction check failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
+  const parsed = JSON.parse((await r.json()).choices[0].message.content);
+  const verdict = parsed.verdict === "conflict" ? "conflict" : "consistent";
+  return { verdict, reason: verdict === "conflict" ? String(parsed.reason || "").slice(0, 500) : "" };
+}
+
+// Checks up to `limit` unchecked pairs. One failed call stops the run rather
+// than recording a guess: an unchecked pair is simply picked up next time.
+export async function checkContradictions(tiers, { limit = 20 } = {}) {
+  if (!EMBED_KEY) return { checked: 0, conflicts: 0, skipped: "no OPENROUTER_API_KEY" };
+  const pairs = await contradictionPairs(tiers, { limit });
+  let checked = 0;
+  let conflicts = 0;
+  for (const pair of pairs) {
+    const { verdict, reason } = await judgeContradiction(pair.left_content, pair.right_content);
+    await pool.query(
+      `INSERT INTO contradiction_checks (left_id, right_id, verdict, reason, model)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (left_id, right_id) DO UPDATE
+         SET verdict = EXCLUDED.verdict, reason = EXCLUDED.reason,
+             model = EXCLUDED.model, checked_at = now()`,
+      [pair.left_id, pair.right_id, verdict, reason || null, META_MODEL],
+    );
+    checked += 1;
+    if (verdict === "conflict") conflicts += 1;
+  }
+  return { checked, conflicts, remaining: pairs.length === limit };
+}
+
+// Open conflicts between two memories that are both still current. Superseding
+// or merging one side takes the pair off the list without anything else to do.
+export async function contradictions(tiers, { limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT c.left_id, a.content AS left_content, a.metadata AS left_metadata, a.tier AS left_tier,
+            a.created_at AS left_created_at,
+            c.right_id, b.content AS right_content, b.metadata AS right_metadata, b.tier AS right_tier,
+            b.created_at AS right_created_at,
+            c.reason, c.checked_at
+       FROM contradiction_checks c
+       JOIN thoughts a ON a.id = c.left_id
+       JOIN thoughts b ON b.id = c.right_id
+      WHERE c.verdict = 'conflict' AND a.tier = ANY($1) AND b.tier = ANY($1)
+        AND coalesce(a.metadata->>'lifecycle', 'current') = 'current'
+        AND coalesce(b.metadata->>'lifecycle', 'current') = 'current'
+        AND c.checked_at >= greatest(a.updated_at, b.updated_at)
+      ORDER BY c.checked_at DESC LIMIT $2`,
+    [tiers, Math.min(Number(limit) || 50, 200)],
+  );
+  return rows;
+}
+
+// "Not a contradiction" from the reader. Kept until either memory changes, at
+// which point the pair is checked again - the text it was judged on is gone.
+export async function dismissContradiction(tiers, { left_id, right_id } = {}) {
+  const left = await getThought(tiers, left_id);
+  const right = await getThought(tiers, right_id);
+  if (!left || !right) throw new Error("Contradiction pair not found");
+  const [a, b] = [left.id, right.id].sort();
+  const { rowCount } = await pool.query(
+    `UPDATE contradiction_checks SET verdict = 'dismissed', checked_at = now()
+      WHERE left_id = $1 AND right_id = $2`,
+    [a, b],
+  );
+  if (!rowCount) throw new Error("Contradiction pair not found");
+  return { left_id: a, right_id: b, verdict: "dismissed" };
+}
+
 export async function createRecallTrace(tiers, rows, ctx = {}) {
   const listener = tiers.includes("vault") ? "full" : "open";
   const ids = rows.map((row) => row.id);
@@ -801,16 +999,142 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
   if (tier) sets.push(`tier = $${args.push(tier)}`);
   if (!sets.length) throw new Error("Nothing to update");
 
-  const { rows } = await pool.query(
-    `UPDATE thoughts SET ${sets.join(", ")} WHERE id = $1 RETURNING ${COLS}`, args);
+  const { rows } = await transaction((client) => client.query(
+    `UPDATE thoughts SET ${sets.join(", ")} WHERE id = $1 RETURNING ${COLS}`, args));
   return rows[0];
 }
 
 export async function deleteThought(tiers, id) {
-  const { rowCount } = await pool.query(
-    `DELETE FROM thoughts WHERE id = $1 AND tier = ANY($2)`, [id, tiers]);
+  const { rowCount } = await transaction((client) => client.query(
+    `DELETE FROM thoughts WHERE id = $1 AND tier = ANY($2)`, [id, tiers]));
   if (!rowCount) throw new Error("Not found");
   return { deleted: id };
+}
+
+// --- change log ----------------------------------------------------------------
+//
+// thought_changes is filled by triggers (see ensureSchema), so these functions
+// only read it and act on it. A row keeps the fields as they were *before* the
+// change, which is what makes "restore this version" and "undo that delete"
+// possible without a database restore. Visibility follows the tier the row
+// carries: a change that ever touched the vault is filed as vault.
+
+// How long the text of a deleted memory stays restorable. Afterwards the log
+// keeps that the delete happened, by whom and when, but no longer the words.
+// A memory removed on purpose should not live on in its own history forever.
+export const DELETED_SNAPSHOT_DAYS = Number(process.env.CHANGE_LOG_DELETED_DAYS || 30);
+
+const CHANGE_COLS = "id, thought_id, tier, at, action, actor, fields, before";
+
+export async function thoughtChanges(tiers, thoughtId, { limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT ${CHANGE_COLS} FROM thought_changes
+      WHERE thought_id = $1 AND tier = ANY($2)
+      ORDER BY at DESC, id DESC LIMIT $3`,
+    [thoughtId, tiers, Math.min(Number(limit) || 50, 200)],
+  );
+  return rows;
+}
+
+// Deletes that can still be undone: the text is still in the log and nothing
+// has taken the id back since.
+export async function deletedThoughts(tiers, { limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT ${CHANGE_COLS} FROM thought_changes c
+      WHERE c.action = 'delete' AND c.before IS NOT NULL AND c.tier = ANY($1)
+        AND NOT EXISTS (SELECT 1 FROM thoughts t WHERE t.id = c.thought_id)
+      ORDER BY c.at DESC LIMIT $2`,
+    [tiers, Math.min(Number(limit) || 50, 200)],
+  );
+  return rows;
+}
+
+// Put a memory back the way one change log row found it. For a delete the row
+// comes back under its own id, with the relations whose other end still exists;
+// for an edit the changed fields are written back over the current row. Both
+// go through the ordinary write paths, so the restore is itself logged.
+export async function restoreChange(tiers, changeId) {
+  const { rows } = await pool.query(
+    `SELECT ${CHANGE_COLS} FROM thought_changes WHERE id = $1 AND tier = ANY($2)`,
+    [changeId, tiers],
+  );
+  const change = rows[0];
+  if (!change) throw new Error("Change not found");
+  const before = change.before || {};
+
+  if (change.action === "update") {
+    if (!Object.keys(before).length) throw new Error("This change kept nothing to restore");
+    const current = await getThought(tiers, change.thought_id);
+    if (!current) throw new Error("The memory no longer exists; restore its deletion first");
+    return updateThought(tiers, change.thought_id, {
+      ...("content" in before ? { content: before.content } : {}),
+      ...("metadata" in before ? { metadata: before.metadata } : {}),
+      ...("tier" in before ? { tier: before.tier } : {}),
+    });
+  }
+
+  if (change.action !== "delete") throw new Error(`A ${change.action} cannot be restored`);
+  if (!before.content) throw new Error("The text of this memory is no longer kept");
+  if (!tiers.includes(before.tier)) throw new Error("Change not found");
+  if (await getThought(ALL, change.thought_id)) throw new Error("That memory already exists");
+  refuseSecrets(before.content, before.metadata || {});
+
+  const print = fingerprint(before.content);
+  const { rows: clash } = await pool.query(
+    `SELECT id FROM thoughts WHERE content_fingerprint = $1`, [print]);
+  if (clash[0]) throw new Error(`The same text is already saved as ${clash[0].id}`);
+
+  const vector = await embed(embeddingText(before.content, before.metadata || {})).catch(() => null);
+  await transaction(async (client) => {
+    await client.query(
+      `INSERT INTO thoughts (id, content, metadata, tier, content_fingerprint, embedding, created_at)
+       VALUES ($1, $2, $3::jsonb, $4, $5, $6::vector, coalesce($7::timestamptz, now()))`,
+      [change.thought_id, before.content, JSON.stringify(before.metadata || {}), before.tier,
+        // An archived ingest source is stored without a fingerprint on purpose.
+        before.metadata?.lifecycle === "archived" ? null : print,
+        vector ? JSON.stringify(vector) : null, before.created_at || null],
+    );
+    await client.query(
+      `INSERT INTO thought_relations (from_id, to_id, relation, created_at)
+       SELECT r.from_id, r.to_id, r.relation, coalesce(r.created_at, now())
+         FROM jsonb_to_recordset($1::jsonb) AS r(from_id uuid, to_id uuid, relation text, created_at timestamptz)
+        WHERE EXISTS (SELECT 1 FROM thoughts t WHERE t.id = r.from_id)
+          AND EXISTS (SELECT 1 FROM thoughts t WHERE t.id = r.to_id)
+       ON CONFLICT DO NOTHING`,
+      [JSON.stringify(before.relations || [])],
+    );
+  });
+  return getThought(tiers, change.thought_id);
+}
+
+// "Forget now" for one deleted memory: the record of the delete stays, every
+// kept copy of its text goes. For a memory removed because of what it said,
+// waiting out the retention window is the wrong default.
+export async function forgetDeleted(tiers, thoughtId) {
+  if (await getThought(ALL, thoughtId)) throw new Error("Only a deleted memory can be forgotten");
+  const { rowCount } = await pool.query(
+    `UPDATE thought_changes SET before = NULL
+      WHERE thought_id = $1 AND tier = ANY($2) AND before IS NOT NULL`,
+    [thoughtId, tiers],
+  );
+  return { thought_id: thoughtId, forgotten: rowCount };
+}
+
+// The other half of DELETED_SNAPSHOT_DAYS. Clears the kept text of every change
+// to a memory that was deleted longer ago than that - its edits as well as the
+// delete itself, since an old version holds the same words.
+export async function pruneDeletedSnapshots(days = DELETED_SNAPSHOT_DAYS) {
+  if (!Number(days)) return 0;
+  const { rowCount } = await pool.query(
+    `UPDATE thought_changes c SET before = NULL
+      WHERE c.before IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM thoughts t WHERE t.id = c.thought_id)
+        AND EXISTS (SELECT 1 FROM thought_changes d
+                     WHERE d.thought_id = c.thought_id AND d.action = 'delete'
+                       AND d.at < now() - ($1 || ' days')::interval)`,
+    [String(days)],
+  );
+  return rowCount;
 }
 
 // --- usage log ---------------------------------------------------------------
@@ -895,7 +1219,96 @@ export async function ensureSchema() {
         updated_at timestamptz NOT NULL DEFAULT now()
     );
   `);
+  await pool.query(CHANGE_LOG_SQL);
+  await pool.query(CONTRADICTION_SQL);
 }
+
+// Kept word for word in db/init.sql as well; test/change-log-schema.test.mjs
+// fails when the two drift apart.
+export const CHANGE_LOG_SQL = `
+    CREATE TABLE IF NOT EXISTS thought_changes (
+        id         bigserial PRIMARY KEY,
+        thought_id uuid NOT NULL,
+        tier       text NOT NULL CHECK (tier IN ('open', 'vault')),
+        at         timestamptz NOT NULL DEFAULT now(),
+        action     text NOT NULL CHECK (action IN ('create', 'update', 'delete')),
+        actor      text NOT NULL,
+        fields     text[] NOT NULL DEFAULT '{}',
+        before     jsonb
+    );
+    CREATE INDEX IF NOT EXISTS thought_changes_thought_idx ON thought_changes (thought_id, at DESC);
+    CREATE INDEX IF NOT EXISTS thought_changes_at_idx ON thought_changes (at DESC);
+
+    CREATE OR REPLACE FUNCTION log_thought_change() RETURNS trigger AS $$
+    DECLARE
+        v_actor  text := coalesce(nullif(current_setting('mimers.actor', true), ''), 'sql:' || current_user);
+        v_fields text[] := '{}';
+        v_before jsonb := '{}'::jsonb;
+    BEGIN
+        IF TG_OP = 'INSERT' THEN
+            INSERT INTO thought_changes (thought_id, tier, action, actor, fields)
+            VALUES (NEW.id, NEW.tier, 'create', v_actor, ARRAY['content', 'metadata', 'tier']);
+            RETURN NEW;
+        END IF;
+
+        IF TG_OP = 'DELETE' THEN
+            INSERT INTO thought_changes (thought_id, tier, action, actor, fields, before)
+            VALUES (OLD.id, OLD.tier, 'delete', v_actor, ARRAY['content', 'metadata', 'tier'],
+                    jsonb_build_object(
+                        'content', OLD.content, 'metadata', OLD.metadata, 'tier', OLD.tier,
+                        'created_at', OLD.created_at,
+                        'relations', (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                                        'from_id', r.from_id, 'to_id', r.to_id,
+                                        'relation', r.relation, 'created_at', r.created_at)), '[]'::jsonb)
+                                        FROM thought_relations r
+                                       WHERE r.from_id = OLD.id OR r.to_id = OLD.id)));
+            RETURN OLD;
+        END IF;
+
+        -- A new embedding or a touched updated_at is not a change anyone reads.
+        IF OLD.content IS DISTINCT FROM NEW.content THEN
+            v_fields := v_fields || 'content'::text;
+            v_before := v_before || jsonb_build_object('content', OLD.content);
+        END IF;
+        IF OLD.metadata IS DISTINCT FROM NEW.metadata THEN
+            v_fields := v_fields || 'metadata'::text;
+            v_before := v_before || jsonb_build_object('metadata', OLD.metadata);
+        END IF;
+        IF OLD.tier IS DISTINCT FROM NEW.tier THEN
+            v_fields := v_fields || 'tier'::text;
+            v_before := v_before || jsonb_build_object('tier', OLD.tier);
+        END IF;
+        IF cardinality(v_fields) = 0 THEN RETURN NEW; END IF;
+
+        INSERT INTO thought_changes (thought_id, tier, action, actor, fields, before)
+        VALUES (NEW.id, CASE WHEN 'vault' IN (OLD.tier, NEW.tier) THEN 'vault' ELSE 'open' END,
+                'update', v_actor, v_fields, v_before);
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    -- BEFORE DELETE, so the relations are still there to be copied: the
+    -- cascade removes them before any AFTER trigger would run.
+    DROP TRIGGER IF EXISTS thoughts_change_log ON thoughts;
+    CREATE TRIGGER thoughts_change_log AFTER INSERT OR UPDATE ON thoughts
+        FOR EACH ROW EXECUTE FUNCTION log_thought_change();
+    DROP TRIGGER IF EXISTS thoughts_delete_log ON thoughts;
+    CREATE TRIGGER thoughts_delete_log BEFORE DELETE ON thoughts
+        FOR EACH ROW EXECUTE FUNCTION log_thought_change();
+`;
+
+export const CONTRADICTION_SQL = `
+    CREATE TABLE IF NOT EXISTS contradiction_checks (
+        left_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+        right_id   uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
+        verdict    text NOT NULL CHECK (verdict IN ('conflict', 'consistent', 'dismissed')),
+        reason     text,
+        model      text,
+        checked_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (left_id, right_id),
+        CHECK (left_id::text < right_id::text)
+    );
+`;
 
 export async function getSetting(key) {
   const { rows } = await pool.query(`SELECT value FROM app_settings WHERE key = $1`, [key]);

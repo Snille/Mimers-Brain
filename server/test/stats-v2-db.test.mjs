@@ -1,12 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
-const databaseUrl = process.env.TEST_DATABASE_URL;
+import { freshDatabase, skipWithoutDatabase } from "../testing/db.mjs";
 
 test("statistics v2 separates active records and reported recall usefulness", {
-  skip: !databaseUrl && "set TEST_DATABASE_URL to an isolated schema",
+  skip: skipWithoutDatabase,
 }, async () => {
-  process.env.DATABASE_URL = databaseUrl;
+  process.env.DATABASE_URL = await freshDatabase("test_stats_v2");
   const db = await import(new URL(`../lib.mjs?stats-v2=${Date.now()}`, import.meta.url));
   const complete = (extra = {}) => JSON.stringify({
     title: "Test memory", summary: "Statistics fixture", kind: "fact",

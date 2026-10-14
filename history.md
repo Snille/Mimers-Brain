@@ -6,6 +6,57 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.10.0: three ideas from OB1
+
+Mimers Brain started from [OB1](https://github.com/NateBJones-Projects/OB1), and
+OB1 has kept growing. Most of what it added since is already here in another
+shape — fingerprint dedup, hybrid search, typed relations, provenance, a quality
+audit. Three things were not, and this release takes them.
+
+**Memories come to the prompt.** The standing rule says to search before acting,
+and models follow it unevenly: on 2026-08-06 an ESPHome build was re-diagnosed
+for ninety minutes while the answer sat in the brain. OB1's *live retrieval*
+recipe answers that from the other side, and so does
+`tools/hooks/mimer-recall.py` — a Claude Code `UserPromptSubmit` hook that
+searches every prompt once and adds up to three memories to the model's context.
+The server side is `POST /api/recall-hint`. It uses a semantic floor of 0.5
+instead of search's 0.3, measured on the live brain: the ESPHome rule scored
+0.54 against a real build prompt, while unrelated prompts topped out at 0.49. It
+creates no recall receipt, since the model never asked, stores no prompt, and
+refuses to embed a prompt that the secret gate would refuse to save.
+
+**Every change is logged, and a delete can be undone.** OB1's *thought audit*
+schema, done as a trigger so that it also sees what never passes through the
+server: a psql session, a script, the loop with the wrong filter that emptied the
+database on 2026-08-04. `thought_changes` records create, update and delete with
+the writer's name and the fields as they were before. The writer reaches the
+trigger as a transaction-local setting: each request runs under its client's
+name, and a write without one is logged as `sql:<role>`. An edit in the web UI
+used to overwrite the old text for good; each card now has a **Changes** list
+with *Restore this version*. A deleted memory keeps its text, relations
+included, for 30 days (`CHANGE_LOG_DELETED_DAYS`) and can be restored from the
+Review page under its own id, or forgotten at once with *Forget now*.
+
+**Contradictions are looked for.** The audit checks each memory on its own and
+the duplicate list finds two that say the same thing; nothing noticed two that
+say different things about one subject. OB1's *lint sweep* does. Here, every
+pair of current memories with a similarity of 0.6 or more is read by the
+metadata model, closest first, and it says whether both can be true now. The
+first draft stopped at 0.86, where the duplicate list begins; a test brain
+showed why that was wrong — the clearest contradiction, one server on port 8790
+in one memory and on 8795 in the other, scored 0.87. Twenty pairs a night, or on
+demand from the Review page; a verdict holds until either memory changes, so no
+pair is paid for twice. Conflicts are shown with the same choices as duplicates, plus *Not a
+contradiction*. Nothing is changed automatically.
+
+Two smaller changes came with it. The database tests now build a database of
+their own from `db/init.sql`, so they can run side by side and again without
+cleaning up (`server/testing/db.mjs` says how). `test-isolation.ps1` checks that
+the open listener sees no vault row through the change log or the recall hint,
+and cleans its canaries out of the change log afterwards.
+
+---
+
 ## 2026-10-14 — 0.9.32: a new memory may name itself
 
 `capture_thought` takes the same optional `title` as `supersede_thought` got in
