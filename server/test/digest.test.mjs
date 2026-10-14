@@ -56,5 +56,6 @@ test("the Thoughts page and the server agree on what is in the digest", async ()
   for (const language of ["en", "sv"]) {
     const messages = JSON.parse(await source(`../public/lang/${language}.json`));
     assert.ok(messages.editor.pinned && messages.editor.pinnedHint && messages.thought.pinned);
+    assert.match(messages.filters.digestFull, /\{omitted\}.*\{limit\}/);
   }
 });

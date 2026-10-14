@@ -35,7 +35,8 @@
     "people": "People",
     "systems": "Systems",
     "digest": "Session digest",
-    "inDigest": "in the digest"
+    "inDigest": "in the digest",
+    "digestFull": "{omitted} do not fit (at most {limit} memories or 9,000 characters) and are not read at session start. Untick what every session does not need."
   },
   "search": {
     "placeholder": "Search …",
@@ -70,7 +71,7 @@
     "save": "Save",
     "saving": "Saving …",
     "pinned": "In the session digest",
-    "pinnedHint": "Every connected model reads the digest first, once per session. Preferences and profile memories are included unless unticked. Only confirmed memories are shown."
+    "pinnedHint": "Every connected model reads the digest first, once per session. Preferences and profile memories are included unless unticked. Only confirmed memories are shown. Pin only what a model would get wrong without it, across many different tasks; search finds everything else."
   },
   "thought": {
     "edit": "Edit",

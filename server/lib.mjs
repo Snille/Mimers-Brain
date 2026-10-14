@@ -1915,9 +1915,12 @@ export async function stats(tiers) {
     [tiers],
   );
   const r = rows[0];
+  const digest = await memoryDigest(tiers);
   return {
     total: Number(r.total),
     digest: Number(r.digest || 0),
+    digestOmitted: digest.omitted,
+    digestLimit: DIGEST_LIMIT,
     byTier: r.by_tier || {},
     types: r.types || {},
     kinds: r.kinds || {},
@@ -2024,32 +2027,46 @@ export async function memoryGraph(tiers, { threshold = GRAPH_THRESHOLD } = {}) {
 // confirmed preference and profile memory the reader has not taken out
 // (`pinned: false`). Short memories go in whole; a long one goes in as its
 // summary with its id, to fetch when needed.
+//
+// The digest is read by every model in every session, so its size is a budget
+// shared by everything in it: past a point, more standing rules make each one
+// weigh less. What does not fit is counted and named rather than dropped in
+// silence - the model is told to search for it, and the Thoughts page shows the
+// overflow so the reader can decide what to unpin. (Borrowed from ai-memory,
+// whose profile is held to a fixed size for the same reason.)
 export const DIGEST_LIMIT = 15;
 export const DIGEST_WHOLE = 700;
 export const DIGEST_BUDGET = 9000;
 
 export async function memoryDigest(tiers, { limit = DIGEST_LIMIT } = {}) {
   const { rows } = await pool.query(
-    `SELECT ${COLS} FROM thoughts
+    `SELECT ${COLS}, count(*) OVER () AS qualifying FROM thoughts
       WHERE tier = ANY($1) AND ${DIGEST_SQL}
       ORDER BY (metadata->>'pinned' = 'true') DESC NULLS LAST,
                CASE metadata->>'kind' WHEN 'preference' THEN 0 WHEN 'profile' THEN 1 ELSE 2 END,
                updated_at DESC
-      LIMIT $2`,
-    [tiers, Math.min(Number(limit) || DIGEST_LIMIT, 50)],
+      LIMIT 50`,
+    [tiers],
   );
+  const cap = Math.min(Number(limit) || DIGEST_LIMIT, 50);
   let budget = DIGEST_BUDGET;
   const items = [];
   for (const row of rows) {
     const m = row.metadata || {};
     const whole = row.content.length <= DIGEST_WHOLE;
     const text = whole ? row.content : (m.summary || row.content.slice(0, DIGEST_WHOLE));
-    if (items.length && text.length > budget) break;
+    if (items.length >= cap || (items.length && text.length > budget)) break;
     budget -= text.length;
     items.push({
       id: row.id, tier: row.tier, kind: m.kind || null, pinned: m.pinned === true,
       title: m.title || null, text, complete: whole,
     });
   }
-  return { count: items.length, items };
+  const left = rows.slice(items.length);
+  return {
+    count: items.length,
+    items,
+    omitted: Number(rows[0]?.qualifying || 0) - items.length,
+    omitted_items: left.map((row) => ({ id: row.id, title: row.metadata?.title || null })),
+  };
 }

@@ -247,7 +247,12 @@ innan den påstår. Varje modell ombeds anropa `memory_digest` en gång per
 session: de bekräftade preferenserna och profilminnena plus allt som fästs på
 sidan Tankar, så att en modell som aldrig läser en `CLAUDE.md` börjar med samma
 grundregler. Filtret **Startpaket** överst i sidomenyn på sidan Tankar visar
-exakt vad det innehåller.
+exakt vad det innehåller. Varje modell läser startpaketet i varje session, så
+det hålls till 15 minnen eller 9 000 tecken: därutöver gör varje ny regel att de
+andra väger mindre. Det som inte får plats nämns sist i startpaketet, så att
+modellen vet att den ska söka efter det, och sidomenyn visar hur många som
+hamnar utanför. Fäst bara det som en modell skulle göra fel utan, i många olika
+uppgifter; sökningen hittar resten.
 
 **Statistik** svarar på fyra separata frågor: om minnet mår bra, om återkallade
 minnen faktiskt blir användbara, hur aktiviteten förändras över tid och om

@@ -243,7 +243,11 @@ Every model is told to call `memory_digest` once per session: the confirmed
 preferences and profile memories plus anything pinned on the Thoughts page, so
 a model that never reads a `CLAUDE.md` starts with the same standing rules. The
 **Session digest** filter at the top of the Thoughts sidebar shows exactly what
-it contains.
+it contains. Every model reads the digest every session, so it is held to 15
+memories or 9,000 characters: past that, each extra rule makes the others weigh
+less. What does not fit is named at the end of the digest, so a model knows to
+search for it, and the sidebar says how many are left out. Pin only what a model
+would get wrong without it across many different tasks; search finds the rest.
 
 **Statistics** answers four separate questions: whether the memory is healthy,
 whether recalled memories prove useful, how activity changes over time, and

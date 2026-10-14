@@ -6,6 +6,24 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.14.0: the digest says what it leaves out
+
+The digest already had a ceiling, 15 memories or 9,000 characters, but what
+fell past it vanished without a word: the model never learned it existed, and
+the sidebar's count of digest memories included rows no model would read.
+ai-memory holds its cross-project profile to a fixed size for the reason that
+matters here — every model reads it every session, and past a point each new
+standing rule makes the others weigh less — and it counts what does not fit.
+
+Now `memory_digest` ends with the memories that did not fit, by title and id,
+and says they still apply and are found by search. The response carries
+`omitted` and `omitted_items` for OpenAPI clients, and the Thoughts sidebar warns
+under **Session digest** when any are left out. The pin hint states the test for
+what belongs there: would a model get it wrong without it, across many
+different tasks? The live digest held 11 memories, so nothing is left out today.
+
+---
+
 ## 2026-10-14 — 0.13.1: meaning counts for more than title words
 
 The first change made by the measurement. A variant with more weight on

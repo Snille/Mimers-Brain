@@ -6,6 +6,26 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.14.0: startpaketet säger vad det lämnar utanför
+
+Startpaketet hade redan ett tak, 15 minnen eller 9 000 tecken, men det som
+hamnade utanför försvann utan ett ord: modellen fick aldrig veta att det fanns,
+och sidomenyns räkning av minnen i startpaketet tog med rader som ingen modell
+läste. ai-memory håller sin profil för alla projekt till en fast storlek av det
+skäl som gäller här också — varje modell läser den i varje session, och efter en
+viss punkt gör varje ny regel att de andra väger mindre — och räknar det som
+inte får plats.
+
+Nu slutar `memory_digest` med de minnen som inte fick plats, med titel och id,
+och säger att de fortfarande gäller och hittas med sökning. Svaret har
+`omitted` och `omitted_items` för OpenAPI-klienter, och sidomenyn på sidan Tankar
+varnar under **Startpaket** när något hamnar utanför. Hjälptexten för att fästa
+ett minne säger vad som hör hemma där: skulle en modell göra fel utan det, i
+många olika uppgifter? Det levande startpaketet hade 11 minnen, så inget
+hamnar utanför i dag.
+
+---
+
 ## 2026-10-14 — 0.13.1: betydelse väger tyngre än titelord
 
 Den första ändringen som mätningen gjorde. En variant med mer vikt på betydelse

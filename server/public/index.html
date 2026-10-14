@@ -44,6 +44,7 @@
   aside { border-right: 1px solid var(--line); padding: 18px; background: var(--panel); }
   aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 20px 0 8px; }
   aside h2:first-child { margin-top: 0; }
+  .digest-note { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--warn); }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
@@ -269,6 +270,7 @@
 <main class="on" id="view-thoughts">
   <aside>
     <h2 data-i18n="filters.digest">Session digest</h2><div id="f-digest"></div>
+    <p id="f-digest-note" class="digest-note" hidden></p>
     <h2 data-i18n="filters.kind">Kind</h2><div id="f-kinds"></div>
     <h2 data-i18n="filters.lifecycle">Lifecycle</h2><div id="f-lifecycles"></div>
     <h2 data-i18n="filters.taskStatus">Tasks</h2><div id="f-task-statuses"></div>
@@ -644,6 +646,10 @@ async function refresh() {
     const s = await api("/api/stats");
     const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
     chips("#f-digest", [["1", s.digest || 0]], "digest", () => tr("filters.inDigest"));
+    // What does not fit is still pinned, but no model reads it at session start.
+    const digestNote = $("#f-digest-note");
+    digestNote.hidden = !s.digestOmitted;
+    digestNote.textContent = s.digestOmitted ? tr("filters.digestFull", { omitted: s.digestOmitted, limit: s.digestLimit }) : "";
     chips("#f-kinds", top(s.kinds || s.types, 15), "kind");
     chips("#f-lifecycles", top(s.lifecycles || { current: s.total }, 5), "lifecycle");
     chips("#f-task-statuses", top(s.taskStatuses || {}, 5), "task_status");

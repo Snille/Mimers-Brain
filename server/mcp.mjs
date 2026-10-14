@@ -317,7 +317,12 @@ export function buildServer(tiers, ctx = {}) {
             item.kind ? `Kind: ${item.kind}` : "", item.pinned ? "Pinned" : "",
             item.tier === "vault" ? "TIER: VAULT" : "",
             item.complete ? "" : "Summary only - fetch for the full text",
-          ].filter(Boolean).join(" | ")}] (id ${item.id})`).join("\n\n"),
+          ].filter(Boolean).join(" | ")}] (id ${item.id})`).join("\n\n") +
+        (digest.omitted
+          ? `\n\n${digest.omitted} more standing ${digest.omitted === 1 ? "memory does" : "memories do"} not fit in the digest. ` +
+            `They still apply; search_thoughts finds them, or fetch by id: ` +
+            `${digest.omitted_items.map((item) => `${item.title || "untitled"} (id ${item.id})`).join("; ")}.`
+          : ""),
       );
     } catch (e) { return fail(e); }
   }));
