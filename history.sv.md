@@ -6,6 +6,28 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.12.1: att bekräfta ett minne tömmer inte längre titeln
+
+Ett minne som bekräftades på sidan Granska kunde komma tillbaka med titeln
+"Untitled memory" och en tom sammanfattning. `applyReview()` normaliserade
+metadatan utan minnets text, och `describesContent()` avvisar en titel eller
+sammanfattning som nämner ett id, en sökväg eller en version som texten saknar —
+och en tom text saknar alla. Varje titel som nämnde `SETTINGS_KEY`, en fil eller
+ett modell-id föll på det och ersattes med en titel härledd ur ingenting.
+
+Ändringsloggen från 0.10.0 är det som gjorde felet synligt: den visade ett minne
+som skapades med sin titel 14:17 och tömdes av `web-ui` 14:33, samma minut som
+det bekräftades. En granskning av ett trettiotal minnen samma morgon hade gjort
+detsamma med 23 av dem, innan ändringsloggen fanns. `applyReview()` tar nu emot
+texten och normaliserar mot den, och lämnar metadatan orörd när texten saknas.
+
+De 19 som dumpen från 00:10 fortfarande hade orörda fick tillbaka titel och
+sammanfattning därifrån, och bara de tömda fälten fylldes i; de övriga fyra var
+ersatt historik som granskats i september, och deras sammanfattningar härleddes
+på nytt ur texten.
+
+---
+
 ## 2026-10-14 — 0.12.0: leverantörsnycklar från webbgränssnittet
 
 0.11.0 lät rutan Modeller välja modeller men höll alla leverantörsnycklar i

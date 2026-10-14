@@ -596,7 +596,7 @@ export async function captureThought(tiers, content, {
 export async function reviewThought(tiers, id, action, { actor = "user", note = "" } = {}) {
   const existing = await getThought(tiers, id);
   if (!existing) throw new Error("Not found");
-  const metadata = applyReview(existing.metadata, action, { actor });
+  const metadata = applyReview(existing.metadata, action, { actor, content: existing.content });
   return transaction(async (client) => {
     const { rows } = await client.query(
       `UPDATE thoughts SET metadata = $2::jsonb WHERE id = $1 AND tier = ANY($3) RETURNING ${COLS}`,

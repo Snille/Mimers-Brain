@@ -6,6 +6,28 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.12.1: confirming a memory no longer blanks its title
+
+A memory confirmed on the Review page could come back titled "Untitled memory"
+with an empty summary. `applyReview()` normalised the metadata without the
+memory's text, and `describesContent()` rejects a title or summary that names an
+identifier, a path or a version the text does not contain — and an empty text
+contains none of them. Every title naming `SETTINGS_KEY`, a file or a model id
+failed that test and was replaced by the title derived from nothing.
+
+The change log from 0.10.0 is what made it visible: it showed a memory created
+with its title at 14:17 and blanked by `web-ui` at 14:33, the minute it was
+confirmed. A review of about thirty memories that morning had done the same to
+23 of them, before the change log existed. `applyReview()` now takes the text and
+normalises against it, and leaves the metadata alone when it has none.
+
+The 19 that the 00:10 dump still held intact got their title and summary back
+from it, filling only the blanked fields; the other four were superseded
+history reviewed in September, and their summaries were derived again from the
+text.
+
+---
+
 ## 2026-10-14 — 0.12.0: provider keys from the web UI
 
 0.11.0 let the Models card choose models but kept every provider key in `.env`,

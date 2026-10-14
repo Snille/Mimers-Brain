@@ -562,9 +562,14 @@ export function normaliseMeta(meta = {}, content = "", defaults = {}) {
   return out;
 }
 
-export function applyReview(meta, action, { actor = "user", at = new Date().toISOString() } = {}) {
+// The memory's own text has to come along. Normalised without it, every title
+// or summary naming an identifier or a path - SETTINGS_KEY, a file, a version -
+// failed describesContent() against an empty string, and confirming a memory on
+// the Review page replaced its title with "Untitled memory" and its summary with
+// nothing. Without content the metadata is left as it was rather than guessed at.
+export function applyReview(meta, action, { actor = "user", at = new Date().toISOString(), content } = {}) {
   if (!REVIEW_ACTIONS.includes(action)) throw new Error(`Unknown review action "${action}"`);
-  const out = normaliseMeta(meta);
+  const out = typeof content === "string" ? normaliseMeta(meta, content) : { ...meta };
   const changes = {
     confirm: { review_status: "confirmed", provenance: "user_confirmed", can_use_as_instruction: true, can_use_as_evidence: true, requires_user_confirmation: false },
     evidence_only: { review_status: "evidence_only", can_use_as_instruction: false, can_use_as_evidence: true, requires_user_confirmation: false },

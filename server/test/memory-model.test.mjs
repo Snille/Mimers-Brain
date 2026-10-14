@@ -321,6 +321,24 @@ test("review actions deterministically control allowed use", () => {
   assert.equal(rejected.can_use_as_evidence, false);
 });
 
+test("a review keeps a title and summary that name an identifier", () => {
+  // Confirming a memory titled after SETTINGS_KEY on 2026-10-14 turned its
+  // title into "Untitled memory" and emptied its summary: the metadata was
+  // normalised without the memory's text, so every identifier looked foreign.
+  const content = "Mimers Brains SETTINGS_KEY förseglar de API-nycklar som skrivs in på rutan Modeller. "
+    + "Nycklarna ligger krypterade i tabellen app_settings under ai_providers, och rutan ber om dem igen om nyckeln byts.";
+  const meta = normaliseMeta({
+    title: "SETTINGS_KEY förseglar leverantörsnycklar",
+    summary: "SETTINGS_KEY krypterar nycklarna i app_settings.",
+  }, content, { origin: "agent" });
+  assert.equal(meta.title, "SETTINGS_KEY förseglar leverantörsnycklar");
+
+  const reviewed = applyReview(meta, "confirm", { content });
+  assert.equal(reviewed.title, meta.title);
+  assert.equal(reviewed.summary, meta.summary);
+  assert.equal(applyReview(meta, "confirm").title, meta.title, "without the text, nothing is guessed");
+});
+
 test("every public tool description forbids raw secret values", () => {
   for (const text of [CAPTURE_GUIDANCE, OPEN_SCOPE, VAULT_SCOPE]) {
     assert.match(text, /never store raw/i);
