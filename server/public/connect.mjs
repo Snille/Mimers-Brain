@@ -4,6 +4,7 @@
 // Keys are masked until asked for, and the vault key is simply not sent here
 // when the page is served through the proxy - see connectInfo() in index.mjs.
 
+import { copy } from "./clipboard.mjs";
 import { t } from "./i18n.mjs";
 import { renderModels } from "./models.mjs";
 
@@ -254,31 +255,6 @@ function draw() {
       b.textContent = (await copy(b.dataset.copy)) ? t("common.copied") : t("common.copyManual");
       setTimeout(() => { b.textContent = was; }, 1400);
     };
-  }
-}
-
-// The LAN listener is plain http, which is not a secure context - so
-// navigator.clipboard does not exist there at all, and the whole point of this
-// page is the LAN listener. The deprecated execCommand path is the one that
-// actually runs at home.
-async function copy(value) {
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(value);
-      return true;
-    }
-  } catch { /* fall through */ }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = value;
-    ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    ta.remove();
-    return ok;
-  } catch {
-    return false;
   }
 }
 

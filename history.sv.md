@@ -6,6 +6,19 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.14.1: ett minne går att peka ut
+
+För att få en modell att rätta ett minne fick Erik ta en skärmbild av kortet
+eller beskriva det och hoppas att sökningen hittade samma rad. Det enda id som
+syntes på kortet var de 8 tecknen på knappen **Historik**, och det är id:t för
+föregångaren, inte för minnet som visas. Varje kort har nu **Kopiera referens**,
+som kopierar hela id:t och titeln som en rad att klistra in i en chatt med
+vilken ansluten modell som helst, följd av vad som ska ändras. Hjälpfunktionen
+för urklipp flyttade från sidan Anslut till `clipboard.mjs` så att båda sidorna
+delar den.
+
+---
+
 ## 2026-10-14 — 0.14.0: startpaketet säger vad det lämnar utanför
 
 Startpaketet hade redan ett tak, 15 minnen eller 9 000 tecken, men det som

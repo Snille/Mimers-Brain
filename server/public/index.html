@@ -365,6 +365,7 @@
 import {
   availableLanguages, chooseLanguage, currentLanguage, formatStamp, initI18n, t as tr,
 } from "./i18n.mjs";
+import { copy } from "./clipboard.mjs";
 
 await initI18n();
 
@@ -463,6 +464,7 @@ function card(t) {
     <div class="actions">
       <button class="ghost edit">${esc(tr("thought.edit"))}</button>
       <button class="ghost changes">${esc(tr("thought.changes"))}</button>
+      <button class="ghost ref" title="${esc(tr("thought.copyRefHint"))}">${esc(tr("thought.copyRef"))}</button>
       <button class="ghost danger del">${esc(tr("thought.delete"))}</button>
     </div>
     <div class="change-log"></div>`;
@@ -476,6 +478,16 @@ function card(t) {
       } catch (e) { showError(e.message); }
     };
   }
+
+  // The full id is the only handle a model can fetch without guessing; the
+  // "History" button shows the id of the predecessor, not of this memory.
+  el.querySelector(".ref").onclick = async (e) => {
+    const b = e.currentTarget;
+    const was = b.textContent;
+    const ref = tr("thought.refText", { id: t.id, title: m.title || String(t.content).slice(0, 60) });
+    b.textContent = (await copy(ref)) ? tr("common.copied") : tr("common.copyManual");
+    setTimeout(() => { b.textContent = was; }, 1400);
+  };
 
   el.querySelector(".edit").onclick = () => {
     if (el.classList.contains("editing")) return;

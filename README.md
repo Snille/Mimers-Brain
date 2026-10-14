@@ -176,6 +176,8 @@ Three views, and the sign-in described above covers all of them.
 **Memories** is the list, hybrid search and metadata editing. Current memories
 are shown by default; projects, kinds, task state, people and systems are
 separate facets. Superseded rows remain readable through their history links.
+**Copy reference** on a card copies its full id and title as one line; paste it
+into a chat with any connected model and say what should change.
 
 **Connect** is the setup instructions for every client — Claude Code, Codex in VS
 Code, the Claude Desktop connector, Open WebUI, ChatGPT, a generic MCP client —

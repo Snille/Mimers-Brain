@@ -179,6 +179,9 @@ Tre vyer, och inloggningen ovan gäller alla tre.
 **Tankar** är listan, hybridsökningen och metadataredigeringen. Aktuella minnen
 visas som standard; projekt, sort, uppgiftsstatus, personer och system är skilda
 facetter. Överspelade rader går fortfarande att läsa via historiklänkarna.
+**Kopiera referens** på ett kort kopierar hela id:t och titeln som en rad;
+klistra in den i en chatt med vilken ansluten modell som helst och skriv vad som
+ska ändras.
 
 **Anslut** är uppkopplingsanvisningarna för varje klient — Claude Code, Codex i
 VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient —

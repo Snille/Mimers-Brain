@@ -6,6 +6,18 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.14.1: a memory can be pointed at
+
+To have a model correct one memory, Erik had to screenshot the card or
+describe it and hope the search found the same row. The only id on the card
+was the 8-character one on the **History** button, and that is the id of the
+predecessor, not of the memory shown. Each card now has **Copy reference**,
+which copies the full id and the title as one line ready to paste into a chat
+with any connected model, followed by what should change. The clipboard helper
+moved out of the Connect page into `clipboard.mjs` so both pages share it.
+
+---
+
 ## 2026-10-14 — 0.14.0: the digest says what it leaves out
 
 The digest already had a ceiling, 15 memories or 9,000 characters, but what
