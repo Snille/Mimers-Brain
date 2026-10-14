@@ -86,11 +86,88 @@ function migrationPanel() {
     </div>`;
 }
 
+// --- providers ----------------------------------------------------------------
+//
+// Addresses and keys. A key field is write-only: the page learns whether a key
+// exists and where it came from, never the key itself, and an empty field on
+// save means "keep what is there".
+
+let editingProvider = null;
+
+function providerStatus(p) {
+  if (p.keyUnreadable) return t("models.providers.unreadable");
+  if (!p.configured) return t("models.providers.missing");
+  const from = p.keySource || p.urlSource;
+  return from ? t(`models.providers.from.${from}`) : t("models.providers.ready");
+}
+
+function providerRow(p) {
+  const canEdit = p.editable?.length;
+  return `
+    <tr>
+      <td><b>${esc(p.label)}</b>${p.base ? `<div class="sub"><code>${esc(p.base)}</code></div>` : ""}</td>
+      <td><span class="tag${p.configured ? "" : " vault"}">${esc(providerStatus(p))}</span></td>
+      <td>${canEdit ? `<button class="ghost small" data-provider="${esc(p.id)}">${esc(t("models.change"))}</button>` : ""}</td>
+    </tr>
+    ${editingProvider === p.id ? `<tr><td colspan="3" id="provider-editor"></td></tr>` : ""}`;
+}
+
+function drawProviderEditor(p) {
+  const el = host.querySelector("#provider-editor");
+  const has = (field) => p.editable.includes(field);
+  const keyHint = p.keySource === "settings" ? t("models.providers.keySaved")
+    : p.keySource === "environment" ? t("models.providers.keyFromEnv") : t("models.providers.keyPaste");
+  const stored = p.keySource === "settings" || p.urlSource === "settings";
+  el.innerHTML = `
+    <div class="model-editor">
+      ${has("url") ? `<label>${esc(t("models.providers.url"))}
+        <input id="provider-url" value="${esc(p.urlSource === "settings" ? p.base : "")}" placeholder="${esc(
+          p.id === "ollama" ? "http://192.0.2.50:11434" : "https://example.net/v1")}" /></label>` : ""}
+      ${has("name") ? `<label>${esc(t("models.providers.name"))}
+        <input id="provider-name" value="${esc(p.label)}" /></label>` : ""}
+      ${has("key") ? `<label>${esc(t("models.providers.key"))}
+        <input id="provider-key" type="password" autocomplete="new-password" placeholder="${esc(keyHint)}"${
+          state.canStoreKeys ? "" : " disabled"} /></label>
+        <div class="sub">${esc(state.canStoreKeys ? t("models.providers.keyNote") : t("models.providers.noSettingsKey"))}</div>` : ""}
+      <div class="actions model-actions">
+        <button id="provider-save">${esc(t("models.save"))}</button>
+        ${stored ? `<button class="ghost danger" id="provider-clear">${esc(t("models.providers.clear"))}</button>` : ""}
+        <span class="sub" id="provider-result"></span>
+      </div>
+    </div>`;
+
+  const result = el.querySelector("#provider-result");
+  const send = async (payload) => {
+    result.textContent = t("models.providers.checking");
+    try {
+      await post("/api/ai/provider", { id: p.id, ...payload });
+      editingProvider = null;
+      modelCache.clear();
+      await refresh();
+    } catch (error) { result.textContent = error.message; }
+  };
+  el.querySelector("#provider-save").onclick = () => send({
+    ...(has("url") ? { url: el.querySelector("#provider-url").value } : {}),
+    ...(has("name") ? { name: el.querySelector("#provider-name").value } : {}),
+    ...(has("key") && state.canStoreKeys ? { key: el.querySelector("#provider-key").value } : {}),
+  });
+  const clear = el.querySelector("#provider-clear");
+  if (clear) clear.onclick = () => {
+    if (confirm(t("models.providers.clearConfirm"))) send({ clear: ["url", "name", "key"] });
+  };
+}
+
 function draw() {
   host.innerHTML = `
     <div class="card models-card">
       <h3>${esc(t("models.title"))}</h3>
       <p class="sub">${esc(t("models.description"))}</p>
+      <h4>${esc(t("models.providers.title"))}</h4>
+      <table class="grid">
+        <tr><th>${esc(t("models.provider"))}</th><th>${esc(t("models.providers.status"))}</th><th></th></tr>
+        ${state.providers.filter((p) => p.editable?.length || p.configured).map(providerRow).join("")}
+      </table>
+      <h4>${esc(t("models.rolesTitle"))}</h4>
       <table class="grid">
         <tr><th>${esc(t("models.job"))}</th><th>${esc(t("models.inUse"))}</th><th></th></tr>
         ${ROLES.map(roleRow).join("")}
@@ -101,7 +178,11 @@ function draw() {
 
   for (const b of host.querySelectorAll("[data-edit]"))
     b.onclick = () => { editing = editing === b.dataset.edit ? null : b.dataset.edit; draw(); };
+  for (const b of host.querySelectorAll("[data-provider]"))
+    b.onclick = () => { editingProvider = editingProvider === b.dataset.provider ? null : b.dataset.provider; draw(); };
   if (editing) drawEditor(editing);
+  const openProvider = state.providers.find((p) => p.id === editingProvider);
+  if (openProvider) drawProviderEditor(openProvider);
   wireMigration();
 }
 
@@ -114,7 +195,7 @@ function drawEditor(name) {
       <label>${esc(t("models.provider"))}
         <select id="model-provider">${state.providers.map((p) => `<option value="${esc(p.id)}"${
           p.id === r.provider ? " selected" : ""}${p.configured ? "" : " disabled"}>${esc(p.label)}${
-          p.configured ? "" : ` — ${esc(t("models.needs", { key: p.keyName }))}`}</option>`).join("")}</select></label>
+          p.configured ? "" : ` — ${esc(t("models.needs"))}`}</option>`).join("")}</select></label>
       <label>${esc(t("models.model"))}
         <input id="model-id" list="model-list" value="${esc(r.model)}" autocomplete="off" />
         <datalist id="model-list"></datalist></label>

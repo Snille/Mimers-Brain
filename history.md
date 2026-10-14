@@ -6,6 +6,29 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.12.0: provider keys from the web UI
+
+0.11.0 let the Models card choose models but kept every provider key in `.env`,
+on the grounds that a key typed into the page would be stored in `app_settings`
+and copied into every nightly `pg_dump`. True, and still the reason for how this
+release does it: the card now takes addresses and keys for OpenRouter, OpenAI,
+Ollama and the custom server, and seals each key with AES-256-GCM under
+`SETTINGS_KEY` before it is stored. The dump holds ciphertext that is useless
+without the `.env`, and the `.env` is kept with the other secrets.
+
+The key field is write-only. The card is told whether a key exists and where it
+came from (`.env` or set here) and never the key, not even its last characters;
+an empty field on save keeps what is there, and *Remove values set here* falls
+back to `.env`. Nothing is stored until a real call with the new values has
+listed the provider's models, so a mistyped key or address is refused at once,
+and a provider that never answers is given up after ten seconds instead of
+hanging the page. Error text from a provider is scrubbed of anything shaped like
+a key before it is shown, since OpenAI quotes the key it was given. A changed
+`SETTINGS_KEY` leaves stored keys unreadable; the card says so and asks for them
+again rather than guessing.
+
+---
+
 ## 2026-10-14 — 0.11.0: models chosen from the web UI
 
 Which provider and model each job used lived in `.env`, and the one model that

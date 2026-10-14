@@ -36,33 +36,72 @@ function legacyBase(variable, tail) {
   return base === OPENROUTER_BASE ? null : base;
 }
 
+// Ollama's OpenAI-compatible API lives under /v1, which is easy to leave off.
+const ollamaBase = (url) => {
+  const base = trimSlash(url);
+  return base ? (base.endsWith("/v1") ? base : `${base}/v1`) : "";
+};
+
+// What the Models card may set for each provider. The fixed services have a
+// fixed address; Ollama and a custom server are wherever they were put.
+export const EDITABLE = {
+  openrouter: { key: true },
+  openai: { key: true },
+  ollama: { url: true, key: true },
+  custom: { url: true, key: true, name: true },
+};
+
+// Addresses, names and opened keys from the Models card, keyed by provider.
+// Kept in memory only; the database holds the keys sealed (secret-box.mjs).
+let storedProviders = {};
+
+export function applyStoredProviders(value) {
+  storedProviders = value && typeof value === "object" ? value : {};
+}
+
+function build(id, overrides = storedProviders[id] || {}) {
+  const env = {
+    openrouter: { label: "OpenRouter", base: OPENROUTER_BASE, key: process.env.OPENROUTER_API_KEY, keyName: "OPENROUTER_API_KEY" },
+    openai: { label: "OpenAI", base: "https://api.openai.com/v1", key: process.env.OPENAI_API_KEY, keyName: "OPENAI_API_KEY" },
+    ollama: { label: "Ollama", base: ollamaBase(process.env.OLLAMA_URL), key: process.env.OLLAMA_API_KEY,
+      keyName: "OLLAMA_URL", keyless: true },
+    custom: { label: process.env.CUSTOM_AI_NAME || "Custom", base: trimSlash(process.env.CUSTOM_AI_URL),
+      key: process.env.CUSTOM_AI_KEY, keyName: "CUSTOM_AI_URL", keyless: true },
+  }[id];
+  if (!env) return null;
+  const editable = EDITABLE[id] || {};
+  const url = editable.url && overrides.url ? (id === "ollama" ? ollamaBase(overrides.url) : trimSlash(overrides.url)) : "";
+  const p = {
+    id, keyless: Boolean(env.keyless), keyName: env.keyName, editable,
+    label: (editable.name && overrides.name) || env.label,
+    base: url || env.base || "",
+    key: overrides.key || env.key || "",
+    urlSource: url ? "settings" : env.base && editable.url ? "environment" : null,
+    keySource: overrides.key ? "settings" : env.key ? "environment" : null,
+    keyUnreadable: Boolean(overrides.keyUnreadable),
+  };
+  p.configured = Boolean(p.base && (p.key || p.keyless));
+  return p;
+}
+
 export function providers() {
-  const list = [
-    { id: "openrouter", label: "OpenRouter", base: OPENROUTER_BASE,
-      key: process.env.OPENROUTER_API_KEY || "", keyName: "OPENROUTER_API_KEY" },
-    { id: "openai", label: "OpenAI", base: "https://api.openai.com/v1",
-      key: process.env.OPENAI_API_KEY || "", keyName: "OPENAI_API_KEY" },
-  ];
-  // Ollama needs no key, only an address. Its OpenAI-compatible API lives
-  // under /v1, which is easy to leave off when typing the address.
-  const ollama = trimSlash(process.env.OLLAMA_URL);
-  list.push({ id: "ollama", label: "Ollama", base: ollama ? (ollama.endsWith("/v1") ? ollama : `${ollama}/v1`) : "",
-    key: "", keyName: "OLLAMA_URL", keyless: true });
-  list.push({ id: "custom", label: process.env.CUSTOM_AI_NAME || "Custom", base: trimSlash(process.env.CUSTOM_AI_URL),
-    key: process.env.CUSTOM_AI_KEY || "", keyName: "CUSTOM_AI_URL", keyless: true });
+  const list = ["openrouter", "openai", "ollama", "custom"].map((id) => build(id));
 
   const chat = legacyBase("META_URL", "chat/completions");
   const embed = legacyBase("EMBED_URL", "embeddings");
   if (chat) list.push({ id: "env-chat", label: new URL(chat).host, base: chat,
-    key: process.env.OPENROUTER_API_KEY || "", keyName: "META_URL", keyless: true });
+    key: process.env.OPENROUTER_API_KEY || "", keyName: "META_URL", keyless: true, editable: {} });
   if (embed && embed !== chat) list.push({ id: "env-embed", label: new URL(embed).host, base: embed,
-    key: process.env.OPENROUTER_API_KEY || "", keyName: "EMBED_URL", keyless: true });
+    key: process.env.OPENROUTER_API_KEY || "", keyName: "EMBED_URL", keyless: true, editable: {} });
 
-  for (const p of list) p.configured = Boolean(p.base && (p.key || p.keyless));
+  for (const p of list) if (p.configured === undefined) p.configured = Boolean(p.base && (p.key || p.keyless));
   return list;
 }
 
 export const provider = (id) => providers().find((p) => p.id === id) || null;
+
+// A provider as it would be with these values, for checking before saving.
+export const providerWith = (id, overrides) => build(id, overrides);
 
 function defaults() {
   const chatProvider = legacyBase("META_URL", "chat/completions") ? "env-chat" : "openrouter";
@@ -111,6 +150,15 @@ export function headers(p) {
   return h;
 }
 
+// A provider's error text goes to the Models card and the log. Some quote the
+// key they were given, masked or not ("Incorrect API key provided: sk-...");
+// neither belongs on a page or in a log.
+function scrub(text, p) {
+  let out = String(text || "").slice(0, 300);
+  if (p?.key) out = out.split(p.key).join("[key]");
+  return out.replace(/(?:sk|pk|rk|or|key)[-_][A-Za-z0-9*_.-]{6,}/gi, "[key]").slice(0, 200);
+}
+
 // One request, any role. `cfg` is a role-shaped { provider, model } - the live
 // role by default, or a candidate being tested before it is saved.
 export async function embedInputs(input, cfg = role("embedding")) {
@@ -119,7 +167,7 @@ export async function embedInputs(input, cfg = role("embedding")) {
   const r = await fetch(`${p.base}/embeddings`, {
     method: "POST", headers: headers(p), body: JSON.stringify({ model: cfg.model, input }),
   });
-  if (!r.ok) throw new Error(`Embedding failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) throw new Error(`Embedding failed: ${r.status} ${scrub(await r.text(), p)}`);
   const data = (await r.json()).data || [];
   // The API may answer out of order; `index` is what ties a vector to its input.
   return data.slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map((row) => row.embedding);
@@ -138,7 +186,7 @@ export async function chatJson(cfg, content, { temperature } = {}) {
       messages: [{ role: "user", content }],
     }),
   });
-  if (!r.ok) throw new Error(`${cfg.model} failed: ${r.status} ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) throw new Error(`${cfg.model} failed: ${r.status} ${scrub(await r.text(), p)}`);
   // Some providers wrap the JSON in a code fence even when asked not to.
   const raw = String((await r.json()).choices?.[0]?.message?.content || "")
     .trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
@@ -152,8 +200,14 @@ export async function chatJson(cfg, content, { temperature } = {}) {
 export async function listModels(id, kind) {
   const p = provider(id);
   if (!p?.configured) throw new Error(`Provider "${id}" is not configured`);
+  return listModelsFor(p, kind);
+}
+
+export async function listModelsFor(p, kind) {
+  if (!p?.configured) throw new Error(`Provider "${p?.id}" is not configured`);
   const url = p.id === "openrouter" && kind === "embedding" ? `${p.base}/embeddings/models` : `${p.base}/models`;
-  const r = await fetch(url, { headers: headers(p) });
+  // A bounded wait: an address that never answers must not hang the card.
+  const r = await fetch(url, { headers: headers(p), signal: AbortSignal.timeout(10_000) });
   if (!r.ok) throw new Error(`Listing models failed: ${r.status}`);
   const body = await r.json();
   const rows = Array.isArray(body) ? body : body.data || body.models || [];

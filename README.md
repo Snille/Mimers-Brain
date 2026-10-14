@@ -183,12 +183,16 @@ rendered with *this* instance's addresses, keys and tool list rather than
 placeholders. Copy buttons hand over ready-made commands and JSON.
 
 On the LAN listener the page also has a **Models** card: which provider and
-model does the embedding, the metadata and the contradiction check. Providers
-come from `.env` — OpenRouter, OpenAI, Ollama or any OpenAI-compatible server —
-and a provider without a key is listed but cannot be chosen, so no key ever
-passes through the browser. Each choice can be tested with a real call before
-it is saved, and model lists come with prices where the provider publishes
-them. The metadata and contradiction models change at once. A new embedding
+model does the embedding, the metadata and the contradiction check, and which
+providers exist: OpenRouter, OpenAI, Ollama and one custom OpenAI-compatible
+server. An address or an API key can be set there instead of in `.env`, and a
+value set on the card wins. Keys are sealed with AES-256-GCM under
+`SETTINGS_KEY` before they reach the database, so the nightly dump holds only
+ciphertext; the field is write-only, and the card learns whether a key exists
+and where it came from, never the key. Nothing is stored until a real call with
+the new values has listed the provider's models. Each model choice can be
+tested the same way before it is saved, and model lists come with prices where
+the provider publishes them. The metadata and contradiction models change at once. A new embedding
 model is filled in beside the old one in the background; search keeps the old
 model while it runs, a comparison shows the same question answered by both, and
 only *Switch* replaces the vectors. The card is absent on the open listener,

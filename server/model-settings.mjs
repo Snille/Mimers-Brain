@@ -16,8 +16,10 @@
 import * as ai from "./ai.mjs";
 import { embed, getSetting, pool, setSetting, transaction } from "./lib.mjs";
 import { embeddingText } from "./memory-model.mjs";
+import * as box from "./secret-box.mjs";
 
 const ROLES_KEY = "ai_roles";
+const PROVIDERS_KEY = "ai_providers";
 const MIGRATION_KEY = "embedding_migration";
 const BATCH = 32;
 // pgvector's HNSW index takes at most 2000 dimensions. Above that the column
@@ -41,19 +43,71 @@ export async function columnDimensions(column) {
 // since that is the one thing a stored setting could get wrong.
 export async function loadModelSettings() {
   ai.applyStored(await readJson(ROLES_KEY), { dimensions: await columnDimensions("embedding") });
+  const stored = (await readJson(PROVIDERS_KEY)) || {};
+  ai.applyStoredProviders(Object.fromEntries(Object.entries(stored).map(([id, entry]) => {
+    const key = entry.key ? box.open(entry.key) : null;
+    return [id, { url: entry.url, name: entry.name, key: key || undefined, keyUnreadable: Boolean(entry.key && !key) }];
+  })));
 }
+
+// What the card may know about a provider. Whether a key exists and where it
+// came from - never the key, not even its last characters.
+const publicProvider = ({ id, label, base, configured, keyName, editable, keySource, urlSource, keyUnreadable }) =>
+  ({ id, label, base, configured, keyName, editable: Object.keys(editable || {}), keySource, urlSource, keyUnreadable });
 
 export async function modelSettings() {
   const migration = await readJson(MIGRATION_KEY);
   return {
-    providers: ai.providers().map(({ id, label, base, configured, keyName }) =>
-      ({ id, label, base, configured, keyName })),
+    canStoreKeys: box.canSeal(),
+    providers: ai.providers().map(publicProvider),
     roles: Object.fromEntries(ai.ROLES.map((name) => {
       const { provider, model, dimensions, source } = ai.role(name);
       return [name, { provider, model, ...(name === "embedding" ? { dimensions } : {}), source }];
     })),
     migration: migration && { ...migration, progress: await migrationProgress() },
   };
+}
+
+// A provider's address, name or key from the card. The key is sealed before it
+// is stored, and nothing is stored until a real call with the new values has
+// listed the provider's models - a typo is caught here, not at the next save.
+// `clear` lists fields to drop, which brings back whatever .env says.
+export async function saveProvider(id, { url, name, key, clear = [] } = {}) {
+  const editable = ai.EDITABLE[id];
+  if (!editable) throw Object.assign(new Error(`Provider "${id}" cannot be changed here`), { status: 400 });
+  const stored = (await readJson(PROVIDERS_KEY)) || {};
+  const entry = { ...(stored[id] || {}) };
+  for (const field of Array.isArray(clear) ? clear : []) delete entry[field];
+
+  if (editable.url && typeof url === "string") {
+    const value = url.trim();
+    if (value && !/^https?:\/\/[^\s/]+/i.test(value))
+      throw Object.assign(new Error("The address must start with http:// or https://"), { status: 400 });
+    if (value) entry.url = value; else delete entry.url;
+  }
+  if (editable.name && typeof name === "string") {
+    const value = name.trim().slice(0, 40);
+    if (value) entry.name = value; else delete entry.name;
+  }
+  const newKey = editable.key && typeof key === "string" ? key.trim() : "";
+  if (newKey) entry.key = box.seal(newKey);
+
+  const candidate = ai.providerWith(id, {
+    url: entry.url, name: entry.name,
+    key: newKey || (entry.key ? box.open(entry.key) : undefined) || undefined,
+  });
+  if (candidate.configured) {
+    try {
+      await ai.listModelsFor(candidate, "chat");
+    } catch (error) {
+      throw Object.assign(new Error(`${candidate.label} did not answer: ${error.message}`), { status: 400 });
+    }
+  }
+
+  if (Object.keys(entry).length) stored[id] = entry; else delete stored[id];
+  await setSetting(PROVIDERS_KEY, JSON.stringify(stored));
+  await loadModelSettings();
+  return publicProvider(ai.provider(id));
 }
 
 // The two chat roles. The embedding role only changes through switchEmbedding().

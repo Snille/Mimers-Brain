@@ -65,11 +65,12 @@ services:
       # The model that judges contradictions. Empty means Qwen3-235B on
       # OpenRouter, or META_MODEL on any other endpoint.
       CONTRADICTION_MODEL: ${CONTRADICTION_MODEL:-}
-      # More providers for the Models card on the Connect page. A provider is
-      # offered there only when it has what it needs here; keys never go
-      # through the web UI.
+      # More providers for the Models card on the Connect page. Addresses and
+      # keys can also be set on the card; SETTINGS_KEY seals keys stored there.
+      SETTINGS_KEY: ${SETTINGS_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OLLAMA_URL: ${OLLAMA_URL:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       CUSTOM_AI_URL: ${CUSTOM_AI_URL:-}
       CUSTOM_AI_KEY: ${CUSTOM_AI_KEY:-}
       CUSTOM_AI_NAME: ${CUSTOM_AI_NAME:-}

@@ -242,11 +242,14 @@ zone, for example `Europe/Stockholm` or `America/New_York`.
 restorable, and `RECALL_HINT_FLOOR` (default 0.5) tunes the optional Claude Code
 hook in `tools/hooks/`.
 
-`OPENROUTER_API_KEY` is the only provider most installations need. Set
-`OPENAI_API_KEY`, `OLLAMA_URL` or `CUSTOM_AI_URL` (with `CUSTOM_AI_KEY`) as well
-to make those providers selectable on the **Models** card of the Connect page,
-which is where the embedding, metadata and contradiction models are chosen once
-the server runs. Keys are only ever read from `.env`.
+`OPENROUTER_API_KEY` is the only provider most installations need. Other
+providers — OpenAI, Ollama, a custom OpenAI-compatible server — can be set up
+either here (`OPENAI_API_KEY`, `OLLAMA_URL`, `CUSTOM_AI_URL` and
+`CUSTOM_AI_KEY`) or later on the **Models** card of the Connect page, which is
+also where the embedding, metadata and contradiction models are chosen. To type
+keys on that card, set `SETTINGS_KEY` to a long random value first (generate it
+like the access keys above); it seals the stored keys, and losing it means
+entering them again.
 
 ## 3. Start the stack
 

@@ -609,6 +609,14 @@ function makeListener(tiers, {
               return json(res, 200, { ok: false, error: String(error.message || error).slice(0, 300) });
             }
           }
+          // The key arrives in the body and is sealed before it is stored; it is
+          // never logged and never sent back. See secret-box.mjs.
+          if (path === "/api/ai/provider" && req.method === "POST") {
+            const { id, url: address, name, key, clear } = await body(req);
+            const saved = await models.saveProvider(id, { url: address, name, key, clear });
+            note("ui.ai.provider", "write", { results: 1 });
+            return json(res, 200, saved);
+          }
           if (path === "/api/ai/role" && req.method === "POST") {
             const { role, provider, model } = await body(req);
             const saved = await models.saveRole(role, { provider, model });

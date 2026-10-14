@@ -6,6 +6,30 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.12.0: leverantörsnycklar från webbgränssnittet
+
+0.11.0 lät rutan Modeller välja modeller men höll alla leverantörsnycklar i
+`.env`, med motiveringen att en nyckel inskriven på sidan skulle sparas i
+`app_settings` och kopieras till varje nattlig `pg_dump`. Det stämmer, och det är
+fortfarande skälet till hur den här versionen gör: rutan tar nu emot adresser
+och nycklar för OpenRouter, OpenAI, Ollama och den egna servern, och förseglar
+varje nyckel med AES-256-GCM under `SETTINGS_KEY` innan den sparas. Dumpen
+innehåller chiffertext som är oanvändbar utan `.env`, och `.env` förvaras med de
+andra hemligheterna.
+
+Nyckelfältet går bara att skriva i. Rutan får veta om en nyckel finns och
+varifrån den kommer (`.env` eller vald här) men aldrig själva nyckeln, inte ens
+de sista tecknen; ett tomt fält vid sparning behåller det som finns, och *Ta bort
+värden satta här* faller tillbaka på `.env`. Inget sparas förrän ett riktigt
+anrop med de nya värdena har listat leverantörens modeller, så en felskriven
+nyckel eller adress nekas direkt, och en leverantör som aldrig svarar ges upp
+efter tio sekunder i stället för att låsa sidan. Feltext från en leverantör
+rensas från allt som liknar en nyckel innan den visas, eftersom OpenAI citerar
+nyckeln den fick. En ändrad `SETTINGS_KEY` gör sparade nycklar oläsbara; rutan
+säger det och ber om dem igen i stället för att gissa.
+
+---
+
 ## 2026-10-14 — 0.11.0: modeller väljs i webbgränssnittet
 
 Vilken leverantör och modell varje uppgift använde låg i `.env`, och den enda

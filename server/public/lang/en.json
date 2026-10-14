@@ -506,7 +506,7 @@
   },
   "models": {
     "title": "Models",
-    "description": "Which provider and model each job uses. Keys stay in .env: a provider without one is listed but cannot be chosen. Only shown on the LAN listener, because these models read vault memories too.",
+    "description": "Which provider and model each job uses. Only shown on the LAN listener, because these models read vault memories too.",
     "job": "Job",
     "inUse": "In use",
     "change": "Change",
@@ -527,7 +527,7 @@
     "dimensions": "{n} dimensions",
     "provider": "Provider",
     "model": "Model",
-    "needs": "set {key} in .env",
+    "needs": "add it under Providers",
     "price": "${input} in / ${output} out per million tokens",
     "test": "Test",
     "testing": "Working…",
@@ -560,6 +560,29 @@
       "cancel": "Cancel",
       "cancelConfirm": "Cancel and remove the new vectors?"
     },
-    "priceIn": "${input} per million tokens"
+    "priceIn": "${input} per million tokens",
+    "rolesTitle": "Jobs",
+    "providers": {
+      "title": "Providers",
+      "status": "Status",
+      "ready": "ready",
+      "missing": "not set up",
+      "from": {
+        "environment": "from .env",
+        "settings": "set here"
+      },
+      "unreadable": "stored key cannot be opened - enter it again",
+      "url": "Address",
+      "name": "Name",
+      "key": "API key",
+      "keyPaste": "Paste the key",
+      "keySaved": "Saved - type a new one to replace it",
+      "keyFromEnv": "From .env - type one to use another here",
+      "keyNote": "Stored encrypted with SETTINGS_KEY and never shown again. Keep a copy in your own secret store; an empty field keeps the current key.",
+      "noSettingsKey": "Set SETTINGS_KEY in .env once to store keys from this page. Addresses work without it.",
+      "checking": "Checking the provider…",
+      "clear": "Remove values set here",
+      "clearConfirm": "Remove the address, name and key set here? Whatever .env says applies again."
+    }
   }
 }

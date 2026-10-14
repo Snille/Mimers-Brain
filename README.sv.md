@@ -186,11 +186,16 @@ VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient 
 för platshållare. Kopieringsknappar ger färdiga kommandon och färdig JSON.
 
 På LAN-lyssnaren har sidan också rutan **Modeller**: vilken leverantör och modell
-som sköter inbäddningen, metadatan och motsägelsekontrollen. Leverantörerna kommer
-från `.env` — OpenRouter, OpenAI, Ollama eller en annan OpenAI-kompatibel server —
-och en leverantör utan nyckel visas men kan inte väljas, så ingen nyckel passerar
-någonsin webbläsaren. Varje val kan testas med ett riktigt anrop innan det sparas,
-och modellistorna visar pris när leverantören publicerar det. Metadata- och
+som sköter inbäddningen, metadatan och motsägelsekontrollen, och vilka
+leverantörer som finns: OpenRouter, OpenAI, Ollama och en egen OpenAI-kompatibel
+server. En adress eller en API-nyckel kan sättas där i stället för i `.env`, och
+ett värde satt i rutan gäller före. Nycklar förseglas med AES-256-GCM under
+`SETTINGS_KEY` innan de når databasen, så den nattliga dumpen innehåller bara
+chiffertext; fältet går bara att skriva i, och rutan får veta om en nyckel finns
+och varifrån den kommer, aldrig själva nyckeln. Inget sparas förrän ett riktigt
+anrop med de nya värdena har listat leverantörens modeller. Varje modellval kan
+testas på samma sätt innan det sparas, och modellistorna visar pris när
+leverantören publicerar det. Metadata- och
 motsägelsemodellen byts direkt. En ny inbäddningsmodell fylls i bredvid den gamla
 i bakgrunden; sökningen använder den gamla så länge, en jämförelse visar samma
 fråga besvarad av båda, och först *Byt* ersätter vektorerna. Rutan finns inte på

@@ -506,7 +506,7 @@
   },
   "models": {
     "title": "Modeller",
-    "description": "Vilken leverantör och modell varje uppgift använder. Nycklarna stannar i .env: en leverantör utan nyckel visas men kan inte väljas. Visas bara på LAN-lyssnaren, eftersom modellerna även läser valvminnen.",
+    "description": "Vilken leverantör och modell varje uppgift använder. Visas bara på LAN-lyssnaren, eftersom modellerna även läser valvminnen.",
     "job": "Uppgift",
     "inUse": "Används",
     "change": "Byt",
@@ -527,7 +527,7 @@
     "dimensions": "{n} dimensioner",
     "provider": "Leverantör",
     "model": "Modell",
-    "needs": "sätt {key} i .env",
+    "needs": "lägg till under Leverantörer",
     "price": "${input} in / ${output} ut per miljon tokens",
     "test": "Testa",
     "testing": "Arbetar…",
@@ -560,6 +560,29 @@
       "cancel": "Avbryt",
       "cancelConfirm": "Avbryta och ta bort de nya vektorerna?"
     },
-    "priceIn": "${input} per miljon tokens"
+    "priceIn": "${input} per miljon tokens",
+    "rolesTitle": "Uppgifter",
+    "providers": {
+      "title": "Leverantörer",
+      "status": "Status",
+      "ready": "klar",
+      "missing": "inte inställd",
+      "from": {
+        "environment": "från .env",
+        "settings": "vald här"
+      },
+      "unreadable": "den sparade nyckeln går inte att öppna - skriv in den igen",
+      "url": "Adress",
+      "name": "Namn",
+      "key": "API-nyckel",
+      "keyPaste": "Klistra in nyckeln",
+      "keySaved": "Sparad - skriv en ny för att byta",
+      "keyFromEnv": "Från .env - skriv en här för att använda en annan",
+      "keyNote": "Sparas krypterad med SETTINGS_KEY och visas aldrig igen. Spara en kopia i ditt eget hemlighetsförråd; ett tomt fält behåller nuvarande nyckel.",
+      "noSettingsKey": "Sätt SETTINGS_KEY i .env en gång för att kunna spara nycklar här. Adresser fungerar utan den.",
+      "checking": "Kontrollerar leverantören…",
+      "clear": "Ta bort värden satta här",
+      "clearConfirm": "Ta bort adress, namn och nyckel som satts här? Då gäller det som står i .env igen."
+    }
   }
 }
