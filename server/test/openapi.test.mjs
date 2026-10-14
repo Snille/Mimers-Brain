@@ -25,6 +25,8 @@ test("open and full OpenAPI surfaces keep the tier boundary", () => {
   assert.equal(captureOpen.schema.properties.user_confirmed.default, false);
   assert.ok(captureOpen.schema.properties.source_refs);
   assert.ok(captureOpen.schema.properties.artifact_refs);
+  assert.equal(captureOpen.schema.properties.title.maxLength, 100);
+  assert.equal(captureOpen.schema.required.includes("title"), false);
   assert.match(captureOpen.description, /never store raw/i);
 });
 

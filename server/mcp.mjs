@@ -174,20 +174,21 @@ export function buildServer(tiers, ctx = {}) {
         "True only when the user directly confirmed or requested this exact memory text; work approval, wrap-up, or permission to continue is not confirmation"),
       source_refs: z.array(z.string()).default([]).describe("URLs or memory:<uuid> source references"),
       artifact_refs: z.array(z.string()).default([]).describe("Paths, URLs, commits, issues, or other durable artifacts"),
+      title: z.string().max(100).optional().describe("Optional title, in the text's language, at most 100 characters. Omit it to let the server write one"),
     },
-  }, track("capture_thought", "write", async ({ content, tier, user_confirmed, source_refs, artifact_refs }, note) => {
+  }, track("capture_thought", "write", async ({ content, tier, user_confirmed, source_refs, artifact_refs, title }, note) => {
     try {
       if (content.length >= SMART_INGEST_THRESHOLD)
         throw new Error(`Long source text must go through preview_ingest before it is saved`);
       const r = await db.captureThought(tiers, content, {
         tier, origin: "agent", userConfirmed: user_confirmed,
-        sourceRefs: source_refs, artifactRefs: artifact_refs, client: ctx.client,
+        sourceRefs: source_refs, artifactRefs: artifact_refs, client: ctx.client, title,
       });
       note.tier = r.tier;
       note.count = 1;
       const m = r.metadata;
       return text(
-        `Saved as ${m.type || "observation"}${r.tier === "vault" ? " in the VAULT" : ""}` +
+        `Saved "${m.title}" as ${m.type || "observation"}${r.tier === "vault" ? " in the VAULT" : ""}` +
         `${m.topics?.length ? ` - ${m.topics.join(", ")}` : ""}` +
         `${m.can_use_as_instruction ? " (confirmed)" : " (evidence only; awaiting review)"}` +
         `${r.embedded ? "" : " (no embedding - will not be findable by semantic search)"}`);

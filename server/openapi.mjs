@@ -168,20 +168,23 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
           },
           source_refs: { type: "array", items: str("A source URL or memory:<uuid> reference"), default: [] },
           artifact_refs: { type: "array", items: str("A durable path, URL, commit, issue, or artifact"), default: [] },
+          title: { type: "string", maxLength: 100, description: "Optional title, in the text's language, at most 100 characters. Omit it to let the server write one" },
         },
       },
-      async run({ content, tier = "open", user_confirmed = false, source_refs = [], artifact_refs = [] }) {
+      async run({ content, tier = "open", user_confirmed = false, source_refs = [], artifact_refs = [], title = "" }) {
         if (!String(content || "").trim()) throw new BadRequest("content is required");
         if (String(content).length >= SMART_INGEST_THRESHOLD)
           throw new BadRequest("Long source text must go through preview_ingest before it is saved");
         const r = await db.captureThought(tiers, String(content).trim(), {
           tier, origin: "agent", userConfirmed: user_confirmed,
           sourceRefs: source_refs, artifactRefs: artifact_refs, client: ctx.client,
+          title: String(title || "").slice(0, 100),
         });
         publishSoon();
         return {
           id: r.id,
           tier: r.tier,
+          title: r.metadata?.title || null,
           type: r.metadata?.type || null,
           topics: r.metadata?.topics || [],
           embedded: r.embedded,

@@ -6,6 +6,14 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-14 — 0.9.32: ett nytt minne får namnge sig själv
+
+`capture_thought` tar emot samma valfria `title` som `supersede_thought` fick i
+0.9.31: högst 100 tecken, ersätter bara den extraherade titeln och prövas
+fortfarande mot `describesContent()`. Svaret anger titeln som sparades.
+
+---
+
 ## 2026-10-14 — 0.9.31: en ersättning får behålla sin titel
 
 När en detalj i ett minne rättades med `supersede_thought` bytte minnet också

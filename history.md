@@ -6,6 +6,14 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-14 — 0.9.32: a new memory may name itself
+
+`capture_thought` takes the same optional `title` as `supersede_thought` got in
+0.9.31: at most 100 characters, replacing only the extracted title and still
+held to `describesContent()`. The reply names the saved title.
+
+---
+
 ## 2026-10-14 — 0.9.31: a replacement may keep its title
 
 Correcting one detail of a memory with `supersede_thought` also renamed it: the
