@@ -109,7 +109,9 @@ in a 3D wireframe brain, placed by meaning (related memories share a labelled
 region) and sized and sunk by how many connections it has — shared kind, task
 status, project, topic, person, system or similar content, each a line colour
 you can switch off. Drag to turn it, scroll to zoom, grab a memory to pull out
-its lines. Below it, the page separates active memories from archived and
+its lines. The **3D brain** chip switches the whole picture off, which saves the
+CPU it costs to draw and skips the graph query; the browser remembers the choice.
+Below it, the page separates active memories from archived and
 superseded records, then shows trust state, provenance, receipt coverage, recalled-memory
 usefulness, client/tool activity and operational MQTT health. Recall charts begin
 with the first 0.8.0 receipt; older calls are never mislabelled as missing reports.

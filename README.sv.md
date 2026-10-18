@@ -112,7 +112,9 @@ en 3D-hjärna av trådnät, placerad efter betydelse (närliggande minnen delar 
 namngivet område) och med storlek och djup efter hur många kopplingar minnet har
 — gemensam sort, uppgiftsstatus, projekt, ämne, person, system eller liknande
 innehåll, var och en en linjefärg som går att slå av. Dra för att vrida, scrolla
-för att zooma, ta tag i ett minne för att dra ut dess linjer. Därunder skiljer
+för att zooma, ta tag i ett minne för att dra ut dess linjer. Knappen
+**3D-hjärnan** stänger av hela bilden, vilket sparar den CPU som ritningen kostar
+och hoppar över grafens fråga; webbläsaren minns valet. Därunder skiljer
 sidan aktiva minnen från arkiverade och ersatta poster och visar sedan tillitsstatus, proveniens, kvittotäckning, nyttan av återkallade
 minnen, klient-/verktygsaktivitet och MQTT-drift. Återkallningsdiagrammen börjar
 med det första 0.8.0-kvittot; äldre anrop märks aldrig felaktigt som saknade svar.

@@ -20,6 +20,13 @@ const key = (v) => String(v).slice(0, 10);
 let root = null;
 let stopBrain = () => {};
 
+// The brain can be switched off: drawing it keeps a CPU core busy, and the
+// graph query is the slowest one on the page. Off means neither runs.
+const BRAIN_SHOWN_KEY = "mimers-brain-shown";
+function brainShown() {
+  try { return localStorage.getItem(BRAIN_SHOWN_KEY) !== "false"; } catch { return true; }
+}
+
 function denseDays(rows, days) {
   const have = new Map(rows.map((r) => [key(r.bucket), r]));
   const now = new Date();
@@ -70,11 +77,12 @@ function translatedValue(value) {
   return translated === path ? String(value).replaceAll("_", " ") : translated;
 }
 
-function breakdown(title, values, preferred = []) {
+// `always` names rows shown even at zero, where zero is the answer itself.
+function breakdown(title, values, preferred = [], always = []) {
   const source = values || {};
   const keys = [...new Set([...preferred, ...Object.keys(source)])];
   const rows = keys.map((name) => [name, Number(source[name] || 0)])
-    .filter(([, count]) => count > 0)
+    .filter(([name, count]) => count > 0 || always.includes(name))
     .sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...rows.map(([, count]) => count));
   return `<div class="card"><h3>${esc(title)}</h3>${rows.length ? rows.map(([name, count]) => `
@@ -159,15 +167,23 @@ function recallClientTable(recall) {
 // The brain loads on its own, after the numbers: computing every pair of
 // meanings is the slowest query on the page, and the figures below should not
 // wait for a picture.
+let brainRun = 0;
 async function renderBrain(element) {
+  const run = ++brainRun;
   stopBrain();
   stopBrain = () => {};
+  if (!brainShown()) {
+    element.innerHTML = `<div class="empty">${esc(t("stats.brain.off"))}</div>`;
+    return;
+  }
+  element.innerHTML = `<div class="empty">${esc(t("stats.brain.loading"))}</div>`;
   try {
     const graph = await fetch("/api/graph").then((response) => {
       if (!response.ok) throw new Error(response.statusText);
       return response.json();
     });
-    if (!element.isConnected) return;
+    // A click while the graph loads starts a newer run; this one is stale.
+    if (!element.isConnected || run !== brainRun) return;
     const count = (key, value) => t(`stats.brain.${key}`, { count: value });
     stopBrain = mountBrain(element, graph, {
       hint: t("stats.brain.hint"),
@@ -207,7 +223,8 @@ export async function render(element) {
   root.innerHTML = `
   <section class="stats-section">
     ${sectionHead(t("stats.sections.brain.title"), t("stats.sections.brain.description"))}
-    <div class="card brain-card" id="brain"><div class="empty">${esc(t("stats.brain.loading"))}</div></div>
+    <button type="button" class="chip brain-toggle ${brainShown() ? "on" : ""}" aria-pressed="${brainShown()}">${esc(t("stats.brain.show"))}</button>
+    <div class="card brain-card" id="brain"></div>
   </section>
 
   <section class="stats-section">
@@ -229,7 +246,8 @@ export async function render(element) {
 
     <div class="three">
       ${breakdown(t("stats.breakdowns.reviewStatus"), health.reviewStatuses,
-        ["confirmed", "pending", "evidence_only", "restricted", "stale", "rejected"])}
+        ["confirmed", "pending_new", "pending_historical", "evidence_only", "restricted", "stale", "rejected"],
+        ["pending_new"])}
       ${breakdown(t("stats.breakdowns.lifecycle"), health.lifecycles,
         ["current", "superseded", "archived"])}
       <div class="card"><h3>${esc(t("stats.health.auditTitle"))}</h3><table class="grid">
@@ -330,7 +348,16 @@ export async function render(element) {
     </label> <span id="retention-msg"></span><br>${esc(t("stats.retention.note"))}</p>
   </section>`;
 
-  renderBrain(root.querySelector("#brain"));
+  const brain = root.querySelector("#brain");
+  const toggle = root.querySelector(".brain-toggle");
+  toggle.onclick = () => {
+    const shown = !brainShown();
+    try { localStorage.setItem(BRAIN_SHOWN_KEY, String(shown)); } catch { /* unavailable */ }
+    toggle.classList.toggle("on", shown);
+    toggle.setAttribute("aria-pressed", String(shown));
+    renderBrain(brain);
+  };
+  renderBrain(brain);
 
   const retention = root.querySelector("#retention");
   if (retention) retention.onchange = async () => {

@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-18 — 0.15.0: hjärnan går att stänga av, och gammalt väntande är historik
+
+Kortet **Tillit och granskningsstatus** visade 45 minnen som väntande medan
+granskningskön sa 0. Båda hade rätt: kortet räknar alla poster, och de 45 blev
+ersatta eller arkiverade innan någon granskade dem. Sedan 0.9.4 kan bara ett
+aktuellt minne kräva granskning, men kortet såg ändå ut som arbete som väntade
+på Erik. Väntande är nu två staplar, **väntande, nya** och **väntande,
+historiska**, och den nya visas även vid noll, eftersom noll är svaret.
+
+Att rita 3D-hjärnan håller en CPU-kärna sysselsatt. Knappen **3D-hjärnan**
+ovanför den stänger nu av den. Av betyder att inget ritas och att grafens fråga
+inte körs; valet sparas per webbläsare i `localStorage`. Ett klick medan grafen
+fortfarande laddar startar en nyare körning, och den äldre lägger sig inte
+längre över den.
+
+---
+
 ## 2026-10-14 — 0.14.1: ett minne går att peka ut
 
 För att få en modell att rätta ett minne fick Erik ta en skärmbild av kortet

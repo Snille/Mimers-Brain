@@ -286,6 +286,8 @@
     "values": {
       "confirmed": "bekräftade",
       "pending": "väntande",
+      "pending_new": "väntande, nya",
+      "pending_historical": "väntande, historiska",
       "evidence_only": "endast evidens",
       "restricted": "begränsade",
       "stale": "inaktuella",
@@ -371,6 +373,8 @@
     "footer": "Tidszon för dygns- och månadsbrytet: <code>{timezone}</code>. Användningshändelser och återkallningskvitton sparas i {days} dagar och innehåller aldrig frågor, svar eller minnesinnehåll — bara samlad aktivitet och UUID-kvittonas status.",
     "brain": {
       "loading": "Kopplar ihop hjärnan …",
+      "show": "3D-hjärnan",
+      "off": "3D-hjärnan är avstängd. Den sparar CPU. Klicka på \"3D-hjärnan\" för att visa den.",
       "empty": "Det finns inga minnen att visa ännu.",
       "hint": "Dra för att vrida · scrolla för att zooma · ta tag i ett minne för att se dess kopplingar",
       "vault": "Valvet",

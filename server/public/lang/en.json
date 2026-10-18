@@ -286,6 +286,8 @@
     "values": {
       "confirmed": "confirmed",
       "pending": "pending",
+      "pending_new": "pending, new",
+      "pending_historical": "pending, historical",
       "evidence_only": "evidence only",
       "restricted": "restricted",
       "stale": "stale",
@@ -371,6 +373,8 @@
     "footer": "Timezone for day and month boundaries: <code>{timezone}</code>. Usage events and recall receipts are retained for {days} days and never contain queries, answers or memory content — only aggregate activity and UUID receipt state.",
     "brain": {
       "loading": "Wiring the brain …",
+      "show": "3D brain",
+      "off": "The 3D brain is off to save CPU. Click \"3D brain\" to show it.",
       "empty": "No memories to show yet.",
       "hint": "Drag to turn · scroll to zoom · grab a memory to see its connections",
       "vault": "Vault",

@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-18 — 0.15.0: the brain can be switched off, and old pending is history
+
+The **Trust and review state** card showed 45 memories as pending while the
+review queue said 0. Both were right: the card counts every record, and those
+45 were superseded or archived before anyone reviewed them. Since 0.9.4 only a
+current memory can need a review, but the card still read as work waiting for
+Erik. Pending is now two bars, **pending, new** and **pending, historical**,
+and the new one is shown even at zero, because zero is the answer.
+
+Drawing the 3D brain keeps a CPU core busy. A **3D brain** chip above it now
+switches it off. Off means nothing is drawn and the graph query is not run; the
+choice is kept per browser in `localStorage`. A click while the graph is still
+loading starts a newer run, and the older one no longer mounts over it.
+
+---
+
 ## 2026-10-14 — 0.14.1: a memory can be pointed at
 
 To have a model correct one memory, Erik had to screenshot the card or

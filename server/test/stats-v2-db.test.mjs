@@ -69,6 +69,9 @@ test("statistics v2 separates active records and reported recall usefulness", {
       { records: 5, active: 3, inactive: 2, pending: 1, archivedSources: 1, unembedded: 3 },
     );
     assert.equal(stats.memoryHealth.reviewStatuses.restricted, 1);
+    assert.equal(stats.memoryHealth.reviewStatuses.pending_new, 1);
+    assert.equal(stats.memoryHealth.reviewStatuses.pending_historical, 1);
+    assert.equal(stats.memoryHealth.reviewStatuses.pending, undefined);
     assert.equal(stats.memoryHealth.reviewsTotal, 1);
     const queue = await db.reviewQueue(["open", "vault"]);
     assert.deepEqual(queue.map((row) => row.id), [ids.pending]);

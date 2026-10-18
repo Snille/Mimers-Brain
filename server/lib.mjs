@@ -1481,7 +1481,13 @@ async function memoryHealth(tiers) {
               coalesce(nullif(metadata->>'provenance', ''), 'imported') AS provenance,
               coalesce(nullif(metadata->>'kind', ''), nullif(metadata->>'type', ''), 'unknown') AS kind,
               nullif(metadata->>'project', '') AS project,
+              -- Pending is split by lifecycle. A superseded or archived record
+              -- keeps the status it had, but it can never enter the review
+              -- queue, so one "pending" bar read as work waiting for Erik.
               CASE
+                WHEN coalesce(nullif(metadata->>'review_status', ''), 'confirmed') = 'pending'
+                  THEN CASE WHEN coalesce(nullif(metadata->>'lifecycle', ''), 'current') = 'current'
+                            THEN 'pending_new' ELSE 'pending_historical' END
                 WHEN metadata->>'review_status' = 'evidence_only'
                  AND metadata->>'can_use_as_evidence' = 'false'
                   THEN 'restricted'
