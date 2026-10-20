@@ -1,4 +1,4 @@
-# Imports thoughts.tsv into Mimers Valv. Each line is "<tier>\t<content>".
+# Imports thoughts.tsv into Mimers Brain. Each line is "<tier>\t<content>".
 # Idempotent: upsert_thought dedupes on a content fingerprint, so re-running
 # merges metadata instead of creating duplicates.
 param(
@@ -21,18 +21,18 @@ $ok = 0; $bad = 0
 foreach ($line in Get-Content $file -Encoding utf8) {
     if (-not $line.Trim()) { continue }
     $tier, $content = $line -split "`t", 2
-    if (-not $content) { Write-Host "  hoppar over rad utan innehall" -ForegroundColor Yellow; continue }
+    if (-not $content) { Write-Host "  skipping a line with no content" -ForegroundColor Yellow; continue }
     try {
         $json = @{ content = $content; tier = $tier } | ConvertTo-Json -Compress
         $r = Invoke-RestMethod "$B/api/thoughts" -Method Post -Headers $H `
             -ContentType "application/json; charset=utf-8" `
             -Body ([System.Text.Encoding]::UTF8.GetBytes($json))
         $ok++
-        $emb = if ($r.embedded) { "" } else { "  (UTAN EMBEDDING)" }
+        $emb = if ($r.embedded) { "" } else { "  (NO EMBEDDING)" }
         Write-Host ("  [{0,-5}] {1}{2}" -f $r.tier, $content.Substring(0, [Math]::Min(64, $content.Length)), $emb) -ForegroundColor Green
     } catch {
         $bad++
-        Write-Host "  MISSLYCKADES: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  FAILED: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
-Write-Host "`n$ok importerade, $bad misslyckade" -ForegroundColor $(if ($bad) { "Red" } else { "Green" })
+Write-Host "`n$ok imported, $bad failed" -ForegroundColor $(if ($bad) { "Red" } else { "Green" })

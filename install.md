@@ -1,259 +1,171 @@
 # Installing Mimers Brain
 
-This guide covers three supported ways to run Mimers Brain:
+Mimers Brain runs as one Docker Compose stack: a Node.js application container
+(`valv-app`) and a PostgreSQL/pgvector container (`valv-db`). Compose is the only
+supported way to run it, on any host.
 
-1. an unprivileged Ubuntu LXC on Proxmox VE;
-2. Docker Desktop on Windows or macOS;
-3. an existing Ubuntu Server.
+Steps, in order:
 
-All three use the same Docker Compose stack: one Node.js application container
-and one PostgreSQL/pgvector container. A native installation without Docker is
-possible, but is not documented or tested; Compose is the supported deployment
-path even on an existing Linux server.
+1. [Prepare the host](#1-prepare-the-host) — Proxmox LXC, Docker Desktop or Ubuntu Server
+2. [Configure `.env`](#2-configure-env)
+3. [Start the stack](#3-start-the-stack)
+4. [Network and reverse proxy](#4-network-and-reverse-proxy) (optional)
+5. [Backups](#5-backups)
+6. [Updating](#6-updating)
+
+[Troubleshooting](#troubleshooting) is at the end.
 
 ## Before you start
 
-Recommended minimum resources are 2 CPU cores, 2 GB RAM and 20 GB disk. The
-machine also needs outbound HTTPS access to GitHub and Docker Hub, plus
-OpenRouter when semantic search is wanted.
+- **Resources:** 2 CPU cores, 2 GB RAM, 20 GB disk. A few thousand memories is a
+  small database.
+- **Outbound HTTPS** to GitHub and Docker Hub for the install, and to OpenRouter
+  (or another model provider) for embeddings and metadata.
+- **Three ports**, each with a different reach:
 
-Mimers Brain listens on three ports with deliberately different capabilities:
-
-| Port | Contents | Exposure |
+| Port | Serves | Exposure |
 | --- | --- | --- |
-| `8790` | open tier + vault + web UI | trusted LAN/VPN only; never reverse-proxy it |
-| `8791` | open tier + web UI | the only port that may sit behind a reverse proxy |
-| `8792` | open tier, read only, no web UI | optional; a second proxy host for models that must not write |
+| `8790` | open tier + vault, web UI, all tools | trusted LAN/VPN only. **Never reverse-proxy it.** |
+| `8791` | open tier only, web UI | the only port a public reverse proxy may forward to |
+| `8792` | open tier only, read-only tools, no web UI | optional; for a model that must not write |
 
-Port `8792` registers no tool that changes a memory. Set `MCP_READ_KEY` to a
-third, different value and give that key — and only that key — to such a client;
-leave it empty and the port falls back to `MCP_ACCESS_KEY`, which works but
-cannot be rotated on its own.
+- **Data** lives in the Docker volume `mimers-valv_valv-data`, not in the checkout.
 
-Choose where the persistent data and backups will live before installing. The
-database is stored in the named Docker volume `mimers-valv_valv-data`, not in
-the Git checkout.
-
-> **Do not remove `name: mimers-valv` from `docker-compose.yml`, rename the
-> volume, or run `docker compose down -v`.** The pinned project name is what
-> makes the existing database volume follow the installation when the checkout
-> directory changes. The `-v` flag deletes that volume and every memory in it.
+> **Never remove `name: mimers-valv` from `docker-compose.yml`, rename the
+> volume, or run `docker compose down -v`.** The pinned project name keeps the
+> volume attached when the checkout directory changes. `-v` deletes the volume and
+> every memory in it.
 
 ## 1. Prepare the host
 
-Choose one of the following host setups, then continue at
-[Configure Mimers Brain](#2-configure-mimers-brain).
+Pick one option, then continue at [section 2](#2-configure-env).
 
-### Option A: Proxmox VE with an Ubuntu LXC
+### Option A: Proxmox VE, unprivileged Ubuntu LXC
 
-Proxmox recommends a QEMU VM for Docker workloads because containers inside an
-LXC share the Proxmox host kernel. Mimers Brain does work in an unprivileged
-LXC, but the AppArmor exception below weakens that LXC security boundary. Use a
-dedicated unprivileged container on a trusted host; choose a small VM instead if
-you want Docker to have its own kernel boundary.
+Docker inside an LXC shares the Proxmox host kernel, and the AppArmor exception
+below weakens the LXC boundary. Use a dedicated container on a trusted host, or a
+small VM if you want Docker to have its own kernel.
 
-Create the container in the Proxmox UI with:
-
-- Ubuntu 24.04 LTS;
-- unprivileged container enabled;
-- 2 cores, 2 GB RAM and at least 20 GB disk;
-- a static address or DHCP reservation;
-- start at boot enabled;
-- `Nesting` and `Keyctl` enabled under **Options → Features**.
-
-The equivalent host command for the feature flags is:
+Create the container with Ubuntu 24.04 LTS, **unprivileged**, 2 cores, 2 GB RAM,
+20 GB disk, a static address or DHCP reservation, start at boot, and the features
+`nesting` and `keyctl`:
 
 ```bash
 pct set <VMID> -features nesting=1,keyctl=1
 ```
 
-On the Proxmox host, stop the LXC:
+Then allow Docker to start containers. On the Proxmox host:
 
 ```bash
 pct stop <VMID>
-```
-
-Add this line to `/etc/pve/lxc/<VMID>.conf`:
-
-```text
-lxc.apparmor.profile: unconfined
-```
-
-Then start the container again:
-
-```bash
+echo "lxc.apparmor.profile: unconfined" >> /etc/pve/lxc/<VMID>.conf
 pct start <VMID>
 ```
 
-This is required on LXC hosts where Docker fails with `runc run failed: unable
-to apply apparmor profile`. The error often appears halfway through
-`npm install`, making it look like an npm or network failure. Read the complete
-build log before troubleshooting npm. The `security_opt` entries already in the
-Compose file handle runtime, but only the Proxmox-host setting also permits
-image builds inside the LXC.
+Without this line every container start fails with `runc run failed: unable to
+apply apparmor profile`, often disguised as an `npm install` error halfway
+through the build. The `security_opt` lines in the Compose file only fix running
+containers; building inside the LXC needs the host setting.
 
-Log in to the LXC, create or choose a normal administration user, then follow
-[Option C](#option-c-an-existing-ubuntu-server) from the package installation
-through the repository clone. Then continue with section 2.
+Log in to the LXC and continue with [Option C](#option-c-ubuntu-server).
 
-### Option B: Docker Desktop
+### Option B: Docker Desktop (Windows or macOS)
 
-Install [Docker Desktop](https://docs.docker.com/desktop/) and use Linux
-containers. On Windows, the WSL 2 backend is the normal choice. Start Docker
-Desktop and verify it from PowerShell:
+Install [Docker Desktop](https://docs.docker.com/desktop/) with Linux containers
+(WSL 2 on Windows). In PowerShell:
 
 ```powershell
 docker version
 docker compose version
-```
-
-Clone the repository into a normal development directory:
-
-```powershell
 git clone https://github.com/Snille/Mimers-Brain.git
 Set-Location Mimers-Brain
 Copy-Item .env.example .env
 ```
 
-In a macOS terminal, use `cd Mimers-Brain` and `cp .env.example .env` instead
-of the two PowerShell-specific commands.
+On macOS use `cd Mimers-Brain` and `cp .env.example .env`. In `.env`, set
+`CITATION_BASE_URL=http://localhost:8790/thoughts` and leave `PUBLIC_URL` empty.
 
-For access from the same computer, use these addresses in `.env`:
+Docker Desktop publishes the ports on all interfaces, so block unsolicited inbound
+traffic in the host firewall. It suits development and evaluation; an always-on
+install is easier to run and back up on a server.
 
-```dotenv
-CITATION_BASE_URL=http://localhost:8790/thoughts
-PUBLIC_URL=
-LAN_URL=http://localhost:8790
-```
+### Option C: Ubuntu Server
 
-Continue with section 2. The PowerShell equivalents for the start and verify
-commands are included there.
-
-The Compose file publishes both ports on the host. The URLs above do not make
-them loopback-only, so keep unsolicited inbound access blocked in the host
-firewall when this is only a local development instance.
-
-Docker Desktop is excellent for development and evaluation. For an always-on
-installation, Ubuntu Server or a dedicated Proxmox guest is easier to operate
-and back up.
-
-### Option C: an existing Ubuntu Server
-
-These commands follow Docker's official apt-repository installation. Skip the
-Docker installation if `docker version` and `docker compose version` already
-work.
+Skip the Docker install if `docker version` and `docker compose version` already
+work. Otherwise, following Docker's apt repository instructions:
 
 ```bash
 sudo apt update
 sudo apt install -y ca-certificates curl git
 sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-  -o /etc/apt/keyrings/docker.asc
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
-
 . /etc/os-release
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${UBUNTU_CODENAME:-$VERSION_CODENAME} stable" \
   | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
 sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io \
-  docker-buildx-plugin docker-compose-plugin
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER"
 ```
 
-Log out and back in so the Docker group membership takes effect, then verify:
+Log out and in again, then check Docker, check that the ports are free, and clone:
 
 ```bash
-docker version
-docker compose version
 docker run --rm hello-world
-```
-
-Membership in the `docker` group is effectively root access to the host. Only
-add trusted administrators.
-
-Check that the application ports are free, then clone the repository:
-
-```bash
-sudo ss -ltnp | grep -E ':(8790|8791)\b' || true
+sudo ss -ltnp | grep -E ':(8790|8791|8792)\b' || true
 git clone https://github.com/Snille/Mimers-Brain.git ~/mimers-brain
 cd ~/mimers-brain
 cp .env.example .env
 ```
 
-## 2. Configure Mimers Brain
+Membership in the `docker` group is effectively root on the host. Add trusted
+administrators only.
 
-Open `.env` in an editor. The file is gitignored and must never be committed.
-At minimum, set these values:
+## 2. Configure `.env`
 
-| Variable | Required | Purpose |
+`.env` is gitignored; never commit it. Every variable is explained in
+[.env.example](.env.example). Set at least these:
+
+| Variable | Needed | Purpose |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD` | yes | password for the private database container |
-| `MCP_ACCESS_KEY` | yes | full API/MCP access, including the vault |
-| `OPENROUTER_API_KEY` | strongly recommended | embeddings, semantic search and metadata extraction |
-| `CITATION_BASE_URL` | yes for correct links | base used when a client receives a link to a memory |
-| `PUBLIC_URL` | when publicly proxied | address shown in the Connect page |
-| `MCP_OPEN_KEY` | optional | URL key for open-tier clients that cannot send headers |
-| `CORS_ORIGINS` | for OpenAPI tool servers | browser origins allowed to call `/openapi.json` and `/tools/*`, comma separated |
+| `POSTGRES_PASSWORD` | yes | database password (the container is not published) |
+| `MCP_ACCESS_KEY` | yes | full access, vault included; also the web UI sign-in on 8790 |
+| `OPENROUTER_API_KEY` | yes, in practice | embeddings and metadata. Without a provider there is no semantic search. |
+| `CITATION_BASE_URL` | yes | base of the links a client gets to a memory, e.g. `http://192.0.2.41:8790/thoughts` |
+| `PUBLIC_URL` | with a public proxy | e.g. `https://brain.example.net`; shown on the Connect page |
+| `MCP_OPEN_KEY` | optional | URL key (`/mcp?key=`) for open-tier clients that cannot send a header |
+| `MCP_READ_KEY` | with port 8792 | the read-only port's key. Empty means 8792 accepts `MCP_ACCESS_KEY`. |
+| `CORS_ORIGINS` | for Open WebUI | browser origins allowed to call `/openapi.json` and `/tools/*` |
+| `SETTINGS_KEY` | optional | seals provider keys typed on the Models card |
+| `MQTT_URL` | optional | Home Assistant integration; see [docs/home-assistant.md](docs/home-assistant.md) |
 
-Use long hexadecimal values for the database password and access keys. Hex is
-both strong and safe inside the PostgreSQL connection URL.
-
-Linux:
+Generate every secret separately, as long hex (safe inside the database URL):
 
 ```bash
 openssl rand -hex 32
 ```
 
-PowerShell:
-
 ```powershell
 -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Maximum 256) })
 ```
 
-Generate separate values for `POSTGRES_PASSWORD`, `MCP_ACCESS_KEY`, and—if you
-enable it—`MCP_OPEN_KEY`. Never reuse `MCP_ACCESS_KEY` as `MCP_OPEN_KEY`: URL
-keys are stored in client configuration and may reach proxy logs, while the
-full key unlocks the vault.
+`MCP_ACCESS_KEY`, `MCP_OPEN_KEY` and `MCP_READ_KEY` must be three different
+values. A URL key ends up in client configs and proxy logs; the full key unlocks
+the vault; a read-only client given the open key could write on 8791.
 
-For a LAN-only server at a documentation address such as `192.0.2.41`:
+Leave `LAN_URL` empty: the server learns its LAN address from your first visit to
+port 8790. Set `STATS_TZ` to your IANA time zone, e.g. `Europe/Stockholm`.
 
-```dotenv
-CITATION_BASE_URL=http://192.0.2.41:8790/thoughts
-PUBLIC_URL=
-LAN_URL=
-```
-
-`LAN_URL` should normally remain empty. The server learns its usable LAN address
-when the full UI is visited; set `LAN_URL` only when you want to force a specific
-hostname. If you have a public reverse proxy, use its HTTPS address instead:
-
-```dotenv
-CITATION_BASE_URL=https://brain.example.net/thoughts
-PUBLIC_URL=https://brain.example.net
-LAN_URL=
-```
-
-The remaining variables are optional. Leave `MQTT_URL` empty unless Home
-Assistant integration is wanted. Set `STATS_TZ` to the installation's IANA time
-zone, for example `Europe/Stockholm` or `America/New_York`.
-`CHANGE_LOG_DELETED_DAYS` (default 30) is how long a deleted memory stays
-restorable, and `RECALL_HINT_FLOOR` (default 0.5) tunes the optional Claude Code
-hook in `tools/hooks/`; a floor saved on the **Models** card wins over it.
-
-`OPENROUTER_API_KEY` is the only provider most installations need. Other
-providers — OpenAI, Ollama, a custom OpenAI-compatible server — can be set up
-either here (`OPENAI_API_KEY`, `OLLAMA_URL`, `CUSTOM_AI_URL` and
-`CUSTOM_AI_KEY`) or later on the **Models** card of the Connect page, which is
-also where the embedding, metadata and contradiction models are chosen. To type
-keys on that card, set `SETTINGS_KEY` to a long random value first (generate it
-like the access keys above); it seals the stored keys, and losing it means
-entering them again.
+Model providers other than OpenRouter (OpenAI, Ollama, any OpenAI-compatible
+server) can be configured in `.env` or later on the **Models** card of the
+Connect page. The card is also where the embedding, metadata and contradiction
+models and the search thresholds are chosen; a value saved there wins over
+`.env`.
 
 ## 3. Start the stack
 
-From the repository root:
+From the repository root (the same commands work in PowerShell):
 
 ```bash
 docker compose config --quiet
@@ -262,186 +174,138 @@ docker compose ps
 docker compose logs --tail=100 app
 ```
 
-The first start downloads images, builds the application and initializes the
-database. Later starts reuse the named volume. Wait until `valv-db` is healthy
-and `valv-app` is running.
-
-On Windows, the same commands work in PowerShell:
-
-```powershell
-docker compose config --quiet
-docker compose up -d --build
-docker compose ps
-docker compose logs --tail=100 app
-```
-
-Open <http://localhost:8790> on Docker Desktop, or
-`http://<server-LAN-address>:8790` on a server, and sign in with
-`MCP_ACCESS_KEY`.
-
-Verify both listeners on Linux:
+The first start builds the image and creates the database. Wait until `valv-db`
+is healthy and `valv-app` is running, then check the three listeners:
 
 ```bash
-curl -fsS http://127.0.0.1:8790/healthz
-curl -fsS http://127.0.0.1:8791/healthz
+curl -fsS http://127.0.0.1:8790/healthz   # "tier":"full","writable":true
+curl -fsS http://127.0.0.1:8791/healthz   # "tier":"open","writable":true
+curl -fsS http://127.0.0.1:8792/healthz   # "tier":"open","writable":false
 ```
 
-On Windows, use `curl.exe` to avoid PowerShell's historical `curl` alias:
-
-```powershell
-curl.exe -fsS http://127.0.0.1:8790/healthz
-curl.exe -fsS http://127.0.0.1:8791/healthz
-```
-
-The first response should identify the `full` listener and the second the
-`open` listener.
+On Windows use `curl.exe`. Open `http://<server>:8790` (or
+<http://localhost:8790>) and sign in with `MCP_ACCESS_KEY`. Then go to
+**Connect** to hook up your first model; [HowToUse.md](HowToUse.md) explains the
+choices.
 
 ## 4. Network and reverse proxy
 
-Keep port `8790` reachable only from trusted LAN or VPN clients. Published
-Docker ports can bypass uncomplicated UFW rules, so enforce this boundary with
-the Proxmox firewall, router/VLAN firewall, or Docker's `DOCKER-USER` chain—not
-with UFW assumptions alone.
+Keep `8790` reachable from trusted LAN or VPN clients only. Published Docker ports
+bypass simple UFW rules, so enforce this in the Proxmox firewall, the router/VLAN
+or Docker's `DOCKER-USER` chain.
 
-Public access is optional. If enabled:
+Public access is optional. To enable it:
 
-1. create a DNS record for a hostname such as `brain.example.net`;
-2. terminate TLS at the reverse proxy;
-3. forward that host to `http://<server-LAN-address>:8791`;
-4. never forward it to `8790`;
-5. use [docs/nginx-brain.conf](docs/nginx-brain.conf) as the nginx/Nginx Proxy
-   Manager template.
+1. Create a DNS name, e.g. `brain.example.net`, and terminate TLS at the proxy.
+2. Forward it to `http://<server>:8791`. **Check that it says 8791, not 8790.**
+3. Start from [docs/nginx-brain.conf](docs/nginx-brain.conf) (nginx or Nginx Proxy
+   Manager).
 
-If forward authentication such as Authelia protects the web UI, `/mcp` must
-bypass the interactive login because MCP clients authenticate with bearer keys.
-The same applies to `/openapi.json` and `/tools/`, used by OpenAPI tool servers
-such as Open WebUI: behind forward auth they would receive the login page's HTML
-instead of JSON. The OAuth discovery paths in the supplied nginx configuration
-deliberately return `404`, allowing clients to fall back cleanly when no OAuth
-server exists.
+If an authenticator such as Authelia protects the web UI:
 
-Leave CORS to the application. It emits the headers itself for the origins in
-`CORS_ORIGINS`; an `add_header Access-Control-Allow-Origin` in the proxy on top
-of that produces a duplicate header, which browsers reject outright.
+- `/mcp`, `/openapi.json` and `/tools/` must bypass it. Those clients send a
+  bearer key and cannot complete a login page.
+- `/.well-known/oauth-*` must answer **404**. Behind forward auth those paths
+  redirect to a login page that answers 200, and an MCP client then tries to
+  register with an OAuth server that does not exist.
+- `/mcp` needs `proxy_buffering off` (MCP keeps a stream open).
 
-Do not publish the open-tier web UI without deciding how it will be protected.
-The supplied nginx example puts the UI behind forward authentication. Without
-such an authenticator, proxy only `/mcp` and `/healthz`, or keep port `8791`
-private; otherwise browser sign-in would send the full `MCP_ACCESS_KEY` through
-the public endpoint even though that listener can return only open-tier data.
+The template does all three. Leave CORS to the application: a proxy
+`add_header Access-Control-Allow-Origin` on top of the app's own header makes a
+duplicate, which browsers reject.
+
+Do not publish the open-tier web UI without an authenticator. Without one, proxy
+only `/mcp` and `/healthz`, or keep 8791 private.
+
+For port 8792, forward a second hostname to it the same way.
 
 ## 5. Backups
 
-Container images are disposable; the named database volume is not. Back up the
-database even when the Proxmox guest or Docker Desktop data disk is also backed
-up.
-
-`backup.sh` creates a compressed logical `pg_dump`, validates it and retains ten
-copies. It defaults to `/home/mimer/valv-backups`; override `BACKUP_DIR` when the
-service account has a different home directory.
+The image is disposable; the volume is not. `backup.sh` takes a gzipped
+`pg_dump`, checks that it is valid and contains the `thoughts` data, and only then
+rotates out old dumps, keeping the newest ten.
 
 ```bash
 chmod +x backup.sh restore.sh
 BACKUP_DIR="$HOME/valv-backups" ./backup.sh
-ls -lh "$HOME/valv-backups/"
 ```
 
-Example nightly cron entry:
+Nightly, with cron:
 
 ```cron
 10 0 * * * BACKUP_DIR=/home/mimer/valv-backups /home/mimer/mimers-brain/backup.sh >> /home/mimer/valv-backups/backup.log 2>&1
 ```
 
-Replace `/home/mimer` in all three places if the installation uses another
-service account. If `POSTGRES_USER` or `POSTGRES_DB` was changed from the
-example defaults, also set `DB_USER` or `DB_NAME` in the cron command.
+Adjust the paths to your user. Variables: `BACKUP_DIR` (default
+`/home/mimer/valv-backups`), `BACKUP_KEEP` (10), and `DB_USER` / `DB_NAME` if you
+changed `POSTGRES_USER` / `POSTGRES_DB`.
 
-Test restoring before the backup is needed. `restore.sh` replaces the current
-database contents, so read the script and take a fresh backup before using it:
+Restore replaces the whole database. Take a fresh backup first:
 
 ```bash
 ./restore.sh "$HOME/valv-backups/valv-YYYYMMDD-HHMM.sql.gz"
 ```
 
-## 6. Updating
+It prints the row count before and after. A logical dump also allows partial
+restores, e.g. one memory, which a VM image cannot.
 
-Keep `.env` and the Docker volume in place. From the existing checkout:
+## 6. Updating
 
 ```bash
 cd ~/mimers-brain
 BACKUP_DIR="$HOME/valv-backups" ./backup.sh
 git pull --ff-only
 docker compose up -d --build
-docker compose ps
 docker compose logs --tail=100 app
 ```
 
-The application applies required schema additions at startup, including for an
-existing volume. The SQL under `db/init.sql` runs only when a brand-new database
-volume is created.
-
-On Docker Desktop, run the equivalent commands in PowerShell and omit
-`./backup.sh` unless Bash is available; take a Docker Desktop or logical database
-backup first.
+The app adds any new tables and columns at startup. `db/init.sql` runs only when
+a new, empty volume is created.
 
 ## Troubleshooting
 
-### The build fails during `npm install` inside an LXC
+**The build fails in `npm install` inside an LXC.** Search the log for
+`runc run failed` / `unable to apply apparmor profile`. Apply the host setting in
+[Option A](#option-a-proxmox-ve-unprivileged-ubuntu-lxc). Changing npm registries
+does not help.
 
-Search the complete output for `runc run failed` and `unable to apply apparmor
-profile`. If present, apply the Proxmox-host AppArmor setting in Option A and
-restart the LXC. Changing npm registries will not fix this error.
+**The UI works but semantic search does not.** No embedding provider is
+configured. Set `OPENROUTER_API_KEY` (or a provider on the Models card) and run
+`docker compose up -d`. Listing and text search work without one.
 
-### The UI opens, but semantic search does not work
+**A changed `.env` value has no effect.** Run `docker compose up -d` to recreate
+the container. A *new* variable must also be listed under `app.environment` in
+`docker-compose.yml`, or it never reaches the container.
 
-Check that `OPENROUTER_API_KEY` is set and that the app was recreated after the
-change:
-
-```bash
-docker compose up -d
-docker compose logs --tail=100 app
-```
-
-Without embeddings, list and text search still work, but semantic search does
-not.
-
-### The database suddenly appears empty
-
-Stop before writing new data. Check that `name: mimers-valv` is still present at
-the top of `docker-compose.yml` and inspect the volumes:
+**The database looks empty.** Stop writing. Check that `name: mimers-valv` is
+still at the top of `docker-compose.yml`, then:
 
 ```bash
 docker volume ls | grep valv
-docker compose config | grep -A4 volumes
 ```
 
-A changed Compose project name can attach a new empty volume while the original
-still exists. Do not delete either volume until the correct one is identified.
+A changed project name attaches a new, empty volume while the old one still
+exists. Delete nothing until you know which is which.
 
-### A changed `.env` value is ignored
-
-Compose must recreate the application container for environment changes:
-
-```bash
-docker compose up -d
-```
-
-Developers adding a new variable must also pass it under `app.environment` in
-`docker-compose.yml`; merely adding a line to `.env` does not automatically put
-it inside the container.
-
-### Useful diagnostics
+**Diagnostics:**
 
 ```bash
 docker compose ps
 docker compose logs --tail=200 app db
-docker inspect valv-app --format '{{.State.Status}}'
 docker exec valv-db pg_isready
 ```
 
-## Primary platform documentation
+**Checking the tier boundary.** `test-isolation.ps1` checks that the open and
+read-only ports cannot reach the vault or write where they must not. It reads
+the keys from `.env`; `-HostName` points it at another machine.
 
-- [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
-- [Install the Docker Compose plugin](https://docs.docker.com/compose/install/linux/)
-- [Install Docker Desktop](https://docs.docker.com/desktop/)
-- [Proxmox Container Toolkit (`pct`)](https://pve.proxmox.com/pve-docs/pct.1.html)
+```powershell
+.\test-isolation.ps1          # read-only checks
+.\test-isolation.ps1 -Write   # full canary suite; test rows are removed afterwards
+```
+
+## Platform documentation
+
+- [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
+- [Docker Desktop](https://docs.docker.com/desktop/)
+- [Proxmox `pct`](https://pve.proxmox.com/pve-docs/pct.1.html)

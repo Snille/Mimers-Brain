@@ -42,6 +42,17 @@ minnen och behöll varje texts språk. Och knapparna på Models-kortet var dolda
 tills pekaren var över kortet, eftersom `.card .actions` vann över kortets egen
 regel; nu visas de alltid.
 
+Dokumentationen kontrollerades mot koden och skrevs om kortare. README är nu en
+översikt med en tabell över verktyg per port; designdetaljerna flyttade till
+`docs/how-it-works.md` och MQTT-sensorerna till `docs/home-assistant.md`;
+installation och anslutning finns var och en på ett ställe. Kontrollen hittade
+verklig glidning: `MQTT_UNREPORTED_FAULT` var dokumenterad men skickades aldrig
+till containern och hade alltså ingen verkan; `CORS_ORIGINS` och
+`OLLAMA_API_KEY` saknades i `.env.example`; HowToUse väntade sig sex verktyg där
+det finns tio, påstod att ändrade taggar inte bäddas in igen (det gör de), och
+importguiden talade fortfarande om inloggningsuppgifter i valvrader, vilket
+servern vägrat sedan 0.9.26.
+
 ## 2026-10-18 — 0.15.0: hjärnan går att stänga av, och gammalt väntande är historik
 
 Kortet **Tillit och granskningsstatus** visade 45 minnen som väntande medan

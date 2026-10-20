@@ -10,12 +10,12 @@ services:
     container_name: valv-db
     restart: unless-stopped
     # Required inside an unprivileged Proxmox LXC: the container cannot apply an
-    # AppArmor profile. Harmless elsewhere. See README "Docker i LXC".
+    # AppArmor profile. Harmless elsewhere. See install.md, Option A.
     security_opt:
       - apparmor=unconfined
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mimer}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?sätt POSTGRES_PASSWORD i .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-valv}
     volumes:
       - valv-data:/var/lib/postgresql/data
@@ -83,6 +83,7 @@ services:
       MQTT_DISCOVERY_PREFIX: ${MQTT_DISCOVERY_PREFIX:-homeassistant}
       MQTT_INTERVAL_S: ${MQTT_INTERVAL_S:-60}
       MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-}
+      MQTT_UNREPORTED_FAULT: ${MQTT_UNREPORTED_FAULT:-5}
       PORT_FULL: 8790
       PORT_OPEN: 8791
       PORT_READ: 8792

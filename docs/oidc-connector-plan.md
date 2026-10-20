@@ -1,7 +1,7 @@
 # Plan: OIDC sign-in for the open tier
 
 **Status: not built.** This is a design kept on the shelf. The shipped solution
-is `MCP_OPEN_KEY` as a URL parameter — see *Authentication* in the README. Build
+is `MCP_OPEN_KEY` as a URL parameter — see *Authentication* in [how-it-works.md](how-it-works.md#authentication). Build
 this instead when more than one client needs real user identity, or when handing
 out a shared key stops being acceptable.
 

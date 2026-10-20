@@ -2,240 +2,98 @@
 
 *[Svenska](HowToUse.sv.md)*
 
-How to connect an AI model to the memory, and how to set everything up again if a
-machine has to be reinstalled.
+How to connect a model to the memory, what to put in it, and how to reconnect
+after a reinstall. Installing the server is in [install.md](install.md).
 
-> **The web interface does this for you.** Open the memory in a browser and go to
-> **Connect**: the same instructions as below, but rendered with the running
-> instance's own addresses, keys and tool list, with copy buttons. This document
-> explains *why* each setting is what it is, and covers the parts a page cannot —
-> rebuilding the server, the reverse proxy, a reinstalled laptop. Start with the
-> page; come here when something does not behave.
+> **Start with the Connect page.** Open the web UI and go to **Connect**: the
+> same instructions as below, filled in with your instance's addresses, keys and
+> tool list, with copy buttons. This document explains the choices and covers
+> what the page cannot.
 
----
+## Pick an address
 
-## What it is, briefly
+| Address | Reaches | Use for |
+| --- | --- | --- |
+| `http://192.0.2.41:8790/mcp` | open **+ vault** | your own clients on the LAN or VPN |
+| `https://brain.example.net/mcp` | open only | everything else, including cloud-run clients |
+| `http://192.0.2.41:8792/mcp` | open, **read only** | a model that should look things up but not write |
 
-Mimers Brain is an **MCP server** (Model Context Protocol) — a standard way for a
-language model to call tools. These are its tools:
-
-| Tool | What it does |
+| Key | Opens |
 | --- | --- |
-| `memory_digest` | Call once at session start: the standing rules and preferences you confirmed, pinned on the Thoughts page |
-| `search_thoughts` | Search by meaning, not words. This is the important one. |
-| `list_thoughts` | List recent memories, filtered by type, topic, person, time |
-| `capture_thought` | Save a new memory; an optional `title` replaces the one the server would write |
-| `supersede_thought` | Replace memories and keep the old ones as history; takes the same optional `title` (trusted LAN connection only) |
-| `preview_ingest` + `apply_ingest` | Preview and save approved atomic memories from long source text |
-| `report_memory_usage` | Report which recalled ids materially influenced the answer, without query content |
-| `review_memory` | Confirm, keep as evidence, mark stale or reject agent-authored memories (trusted LAN connection only) |
-| `thought_stats` | Totals, types, topics, people |
-| `search` + `fetch` | The same thing in the shape ChatGPT and Gemini expect |
-| `delete_thought` | LAN listener only |
+| `MCP_ACCESS_KEY` | 8790 and 8791, as a bearer header |
+| `MCP_OPEN_KEY` | 8791 only, as `?key=` in the URL, for clients without a header field |
+| `MCP_READ_KEY` | 8792 only, as a header or `?key=` |
 
-Agent-written memories are evidence by default. A client may set
-`user_confirmed=true` only when you directly confirmed or requested that exact
-memory. Text of 1,200 characters or more goes through `preview_ingest` and an
-approval step instead of being stored as one transcript-sized memory. Every write
-path refuses text that looks like a credential (private keys, API keys, tokens,
-`password: ...`) before it reaches the metadata model, the embedder or the
-database; save a SECRET_REF pointer instead. Search results older than six
-months since verification carry an `AGE` note, and memories that are returned
-often but never used are listed under **Rarely useful** on the Review page.
+The open address cannot reach the vault however it is called, so any external
+model can be pointed at it safely.
 
-Anything that speaks MCP can therefore use the memory — you do not build
-something per model.
+**Decide deliberately before giving a cloud model the vault.** The vault address
+works from any client running on your machine, but every vault memory a search
+returns goes into the model's context and so to the model provider. Point a
+client at the open address when that matters.
 
-`search_thoughts` returns a `trace_id` (and the same value as `request_id` for
-older clients). Once the answer is complete, the client should send that
-`trace_id` to `report_memory_usage` together with the returned memory ids it
-used and ignored. **Every search with results gets its own receipt:** three
-searches require three separate reports, including a search whose results were
-all ignored. Without that receipt, the search appears as **awaiting report** and
-becomes overdue after ten minutes.
+On the read-only port the model is told it cannot save anything, so it asks you
+instead of promising to remember.
 
-`fetch` and `fetch_thought` may deliberately retrieve a historical id. Their
-responses therefore place `lifecycle`, `is_current`, `superseded_by` and any
-freshness warning before the long memory text. When `superseded_by` is present,
-the client should fetch that id before using the record as current knowledge.
-
----
-
-## The three addresses
-
-This is the only detail that really matters:
-
-| Address | Contents | Use when |
-| --- | --- | --- |
-| `http://192.0.2.41:8790/mcp` | open **+ vault** | on the LAN or over VPN |
-| `https://brain.example.net/mcp` | **open only** | everything else, and every other model |
-| `http://192.0.2.41:8792/mcp` | open, **read only** | a model that may look things up but must not change anything |
-
-The vault — sensitive context and SECRET_REF pointers, never raw secret values — is served only by the first. This is not a
-setting that can be switched on for the second: the MCP server on 8791 is built
-entirely without the ability to reach those rows, so no header, parameter or path
-can lift them out. That is why you can point any external model at the public
-hostname without thinking about it.
-
-The third address is the same open knowledge with every writing tool removed.
-It exists because a less capable model rarely handles a memory well: it saves
-what the repository already records, writes down its own reasoning, and never
-supersedes the entry it has just contradicted. Rather than ask it to behave, that
-port never registers `capture_thought`, `preview_ingest`, `apply_ingest`,
-`review_memory`, `supersede_thought` or `delete_thought`. The model can search,
-list, fetch and read statistics, and it is told plainly in its connection scope
-that it cannot remember anything, so it asks you to save instead of promising to.
-
-The first two require `MCP_ACCESS_KEY` as a bearer token. The read-only one takes
-`MCP_READ_KEY` — a third, separate value, in the `Authorization` header or as
-`?key=` on the URL for clients with no header field. Keep it separate on purpose:
-give a read-only client the open key and it can simply write on 8791 instead. To
-reach 8792 from outside, forward a second hostname to it in Nginx Proxy Manager,
-exactly as you did for 8791.
-
-### A read-only client
-
-```bash
-claude mcp add --transport http mimers-brain-read http://192.0.2.41:8792/mcp --header "Authorization: Bearer <READ-KEY>"
-```
-
-```bash
-curl -s -X POST http://192.0.2.41:8792/tools/thought_stats -H "Authorization: Bearer <READ-KEY>" -H "Content-Type: application/json" -d '{}'
-```
-
-The Connect page in the web interface fills both in with this instance's own
-address and key.
-
-### Where the key lives
-
-```bash
-ssh <server> 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
-ssh <server> 'grep ^MCP_READ_KEY= ~/mimers-brain/.env | cut -d= -f2'
-```
-
----
-
-## Connecting a model
-
-### Claude Code and Claude Desktop are two different clients
-
-The desktop app holds both, which is where most of the confusion starts. The
-*Code* pane is Claude Code; the chat pane is Claude Desktop. They keep their MCP
-servers in separate registries and neither one sees the other's:
-
-| Client | Registry | Set up through |
-| --- | --- | --- |
-| Claude Code (the *Code* pane) | `~/.claude.json` | `claude mcp add`, or edit the file |
-| Claude Desktop (chat) | account connectors, `claude_desktop_config.json` | *Settings → Connectors* |
-
-A memory that answers in a Code session therefore says nothing about the chat
-side, and an empty Connectors list is not a fault — just a registry nobody has
-written to.
+## Connect a client
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <KEY>"
+claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <MCP_ACCESS_KEY>"
 ```
 
-Or edit `~/.claude.json` directly — under `mcpServers` at the top level:
+This writes to `~/.claude.json` under `mcpServers`. Adding the public address as a
+second entry (`mimers-brain-remote`) keeps the open tier available off the home
+network. New sessions pick up the change.
 
-```json
-"mimers-brain": {
-  "type": "http",
-  "url": "http://192.0.2.41:8790/mcp",
-  "headers": { "Authorization": "Bearer <KEY>" }
-}
-```
+Optional: the [recall hook](tools/hooks/README.md) brings relevant memories to
+each prompt without the model having to search.
 
-Consider registering **both** addresses as two entries (`mimers-brain` and
-`mimers-brain-remote`). The memory then still works when the laptop is off the
-home network — open tier only, but better than nothing.
+**Claude Code and Claude Desktop are separate clients**, even inside the same
+desktop app. The *Code* pane uses `~/.claude.json`; the chat pane uses account
+connectors. A server added to one does not appear in the other.
 
-The change takes effect in the next session.
-
-### VS Code (Codex)
-
-The editor opens the connection itself, from your machine — so the LAN address
-works and you get the **whole** vault, `delete_thought` included. Which model
-answers is irrelevant to reachability; a cloud model does not change where the
-MCP client runs.
-
-It does change where the *contents* go. Every vault row a tool returns is placed
-in the context and sent to the model provider on the next turn. The tier split
-exists to keep keys off third-party clouds, and pointing an editor at 8790 sends
-them there the moment a search happens to match a vault row. Worth deciding
-deliberately rather than discovering later. Point it at the public hostname
-instead and the question does not arise.
+### Codex (VS Code)
 
 ```bash
 codex mcp add mimers-brain --url http://192.0.2.41:8790/mcp --bearer-token-env-var MIMERS_VALV_KEY
 ```
 
-That writes `[mcp_servers.mimers-brain]` into `~/.codex/config.toml`. The key
-itself stays out of the file — Codex reads it from the named environment
-variable at launch, so set that as a user-level variable and restart the editor
-so the extension host inherits it.
+This writes `[mcp_servers.mimers-brain]` to `~/.codex/config.toml`. The key stays
+out of the file: set `MIMERS_VALV_KEY` as a user environment variable and restart
+VS Code. The `codex` binary ships inside the extension
+(`~/.vscode/extensions/openai.chatgpt-*/bin/<platform>/codex`); check with
+`codex mcp list`. If Codex ignores server instructions, put the memory policy
+from the Connect page in `~/.codex/AGENTS.md`.
 
-The `codex` binary ships inside the VS Code extension rather than on `PATH`; on
-Windows it is under
-`~/.vscode/extensions/openai.chatgpt-*/bin/windows-x86_64/codex.exe`. Verify with
-`codex mcp list`.
+### Claude Desktop (chat)
 
-### Claude Desktop (the chat side)
+Add a custom connector under *Settings → Connectors*. Two limits apply: the URL
+must be **https**, and the connection is made from Anthropic's servers, not your
+machine. So chat can reach the **open tier only**, through the public hostname.
+The dialog has no header field, so the key goes in the URL:
 
-Remote MCP servers go in under *Settings → Connectors*, as a custom connector.
-Menu wording moves between versions, so navigate by *connector* and *custom*
-rather than an exact path.
-
-Two limits decide what is actually possible there:
-
-- The URL field takes **https only**. The LAN address is plain http and cannot be
-  entered at all.
-- The connector is opened from Anthropic's infrastructure, not from your machine,
-  so a private address stays unreachable even if you give it an https name.
-
-Which means **the vault tier cannot be reached from the chat side** — and that is
-the design holding, not a limitation to work around. 8790 is never exposed
-outward; that rule is the whole point of the split. What belongs in a connector
-is the public hostname, giving chat the open tier.
-
-The dialog has no field for a header either — only OAuth Client ID and Secret.
-Given a URL it cannot authenticate to, the client falls back to the OAuth flow and
-fails with a message about not being able to register with the sign-in service.
-So the key rides in the URL instead:
-
-```
+```text
 https://brain.example.net/mcp?key=<MCP_OPEN_KEY>
 ```
 
-`MCP_OPEN_KEY` is a second key that only the open listener honours, and it must
-not be the same value as `MCP_ACCESS_KEY` — see *Authentication* in the
-[README](README.md) for why. Set it in `.env` and restart.
-
-**If there is an authenticator in front, one more thing is needed.** The client
-asks for OAuth metadata before it sends any JSON-RPC. Behind forward auth those
-paths answer 302 to the login page, which answers 200 — so the client decides an
-authorization server exists, tries to register with it, and fails with *couldn't
-register with the sign-in service*. The URL key never gets a chance, because the
-request it would have authenticated is never made. The proxy has to answer 404
-there instead; the block is in [docs/nginx-brain.conf](docs/nginx-brain.conf).
-Check it with:
+If an authenticator is in front, the proxy must answer **404** on
+`/.well-known/oauth-*`, or the connector fails with *couldn't register with the
+sign-in service*. Check:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://brain.example.net/.well-known/oauth-authorization-server
 ```
 
-404 is correct. A 302 means the connector will fail no matter what key you give
-it. If you would rather
-have real sign-in than a shared key, the design for that is in
-[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md); it needs an OIDC
-provider, which is why it is not the default.
+`404` is right; `302` means the connector will fail. The template in
+[docs/nginx-brain.conf](docs/nginx-brain.conf) handles this.
 
-If you do want the vault in chat, bridge it locally instead of opening a port.
-[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) runs as a stdio server
-on your own machine, so it reaches the LAN address over plain http and adds the
-header itself:
+To use the vault from chat anyway, bridge locally with
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) in
+`claude_desktop_config.json` (`%APPDATA%\Claude\` on Windows) and restart the
+app. Not every version reads this file; if the server never appears, keep vault
+work in Claude Code.
 
 ```json
 {
@@ -243,199 +101,125 @@ header itself:
     "mimers-brain": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://192.0.2.41:8790/mcp",
-               "--header", "Authorization: Bearer <KEY>"]
+               "--header", "Authorization: Bearer <MCP_ACCESS_KEY>"]
     }
   }
 }
 ```
 
-On Windows that file is at `%APPDATA%\Claude\claude_desktop_config.json`; restart
-the app afterwards. Whether a given version still reads `mcpServers` from that
-file varies — if the server never appears, keep vault work on the Code side and
-let chat have the open tier. That split costs little, since the Code side is
-where the vault is usually needed anyway.
+### ChatGPT, Gemini and other MCP clients
 
-### ChatGPT
+Use the public address with a bearer header. Clients that expect a simple
+search-and-fetch pair get `search` and `fetch`. Never give a cloud client the
+8790 address.
 
-ChatGPT reads MCP servers as connectors and expects the server to provide
-`search` and `fetch` — which exist for exactly this. Point it at the public
-hostname with the same bearer header. **Never** use the 8790 address here: it is
-not reachable from outside, and if it ever became so the vault would be exposed
-to a third party.
+### Open WebUI and other OpenAPI clients
 
-### Gemini and others
-
-Same principle: a remote MCP server over HTTP with a bearer token. Anything that
-follows the spec works. The `search`/`fetch` pair exists for clients that expect
-the simpler search-and-fetch model instead of the named tools.
-
-### Open WebUI, and anything else that speaks OpenAPI instead of MCP
-
-Open WebUI's external tool servers do not speak MCP at all — they read an
-OpenAPI document and call plain REST. Mimers Brain therefore describes itself as
-well, on the same two listeners and behind the same key:
+Open WebUI's tool servers speak OpenAPI, not MCP. The same tools are served as
+REST on every listener:
 
 | | |
 | --- | --- |
-| `GET /openapi.json` | the document; no key required |
-| `POST /tools/<name>` | one endpoint per tool, bearer key required |
+| `GET /openapi.json` | the description; no key needed |
+| `POST /tools/<name>` | one endpoint per tool; bearer key required |
 
-The tools are the same memory as `/mcp` with the same tier rule — the open
-listener still cannot reach a vault row. `search`/`fetch` are not repeated here;
-they exist for MCP clients that expect that pair. The OpenAPI side has
-`fetch_thought` instead, and `delete_thought` only on 8790.
+In Open WebUI, *Settings → Tools*: add `http://192.0.2.41:8791`, choose bearer
+auth and paste `MCP_ACCESS_KEY`. Then allow the Open WebUI page's origin in `.env`
+and run `docker compose up -d`:
 
-In Open WebUI, under **Settings → Tools**, add a server with the URL
-`http://192.0.2.41:8791` (`openapi.json` is the default path it looks for), pick
-bearer auth and paste the key. The address given here is the LAN one on purpose:
-Open WebUI sits on the same network, and going straight there avoids both the
-proxy and the authenticator.
-
-**CORS.** The dialog's warning is real — the browser fetches the document from
-the page's own origin, so the server has to allow it by name. Put the Open WebUI
-origin in `CORS_ORIGINS` in `.env`, scheme and port included, and restart:
-
-```bash
+```dotenv
 CORS_ORIGINS=http://192.0.2.19:8080,https://llm.example.net
 ```
 
-Empty is the default and means no browser on another origin gets in, which is
-what you want everywhere else. An unlisted origin simply receives no CORS
-headers and the browser refuses the response.
+Through the proxy instead, `/openapi.json` and `/tools/` must bypass forward
+auth; the nginx template does this.
 
-Going through the proxy instead of the LAN address works too, but `/openapi.json`
-and `/tools/` must be exempt from forward auth the same way `/mcp` is — the
-config in `docs/nginx-brain.conf` already does this.
-
-### Checking that it worked
+### A read-only client
 
 ```bash
-curl -s -X POST https://brain.example.net/mcp -H "Authorization: Bearer <KEY>" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+claude mcp add --transport http mimers-brain-read http://192.0.2.41:8792/mcp --header "Authorization: Bearer <MCP_READ_KEY>"
 ```
 
-Six tools in the response means everything works. A `401` means the key is wrong.
-A `302` towards your authenticator means the proxy is sending `/mcp` through
-forward auth, which it must not — see the proxy section below.
+To reach 8792 from outside, forward a second hostname to it.
 
-For the OpenAPI side:
+### Check the connection
 
 ```bash
-curl -s http://192.0.2.41:8791/openapi.json | head -20
-curl -s -X POST http://192.0.2.41:8791/tools/thought_stats -H "Authorization: Bearer <KEY>" -H "Content-Type: application/json" -d '{}'
+curl -s -X POST https://brain.example.net/mcp \
+  -H "Authorization: Bearer <MCP_ACCESS_KEY>" -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
----
+A tool list means it works: 10 tools on the open port, 13 on 8790, 7 on 8792.
+`401` means a wrong key. A `302` to your authenticator means the proxy sends
+`/mcp` through forward auth; it must not.
 
-## The web interface
+## How a model should use the memory
 
-| Address | What you see |
-| --- | --- |
-| `http://192.0.2.41:8790` | everything, including the vault |
-| `https://brain.example.net` | open tier only, behind the authenticator |
+Each client receives a short usage policy when it connects, and the full policy
+from `memory_digest`. The Connect page shows the policy for clients that ignore
+server instructions; paste it into their system or global instructions.
 
-On 8790 you sign in by pasting `MCP_ACCESS_KEY` once; it is traded for a cookie
-that lasts 30 days. From outside the authenticator handles it.
+The essentials:
 
-Hovering a memory reveals **Edit**, which opens the content along with its type,
-topics and people as comma-separated fields. This is how you correct what the
-metadata extractor got wrong — it happily produces two spellings for one topic,
-or a person's full name in some rows and their first name in others, and those
-filter as separate facets in the sidebar. Merging them is a matter of editing the
-text. Topics are lowercased and deduplicated on save; people keep their
-capitalisation, being proper nouns.
-
-Editing tags costs nothing. The embedding is computed from the content, so it is
-only recomputed when the content itself changes.
-
-Besides the list there are **Connect** and **Statistics** in the main menu.
-Connect is this page's setup instructions, filled in with the instance's real
-values. Statistics shows usage over time and per client — but note what it can
-honestly say: MCP reports the client application, not the model answering inside
-it, and the usage log never stores search queries or content. See the README for
-how the Home Assistant MQTT sensors carry the same numbers.
-
----
-
-## If the client machine is reinstalled
-
-The server is unaffected — it is a separate machine with its own backups. Only
-the client side is lost:
-
-1. **SSH key.** Create one and put the public half in `~/.ssh/authorized_keys` on
-   the server. On Windows, create it through `cmd`, not PowerShell:
-
-   ```powershell
-   cmd /c 'ssh-keygen -t ed25519 -C "mimers-brain" -f C:\Users\<you>\.ssh\mimers_brain -N ""'
-   ```
-
-   PowerShell turns `-N '""'` into a passphrase consisting of two literal quote
-   characters, which makes the key unusable unattended. Then add to
-   `~/.ssh/config`:
-
-   ```
-   Host brain
-       HostName 192.0.2.41
-       User <user>
-       IdentityFile ~/.ssh/mimers_brain
-       StrictHostKeyChecking accept-new
-   ```
-
-2. **Fetch the key** with the command near the top.
-
-3. **Register the MCP server** as described above.
-
-That is all. The knowledge lives in the database on the server, not on the
-client.
-
-## If the server has to be rebuilt
-
-```bash
-git clone <this repo> ~/mimers-brain && cd ~/mimers-brain
-cp .env.example .env          # fill in POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
-docker compose up -d --build
-```
-
-Then restore the most recent dump:
-
-```bash
-gunzip -c ~/backups/valv-<latest>.sql.gz | docker exec -i valv-db psql -U <user> -d valv
-```
-
-**A new `MCP_ACCESS_KEY` means every client has to be updated.** To avoid that,
-reuse the old key from a backup of `.env`.
-
-### Docker inside an LXC
-
-An unprivileged Proxmox LXC cannot apply AppArmor profiles, so every container
-start fails — often disguised as an `npm install` error mid-build. Fix it on the
-**host**, not in the container:
-
-```bash
-echo "lxc.apparmor.profile: unconfined" >> /etc/pve/lxc/<vmid>.conf
-pct reboot <vmid>
-```
-
-`security_opt: apparmor=unconfined` stays in the compose file as belt and braces,
-and is harmless afterwards.
-
-### Reverse proxy
-
-The public hostname points at **8791**. The config must give `/mcp` its own
-`location` **without** forward auth, because MCP clients cannot complete an
-interactive login — the bearer key is the protection there. It also needs
-`proxy_buffering off`, because MCP holds an SSE stream open. The complete config
-is in [docs/nginx-brain.conf](docs/nginx-brain.conf).
-
----
+- **Start** a session with `memory_digest`.
+- **Search** with `search_thoughts` before answering about your systems, and
+  before any build, deploy or credential step.
+- **Report** every search that returned results with `report_memory_usage`:
+  its `trace_id` and which ids were used and ignored. Three searches mean three
+  reports. A search without a report shows as *awaiting report*, and as overdue
+  after ten minutes.
+- **Check history.** `fetch` can return a superseded memory; when `superseded_by`
+  is set, fetch that one instead.
+- **Save** only durable, verified knowledge that would change a future answer,
+  one subject per memory. Agent-written memories start as pending evidence until
+  you review them. Set `user_confirmed` only when you approved that exact text.
+- **Correct** with `supersede_thought` rather than adding a contradicting memory.
+- **Long text** (1,200 characters or more) goes through `preview_ingest` and
+  `apply_ingest`.
 
 ## What belongs in the memory
 
-Write each memory as a **standalone statement** that makes sense years later with
-no surrounding context. "It worked" is worthless; "the Lagersystem deploy aborts
-if `data/languages/` differs from origin, because the translation tool writes
-those files live on the server" is useful.
+Write each memory as a **standalone statement** that makes sense years later.
+"It worked" is worthless; "the Lagersystem deploy aborts if `data/languages/`
+differs from origin, because the translation tool writes those files on the
+server" is useful.
 
-Put sensitive context in the **vault**, but store only an exact `SECRET_REF`
-pointer to a key, password, token or private key — never the raw value. Also use
-the vault if it would help an outsider get in. Everything else is open, and open
-is better: it reaches you anywhere and can be used by any model.
+- **Do save:** where things are and how to reach them, decisions and their
+  reasons, procedures, and traps that cost time.
+- **Do not save:** project status, completed work, release notes or session
+  history. Those belong in the repository's README and history files.
+- **Vault:** sensitive context, and `SECRET_REF` pointers to where a key,
+  password or token is kept. Never the value itself; the server refuses
+  credential-shaped text. Everything else is open, which is better: any model can
+  use it from anywhere.
+
+## Editing in the web UI
+
+Hover a memory on **Thoughts** and choose **Edit** to change its text, title,
+summary, kind, lifecycle, task status, project, topics, people, systems, tier or
+verification date, or to pin it into the session digest. Saving re-embeds the memory, since the title and
+summary are part of what search compares. **Copy reference** copies the id and
+title as one line to paste into a chat with a connected model, followed by what
+should change.
+
+## Reconnecting after a reinstall
+
+**A client machine** keeps nothing important: the knowledge is on the server.
+Register the MCP server again, as above. To fetch a key from the server:
+
+```bash
+ssh <server> 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
+```
+
+On Windows, create an SSH key from `cmd`, not PowerShell, which turns `-N '""'`
+into a passphrase of two quote characters:
+
+```powershell
+cmd /c 'ssh-keygen -t ed25519 -C "mimers-brain" -f C:\Users\<you>\.ssh\mimers_brain -N ""'
+```
+
+**The server:** install as in [install.md](install.md), then restore the latest
+dump with `./restore.sh`. Reuse the old `.env` if you have it; a new
+`MCP_ACCESS_KEY` means updating every client.

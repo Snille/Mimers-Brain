@@ -1,240 +1,100 @@
-# Så använder du Mimers Brain
+# Använda Mimers Brain
 
 *[English](HowToUse.md)*
 
-Hur du kopplar en AI-modell till minnet, och hur du sätter upp allt igen om en
-maskin behöver installeras om.
+Hur du ansluter en modell till minnet, vad som ska in i det, och hur du ansluter
+igen efter en ominstallation. Installationen av servern finns i
+[install.md](install.md).
 
-> **Webbgränssnittet gör det här åt dig.** Öppna minnet i en webbläsare och gå
-> till **Anslut**: samma anvisningar som nedan, fast återgivna med den körande
-> instansens egna adresser, nycklar och verktygslista, med kopieringsknappar. Det
-> här dokumentet förklarar *varför* varje inställning ser ut som den gör, och
-> täcker det en sida inte kan — att bygga om servern, reverse proxyn, en
-> ominstallerad laptop. Börja med sidan; kom hit när något inte beter sig.
+> **Börja med sidan Anslut.** Öppna webbgränssnittet och gå till **Anslut**:
+> samma instruktioner som nedan, ifyllda med din instans adresser, nycklar och
+> verktygslista, med kopieringsknappar. Det här dokumentet förklarar valen och
+> tar upp det som sidan inte kan.
 
----
+## Välj adress
 
-## Vad det är, kort
+| Adress | Når | Använd för |
+| --- | --- | --- |
+| `http://192.0.2.41:8790/mcp` | öppet **+ valv** | dina egna klienter på LAN eller VPN |
+| `https://brain.example.net/mcp` | bara öppet | allt annat, även klienter som körs i molnet |
+| `http://192.0.2.41:8792/mcp` | öppet, **bara läsning** | en modell som ska slå upp men inte skriva |
 
-Mimers Brain är en **MCP-server** (Model Context Protocol) — ett standardiserat
-sätt för en språkmodell att anropa verktyg. Det här är dess verktyg:
-
-| Verktyg | Vad det gör |
+| Nyckel | Öppnar |
 | --- | --- |
-| `memory_digest` | Anropas en gång när sessionen startar: de regler och preferenser du har bekräftat och fäst på sidan Tankar |
-| `search_thoughts` | Sök på betydelse, inte ord. Det här är det viktiga. |
-| `list_thoughts` | Lista senaste, med filter på typ, ämne, person, tid |
-| `capture_thought` | Spara ett nytt minne; en valfri `title` ersätter den titel servern annars skriver |
-| `supersede_thought` | Ersätt minnen och behåll de gamla som historik; tar samma valfria `title` (endast betrodd LAN-anslutning) |
-| `preview_ingest` + `apply_ingest` | Förhandsgranska och spara godkända atomära minnen ur längre källtext |
-| `report_memory_usage` | Rapportera vilka återkallade id:n som påverkade svaret, utan frågeinnehåll |
-| `review_memory` | Bekräfta, behåll som evidens, markera gammalt eller avvisa agentgenererade minnen (endast betrodd LAN-anslutning) |
-| `thought_stats` | Totaler, typer, ämnen, personer |
-| `search` + `fetch` | Samma sak i det format ChatGPT och Gemini förväntar sig |
-| `delete_thought` | Endast på LAN-porten |
+| `MCP_ACCESS_KEY` | 8790 och 8791, som bearer-header |
+| `MCP_OPEN_KEY` | bara 8791, som `?key=` i adressen, för klienter utan headerfält |
+| `MCP_READ_KEY` | bara 8792, som header eller `?key=` |
 
-Agentens egna minnen är evidens som standard. En klient får bara sätta
-`user_confirmed=true` när du direkt bekräftade eller bad om just det minnet. Text
-på 1 200 tecken eller mer går genom `preview_ingest` och ett godkännandesteg i
-stället för att sparas som ett enda transkriptstort minne. Varje väg som sparar
-stoppar text som ser ut som en hemlighet (privata nycklar, API-nycklar, tokens,
-`password: ...`) innan den når metadatamodellen, inbäddningen eller databasen;
-spara en SECRET_REF-pekare i stället. Sökträffar som inte verifierats på sex
-månader får en `AGE`-notering, och minnen som ofta hittas men aldrig används
-listas under **Sällan till nytta** på sidan Granska.
+Den öppna adressen kan inte nå valvet hur den än anropas, så vilken extern modell
+som helst kan pekas dit.
 
-Allt som talar MCP kan alltså använda minnet — du behöver inte bygga något per
-modell.
+**Bestäm medvetet innan du ger en molnmodell valvet.** Valvadressen fungerar från
+alla klienter som körs på din dator, men varje valvminne en sökning returnerar
+hamnar i modellens kontext och därmed hos modelleverantören. Peka klienten mot
+den öppna adressen när det spelar roll.
 
-`search_thoughts` returnerar ett `trace_id` (samt samma värde som
-`request_id` för äldre klienter). När svaret är färdigt ska klienten skicka
-`trace_id` till `report_memory_usage` tillsammans med de returnerade minnes-ID:n
-som användes respektive ignorerades. **Varje sökning med träffar får ett eget
-kvitto:** gör klienten tre sökningar krävs tre separata rapporter, även för en
-sökning där alla träffar ignorerades. Utan kvittot visas sökningen som **väntar
-på rapport** och räknas som försenad efter tio minuter.
+På läsporten får modellen veta att den inte kan spara något, så den ber dig i
+stället för att lova att komma ihåg.
 
-`fetch` och `fetch_thought` kan medvetet hämta ett historiskt ID. Därför kommer
-`lifecycle`, `is_current`, `superseded_by` och en eventuell aktualitetsvarning
-före den långa minnestexten i svaret. Om `superseded_by` finns ska klienten hämta
-det ID:t innan den använder posten som aktuell kunskap.
-
----
-
-## De tre adresserna
-
-Det här är den enda detalj som verkligen betyder något:
-
-| Adress | Innehåll | Använd när |
-| --- | --- | --- |
-| `http://192.0.2.41:8790/mcp` | öppet **+ valvet** | du är hemma eller på VPN |
-| `https://brain.example.net/mcp` | **endast öppet** | allt annat, och alla andra modeller |
-| `http://192.0.2.41:8792/mcp` | öppet, **endast läsning** | en modell som får slå upp saker men inte ändra något |
-
-Valvet — känslig kontext och SECRET_REF-pekare, aldrig råa hemliga värden — serveras bara av den första. Det är inte en
-inställning som går att slå på för den andra: MCP-servern på 8791 byggs helt utan
-förmågan att nå de raderna, så ingen header, parameter eller sökväg kan lyfta ut
-dem. Därför kan du peka vilken extern modell som helst på `brain.example.net` utan
-att fundera.
-
-Den tredje adressen är samma öppna kunskap med varje skrivande verktyg borttaget.
-Den finns därför att en mindre kapabel modell sällan sköter ett minne: den sparar
-det som redan står i repot, skriver ner sitt eget resonemang och ersätter aldrig
-posten den just motsagt. I stället för att be den sköta sig registrerar den porten
-aldrig `capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
-`supersede_thought` eller `delete_thought`. Modellen kan söka, lista, hämta och
-läsa statistik, och den får rakt ut veta i sin anslutningsbeskrivning att den inte
-kan minnas något — så den ber dig spara i stället för att lova att den gör det.
-
-De två första kräver `MCP_ACCESS_KEY` som bearer-token. Den läsbara tar
-`MCP_READ_KEY` — ett tredje, eget värde, i `Authorization`-huvudet eller som
-`?key=` i URL:en för klienter utan fält för huvuden. Håll den skild med flit: ger
-du en läsande klient den öppna nyckeln kan den lika gärna skriva på 8791. För att
-nå 8792 utifrån: peka ett andra värdnamn mot den i Nginx Proxy Manager, precis som
-du gjorde för 8791.
-
-### En läsande klient
-
-```bash
-claude mcp add --transport http mimers-brain-read http://192.0.2.41:8792/mcp --header "Authorization: Bearer <LÄSNYCKEL>"
-```
-
-```bash
-curl -s -X POST http://192.0.2.41:8792/tools/thought_stats -H "Authorization: Bearer <LÄSNYCKEL>" -H "Content-Type: application/json" -d '{}'
-```
-
-Anslut-sidan i webbgränssnittet fyller i båda med den här instansens egen adress
-och nyckel.
-
-### Var nyckeln finns
-
-```bash
-ssh valv 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
-ssh valv 'grep ^MCP_READ_KEY= ~/mimers-brain/.env | cut -d= -f2'
-```
-
----
-
-## Koppla in en modell
-
-### Claude Code och Claude Desktop är två olika klienter
-
-Skrivbordsappen rymmer båda, och det är där förvirringen börjar. *Code*-delen av
-fönstret är Claude Code; chattdelen är Claude Desktop. De håller sina
-MCP-servrar i varsitt register, och ingen av dem ser den andras:
-
-| Klient | Register | Sätts upp via |
-| --- | --- | --- |
-| Claude Code (*Code*-delen) | `~/.claude.json` | `claude mcp add`, eller redigera filen |
-| Claude Desktop (chatten) | kontots connectors, `claude_desktop_config.json` | *Inställningar → Connectors* |
-
-Att minnet svarar i en Code-session säger alltså ingenting om chattsidan, och en
-tom connectors-lista är inte ett fel — bara ett register ingen har skrivit i.
+## Anslut en klient
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <NYCKEL>"
+claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <MCP_ACCESS_KEY>"
 ```
 
-Eller redigera `~/.claude.json` direkt — lägg under `mcpServers` på toppnivå:
+Det skrivs till `~/.claude.json` under `mcpServers`. Lägg gärna till den publika
+adressen som en andra post (`mimers-brain-remote`), så finns den öppna nivån kvar
+utanför hemnätet. Nya sessioner läser in ändringen.
 
-```json
-"mimers-brain": {
-  "type": "http",
-  "url": "http://192.0.2.41:8790/mcp",
-  "headers": { "Authorization": "Bearer <NYCKEL>" }
-}
-```
+Valfritt: [recall-hooken](tools/hooks/README.md) lägger relevanta minnen vid varje
+fråga utan att modellen behöver söka.
 
-Lägg gärna in **båda** adresserna som två poster (`mimers-brain` och
-`mimers-brain-remote`). Då fungerar minnet även när laptopen är utanför hemnätet —
-med bara öppen nivå, men det är bättre än inget. Så är det redan uppsatt idag.
+**Claude Code och Claude Desktop är olika klienter**, även i samma skrivbordsapp.
+Fliken *Code* använder `~/.claude.json`; chatten använder kontots connectors. En
+server som läggs till i den ena syns inte i den andra.
 
-Ändringen slår igenom vid nästa session.
-
-### VS Code (Codex)
-
-Editorn öppnar anslutningen själv, från din maskin — så LAN-adressen fungerar och
-du får **hela** valvet, `delete_thought` inkluderat. Vilken modell som svarar
-spelar ingen roll för räckvidden; en molnmodell flyttar inte var MCP-klienten
-körs.
-
-Den påverkar däremot vart *innehållet* tar vägen. Varje valvrad ett verktyg
-returnerar läggs i kontexten och skickas till modelleverantören vid nästa tur.
-Tudelningen finns för att hålla nycklar borta från tredjepartsmoln, och att peka
-en editor på 8790 skickar dem dit i samma stund som en sökning råkar träffa en
-valvrad. Värt att avgöra medvetet snarare än att upptäcka i efterhand. Pekar du
-den på det publika värdnamnet uppstår aldrig frågan.
+### Codex (VS Code)
 
 ```bash
 codex mcp add mimers-brain --url http://192.0.2.41:8790/mcp --bearer-token-env-var MIMERS_VALV_KEY
 ```
 
-Det skriver `[mcp_servers.mimers-brain]` i `~/.codex/config.toml`. Själva nyckeln
-hamnar inte i filen — Codex läser den ur den namngivna miljövariabeln vid start,
-så sätt den som User-variabel och starta om editorn så att extension-värden ärver
-den.
+Det skriver `[mcp_servers.mimers-brain]` i `~/.codex/config.toml`. Nyckeln hålls
+utanför filen: sätt `MIMERS_VALV_KEY` som användarvariabel och starta om VS Code.
+`codex` följer med tillägget
+(`~/.vscode/extensions/openai.chatgpt-*/bin/<plattform>/codex`); kontrollera med
+`codex mcp list`. Om Codex ignorerar serverinstruktionerna, lägg minnespolicyn
+från sidan Anslut i `~/.codex/AGENTS.md`.
 
-Binären `codex` följer med VS Code-tillägget istället för att ligga i `PATH`; på
-Windows finns den under
-`~/.vscode/extensions/openai.chatgpt-*/bin/windows-x86_64/codex.exe`. Kontrollera
-med `codex mcp list`.
+### Claude Desktop (chatten)
 
-### Claude Desktop (chattsidan)
+Lägg till en egen connector under *Inställningar → Connectors*. Två begränsningar
+gäller: adressen måste vara **https**, och anslutningen görs från Anthropics
+servrar, inte från din dator. Chatten når alltså **bara den öppna nivån**, via den
+publika adressen. Dialogen har inget headerfält, så nyckeln ligger i adressen:
 
-Fjärranslutna MCP-servrar läggs in under *Inställningar → Connectors*, som en egen
-connector. Menyformuleringarna flyttar sig mellan versioner, så gå efter
-*connector* och *custom* snarare än en exakt sökväg.
-
-Två begränsningar avgör vad som faktiskt går att göra där:
-
-- URL-fältet tar **endast https**. LAN-adressen är ren http och går alltså inte
-  ens att skriva in.
-- Anslutningen öppnas från Anthropics infrastruktur, inte från din maskin, så en
-  privat adress förblir onåbar även om du ger den ett https-namn.
-
-Vilket betyder att **valvet inte går att nå från chattsidan** — och det är
-uppdelningen som håller, inte ett hinder att kringgå. 8790 exponeras aldrig utåt;
-den regeln är hela poängen med tudelningen. Det som hör hemma i en connector är
-det publika värdnamnet, som ger chatten den öppna nivån.
-
-Dialogen har inget fält för en header heller — bara OAuth Client ID och Secret.
-Får den en URL den inte kan autentisera mot faller klienten tillbaka på
-OAuth-flödet och misslyckas med ett meddelande om att den inte kunde registrera
-sig hos inloggningstjänsten. Nyckeln får därför rida med i URL:en istället:
-
-```
+```text
 https://brain.example.net/mcp?key=<MCP_OPEN_KEY>
 ```
 
-`MCP_OPEN_KEY` är en andra nyckel som bara den öppna lyssnaren accepterar, och den
-får inte vara samma värde som `MCP_ACCESS_KEY` — se *Inloggning* i
-[README.sv.md](README.sv.md) för varför. Sätt den i `.env` och starta om.
-
-**Ligger det en autentiserare framför krävs en sak till.** Klienten frågar efter
-OAuth-metadata innan den skickar någon JSON-RPC. Bakom forward-auth svarar de
-sökvägarna 302 till inloggningssidan, som svarar 200 — och då bestämmer sig
-klienten för att det finns en auktoriseringsserver, försöker registrera sig hos
-den, och misslyckas med *couldn't register with the sign-in service*. URL-nyckeln
-får aldrig en chans, för anropet den skulle autentiserat blir aldrig av. Proxyn
-måste svara 404 där istället; blocket finns i
-[docs/nginx-brain.conf](docs/nginx-brain.conf). Kontrollera med:
+Finns en autentisering framför måste proxyn svara **404** på
+`/.well-known/oauth-*`, annars misslyckas connectorn med *couldn't register with
+the sign-in service*. Kontrollera:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://brain.example.net/.well-known/oauth-authorization-server
 ```
 
-404 är rätt. Får du 302 kommer connectorn att misslyckas oavsett vilken nyckel du
-ger den. Vill du
-hellre ha riktig inloggning än en delad nyckel finns designen för det i
-[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md); den kräver en
-OIDC-provider, vilket är skälet till att den inte är standard.
+`404` är rätt; `302` betyder att connectorn kommer att misslyckas. Mallen i
+[docs/nginx-brain.conf](docs/nginx-brain.conf) sköter detta.
 
-Vill du ändå ha valvet i chatten, brygg det lokalt istället för att öppna en port.
-[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) kör som stdio-server på
-din egen maskin och når därför LAN-adressen över ren http och lägger på headern
-själv:
+Vill du ändå nå valvet från chatten, brygga lokalt med
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) i
+`claude_desktop_config.json` (`%APPDATA%\Claude\` på Windows) och starta om appen.
+Alla versioner läser inte filen; dyker servern aldrig upp, gör valvarbetet i
+Claude Code.
 
 ```json
 {
@@ -242,199 +102,127 @@ själv:
     "mimers-brain": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://192.0.2.41:8790/mcp",
-               "--header", "Authorization: Bearer <NYCKEL>"]
+               "--header", "Authorization: Bearer <MCP_ACCESS_KEY>"]
     }
   }
 }
 ```
 
-Filen ligger på Windows i `%APPDATA%\Claude\claude_desktop_config.json`; starta om
-appen efteråt. Om en viss version fortfarande läser `mcpServers` därifrån varierar
-— dyker servern aldrig upp, håll valvarbetet på Code-sidan och låt chatten ha den
-öppna nivån. Den uppdelningen kostar lite, eftersom Code-sidan ändå är där valvet
-oftast behövs.
+### ChatGPT, Gemini och andra MCP-klienter
 
-### ChatGPT
+Använd den publika adressen med en bearer-header. Klienter som förväntar sig ett
+enkelt sök-och-hämta-par får `search` och `fetch`. Ge aldrig en molnklient
+adressen till 8790.
 
-ChatGPT läser MCP-servrar som connectors och kräver att servern har verktygen
-`search` och `fetch` — de finns just för det. Peka den på
-`https://brain.example.net/mcp` med samma bearer-header. Använd **aldrig**
-8790-adressen här: den är inte nåbar utifrån, och skulle den bli det vore valvet
-exponerat för en tredjepart.
+### Open WebUI och andra OpenAPI-klienter
 
-### Gemini och övriga
-
-Samma princip: en fjärransluten MCP-server över HTTP med en bearer-token. Allt som
-följer specen fungerar. `search`/`fetch`-paret finns för klienter som förväntar sig
-den enklare sök-och-hämta-modellen istället för de namngivna verktygen.
-
-### Open WebUI, och annat som talar OpenAPI istället för MCP
-
-Open WebUI:s externa verktygsservrar talar inte MCP alls — de läser ett
-OpenAPI-dokument och anropar vanlig REST. Därför beskriver Mimers Brain även sig
-själv, på samma två lyssnare och bakom samma nyckel:
+Open WebUI:s verktygsservrar talar OpenAPI, inte MCP. Samma verktyg finns som REST
+på alla lyssnare:
 
 | | |
 | --- | --- |
-| `GET /openapi.json` | dokumentet; ingen nyckel krävs |
-| `POST /tools/<namn>` | en endpoint per verktyg, kräver bearer-nyckel |
+| `GET /openapi.json` | beskrivningen; ingen nyckel behövs |
+| `POST /tools/<namn>` | en endpoint per verktyg; bearer-nyckel krävs |
 
-Verktygen är samma minne som `/mcp` och samma tier-regel gäller — den öppna
-lyssnaren når fortfarande ingen valvrad. `search`/`fetch` upprepas inte här; de
-finns för MCP-klienter som förväntar sig det paret. OpenAPI-sidan har
-`fetch_thought` istället, och `delete_thought` bara på 8790.
+I Open WebUI, *Settings → Tools*: lägg till `http://192.0.2.41:8791`, välj bearer
+och klistra in `MCP_ACCESS_KEY`. Tillåt sedan Open WebUI-sidans origin i `.env`
+och kör `docker compose up -d`:
 
-I Open WebUI, under **Inställningar → Verktyg**, lägg till en server med URL
-`http://192.0.2.41:8791` (`openapi.json` är sökvägen den letar efter som
-standard), välj bearer-autentisering och klistra in nyckeln. LAN-adressen är
-medvetet vald: Open WebUI står på samma nät, och den vägen slipper man både
-proxyn och Authelia.
-
-**CORS.** Varningen i dialogen är befogad — webbläsaren hämtar dokumentet från
-sidans egen origin, så servern måste tillåta den vid namn. Lägg Open WebUI:s
-origin i `CORS_ORIGINS` i `.env`, med protokoll och port, och starta om:
-
-```bash
+```dotenv
 CORS_ORIGINS=http://192.0.2.19:8080,https://llm.example.net
 ```
 
-Tomt är standard och betyder att ingen webbläsare på en annan origin släpps in,
-vilket är vad man vill ha överallt annars. En origin som inte står med får helt
-enkelt inga CORS-headers, och webbläsaren vägrar svaret.
+Går du via proxyn i stället måste `/openapi.json` och `/tools/` slippa förbi
+autentiseringen; nginx-mallen gör det.
 
-Att gå via proxyn istället för LAN-adressen fungerar också, men `/openapi.json`
-och `/tools/` måste undantas från forward auth på samma sätt som `/mcp` —
-konfigurationen i `docs/nginx-brain.conf` gör redan det.
-
-### Testa att det gick fram
+### En klient som bara läser
 
 ```bash
-curl -s -X POST https://brain.example.net/mcp -H "Authorization: Bearer <NYCKEL>" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+claude mcp add --transport http mimers-brain-read http://192.0.2.41:8792/mcp --header "Authorization: Bearer <MCP_READ_KEY>"
 ```
 
-Sex verktyg i svaret betyder att allt fungerar. Får du `401` är nyckeln fel; får
-du `302` mot `auth.example.net` proxar Nginx `/mcp` genom Authelia, vilket den inte
-ska göra — se avsnittet om proxyn nedan.
+För att nå 8792 utifrån, peka ett andra värdnamn mot den.
 
-För OpenAPI-sidan:
+### Kontrollera anslutningen
 
 ```bash
-curl -s http://192.0.2.41:8791/openapi.json | head -20
-curl -s -X POST http://192.0.2.41:8791/tools/thought_stats -H "Authorization: Bearer <NYCKEL>" -H "Content-Type: application/json" -d '{}'
+curl -s -X POST https://brain.example.net/mcp \
+  -H "Authorization: Bearer <MCP_ACCESS_KEY>" -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
----
+En verktygslista betyder att det fungerar: 10 verktyg på den öppna porten, 13 på
+8790, 7 på 8792. `401` betyder fel nyckel. En `302` till din autentisering betyder
+att proxyn skickar `/mcp` genom forward auth; det får den inte.
 
-## Webbgränssnittet
+## Hur en modell ska använda minnet
 
-| Adress | Vad du ser |
-| --- | --- |
-| `http://192.0.2.41:8790` | allt, inklusive valvet |
-| `https://brain.example.net` | endast öppen nivå, bakom Authelia |
+Varje klient får en kort användningspolicy när den ansluter, och hela policyn från
+`memory_digest`. Sidan Anslut visar policyn för klienter som ignorerar
+serverinstruktioner; klistra in den i deras system- eller globala instruktioner.
 
-På 8790 loggar du in genom att klistra in `MCP_ACCESS_KEY` en gång; den byts mot
-en cookie som ligger kvar i 30 dagar. Utifrån sköter Authelia inloggningen.
+Det viktigaste:
 
-När du hovrar över ett minne dyker **Redigera** upp, som öppnar innehållet
-tillsammans med typ, ämnen och personer som kommaseparerade fält. Det är så du
-rättar det metadata-extraktorn missar — den producerar gärna två stavningar av
-samma ämne, eller en persons fullständiga namn i vissa rader och förnamnet i
-andra, och de filtrerar som skilda fasetter i sidopanelen. Att slå ihop dem är en
-textredigering. Ämnen gemenerseras och dedupliceras vid sparning; personer
-behåller sitt skiftläge eftersom de är egennamn.
+- **Börja** sessionen med `memory_digest`.
+- **Sök** med `search_thoughts` innan du svarar om dina system, och före varje
+  bygge, deploy eller steg med inloggningsuppgifter.
+- **Rapportera** varje sökning som gav träffar med `report_memory_usage`: dess
+  `trace_id` och vilka id som användes och ignorerades. Tre sökningar betyder tre
+  rapporter. En sökning utan rapport visas som *väntar på rapport*, och som
+  försenad efter tio minuter.
+- **Kontrollera historiken.** `fetch` kan returnera ett ersatt minne; när
+  `superseded_by` finns, hämta det i stället.
+- **Spara** bara varaktig, verifierad kunskap som skulle ändra ett framtida svar,
+  ett ämne per minne. Minnen som en agent skriver börjar som väntande bevis tills
+  du granskat dem. Sätt `user_confirmed` bara när du godkänt exakt den texten.
+- **Rätta** med `supersede_thought` i stället för att lägga till ett motsägande
+  minne.
+- **Lång text** (1 200 tecken eller mer) går genom `preview_ingest` och
+  `apply_ingest`.
 
-Att redigera taggar kostar ingenting. Embeddingen räknas på innehållet och räknas
-alltså bara om när innehållet självt ändras.
+## Vad som hör hemma i minnet
 
-Utöver listan finns **Anslut** och **Statistik** i huvudmenyn. Anslut är
-uppkopplingsanvisningarna på den här sidan, fast ifyllda med instansens riktiga
-värden. Statistik visar användningen över tid och per klient — men lägg märke
-till vad den ärligt kan säga: MCP uppger klientappen, inte vilken modell som
-svarar inuti den, och användningsloggen sparar aldrig sökfrågor eller innehåll.
-Se README för hur MQTT-sensorerna i Home Assistant hänger ihop med samma siffror.
+Skriv varje minne som ett **fristående påstående** som går att förstå om flera år.
+"Det funkade" är värdelöst; "Lagersystem-deployen avbryts om `data/languages/`
+skiljer sig från origin, eftersom översättningsverktyget skriver filerna på
+servern" är användbart.
 
----
+- **Spara:** var saker finns och hur man når dem, beslut och skälen till dem,
+  rutiner, och fällor som kostat tid.
+- **Spara inte:** projektstatus, avslutat arbete, releasenoter eller
+  sessionshistorik. Det hör hemma i repots README och historikfiler.
+- **Valvet:** känslig kontext, och `SECRET_REF`-pekare till var en nyckel, ett
+  lösenord eller en token finns. Aldrig själva värdet; servern vägrar text som ser
+  ut som inloggningsuppgifter. Allt annat är öppet, vilket är bättre: vilken
+  modell som helst kan använda det, var som helst.
 
-## Om laptopen måste installeras om
+## Redigera i webbgränssnittet
 
-Servern på 192.0.2.41 påverkas inte — den är en egen maskin med egen backup. Det
-enda som försvinner är klientsidan. Så här får du tillbaka den:
+Håll muspekaren över ett minne under **Tankar** och välj **Redigera** för att
+ändra text, titel, sammanfattning, typ, livscykel, uppgiftsstatus, projekt,
+ämnen, personer, system, nivå eller verifieringsdatum, eller fästa det i
+startpaketet (`memory_digest`). När du sparar bäddas minnet in igen, eftersom titel och
+sammanfattning ingår i det sökningen jämför. **Kopiera referens** kopierar id och
+titel på en rad, att klistra in i en chatt med en ansluten modell följt av vad som
+ska ändras.
 
-1. **SSH-nyckel.** Skapa en ny och lägg den publika delen i
-   `~/.ssh/authorized_keys` för `mimer` på 192.0.2.41. Obs: skapa den via `cmd`,
-   inte PowerShell —
+## Ansluta igen efter en ominstallation
 
-   ```powershell
-   cmd /c 'ssh-keygen -t ed25519 -C "mimers-brain" -f C:\Users\<du>\.ssh\mimers_valv -N ""'
-   ```
-
-   PowerShell gör `-N '""'` till en lösenfras bestående av två citattecken, och
-   nyckeln blir oanvändbar obevakat. Lägg sedan till i `~/.ssh/config`:
-
-   ```
-   Host valv
-       HostName 192.0.2.41
-       User mimer
-       IdentityFile ~/.ssh/mimers_valv
-       StrictHostKeyChecking accept-new
-   ```
-
-2. **Hämta nyckeln** enligt kommandot längst upp.
-
-3. **Koppla in MCP** enligt avsnittet ovan.
-
-Det är allt. Kunskapen ligger i databasen på servern, inte på laptopen.
-
-## Om servern måste byggas om
+**En klientdator** har inget viktigt kvar: kunskapen finns på servern. Registrera
+MCP-servern igen enligt ovan. Hämta en nyckel från servern:
 
 ```bash
-git clone <detta repo> ~/mimers-brain && cd ~/mimers-brain
-cp .env.example .env          # fyll i POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
-docker compose up -d --build
+ssh <server> 'grep ^MCP_ACCESS_KEY= ~/mimers-brain/.env | cut -d= -f2'
 ```
 
-Sedan återställer du senaste dumpen:
+På Windows, skapa SSH-nyckeln från `cmd`, inte PowerShell, som gör `-N '""'` till
+en lösenfras av två citattecken:
 
-```bash
-gunzip -c ~/valv-backups/valv-<senaste>.sql.gz | docker exec -i valv-db psql -U mimer -d valv
+```powershell
+cmd /c 'ssh-keygen -t ed25519 -C "mimers-brain" -f C:\Users\<du>\.ssh\mimers_brain -N ""'
 ```
 
-**Nytt `MCP_ACCESS_KEY` betyder att varje klient måste uppdateras.** Vill du
-slippa det, återanvänd den gamla nyckeln från backupen av `.env`.
-
-### Docker i LXC
-
-En oprivilegierad Proxmox-LXC kan inte applicera AppArmor-profiler, och då failar
-varje containerstart — ofta maskerat som ett `npm install`-fel mitt i ett bygge.
-Lös det på **värden**, inte i containern:
-
-```bash
-echo "lxc.apparmor.profile: unconfined" >> /etc/pve/lxc/<vmid>.conf
-pct reboot <vmid>
-```
-
-`security_opt: apparmor=unconfined` ligger kvar i compose-filen som bälte och
-hängslen och är ofarligt även efteråt.
-
-### Reverse proxy
-
-I Nginx Proxy Manager pekar `brain.example.net` på **8791**. Custom-configen måste
-ge `/mcp` en egen `location` **utan** `auth_request`, eftersom MCP-klienter inte
-kan göra Authelias interaktiva inloggning — skyddet där är bearer-nyckeln. Den
-behöver också `proxy_buffering off`, för MCP håller en SSE-ström öppen. Hela
-configen finns i `docs/nginx-brain.conf`.
-
----
-
-## Vad som ska sparas i minnet
-
-Skriv varje minne som ett **fristående påstående** som går att förstå långt senare
-utan sammanhang. "Det fungerade" är värdelöst; "deployen av Lagersystem avbryter
-om `data/languages/` avviker från origin, eftersom översättningsverktyget skriver
-dem live" är användbart.
-
-Lägg känslig kontext i **valvet**, men använd bara en exakt `SECRET_REF`-pekare
-till nycklar, lösenord, tokens och privata nycklar — aldrig själva värdet.
-Använd också valvet om det skulle hjälpa någon utomstående att ta sig in. Allt
-annat är öppet, och öppet är bättre: det når dig varsomhelst och kan användas av
-vilken modell som helst.
+**Servern:** installera enligt [install.md](install.md) och återställ sedan
+senaste dumpen med `./restore.sh`. Återanvänd gamla `.env` om du har den; en ny
+`MCP_ACCESS_KEY` betyder att varje klient måste uppdateras.

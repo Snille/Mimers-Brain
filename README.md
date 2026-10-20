@@ -3,502 +3,119 @@
 *[Svenska](README.sv.md)*
 
 A self-hosted long-term memory for language models. Same idea as
-[OB1](https://github.com/NateBJones-Projects/OB1), but on your own hardware — and
-with a tier that never leaves the local network.
+[OB1](https://github.com/NateBJones-Projects/OB1), but on your own hardware, with
+a tier that never leaves the local network.
 
-Anything that speaks MCP can read and write the memory, so what you know about
-your systems gets written down once instead of re-explained in every new
-conversation. Sensitive context and SECRET_REF pointers are served on the LAN
-only; raw passwords, tokens, API keys and private keys are never stored — every
-write path refuses text shaped like one before it leaves the server.
-Everything else is reachable from anywhere.
+Any client that speaks MCP (or OpenAPI) can search and write the memory. What you
+know about your systems is written down once instead of re-explained in every
+conversation.
+
+- **Two tiers.** *Open* knowledge is reachable from anywhere through a reverse
+  proxy. The *vault* — sensitive context and `SECRET_REF` pointers — is served on
+  the LAN only. Raw passwords, tokens and keys are refused on every write.
+- **Search by meaning**, with metadata, review state and receipts that show which
+  recalled memories were actually used.
+- **Web UI** in English and Swedish for browsing, editing, reviewing and
+  connecting clients.
+
+![Thought list with metadata filters and a LAN-only vault entry](assets/screenshots/mimers-brain-thoughts.png)
+
+## Documentation
 
 | | |
 | --- | --- |
-| **[install.md](install.md)** | Complete installation guide for Proxmox LXC, Docker Desktop and Ubuntu Server |
-| **[HowToUse.md](HowToUse.md)** | Connecting a model, and rebuilding after a reinstall |
+| **[install.md](install.md)** | Installation on Proxmox LXC, Docker Desktop or Ubuntu Server: configuration, reverse proxy, backups, updates |
+| **[HowToUse.md](HowToUse.md)** | Connecting Claude Code, Codex, Claude Desktop, ChatGPT, Open WebUI; what belongs in the memory |
+| **[docs/how-it-works.md](docs/how-it-works.md)** | Tier boundary, authentication, memory model, search, models, maintenance |
+| **[docs/home-assistant.md](docs/home-assistant.md)** | MQTT sensors for Home Assistant |
+| **[tools/hooks/](tools/hooks/README.md)** | Claude Code hook that brings memories to each prompt |
+| **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Reverse proxy template |
+| **[docs/translations.md](docs/translations.md)** | Adding a UI language |
+| **[migrate/](migrate/README.md)** | One-time import of existing notes |
 | **[history.md](history.md)** | What was built, why, and what went wrong |
-| **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Ready-made reverse proxy config |
-| **[migrate/](migrate/)** | One-time import of existing knowledge |
 
 > **Addresses in the docs are placeholders.** `192.0.2.x`
 > ([RFC 5737](https://www.rfc-editor.org/rfc/rfc5737)) and `example.net`
-> ([RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)) are reserved for
-> documentation and resolve to nothing. Substitute your own. Keep the real values
-> for a deployment in `docs/deployment.local.md`, which is gitignored.
+> ([RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)) resolve to nothing.
+> Substitute your own, and keep real values in `docs/deployment.local.md`
+> (gitignored).
 
-## Screenshots
+## Quick start
 
-![Mimers Brain thought list with metadata filters and a LAN-only vault entry](assets/screenshots/mimers-brain-thoughts.png)
+Requires Docker with Compose. Full instructions: [install.md](install.md).
 
-![Mimers Brain memory health, recall quality and activity statistics](assets/screenshots/mimers-brain-statistics.png)
-
-The web interface ships in English and Swedish, selects the browser language on
-first visit, and remembers a manual choice. New translations are ordinary JSON
-catalogs; see [docs/translations.md](docs/translations.md).
-
-## Why two ports
-
-The tier split does **not** work by inspecting `X-Forwarded-For`. Anyone can set
-that header, so a single line would lift the entire vault. Instead the tier is a
-property of the **listener**:
-
-| Port | Contents | Who |
-| --- | --- | --- |
-| **8790** | open + vault, plus the web UI | LAN only. **Never proxy this one.** |
-| **8791** | open tier only | The only port a reverse proxy should forward to |
-| **8792** | open tier, **read only** | For a model that may look things up but must not change anything |
-
-The MCP server on 8791 is built without the ability to reach the vault — its
-tools are constructed with `tiers = ['open']` and `delete_thought` is not
-registered at all. No parameter, header or path changes that. An attacker who
-gets past the proxy still only reaches open knowledge.
-
-8792 applies the same idea to writing. Less capable models tend to treat the
-memory as a scratchpad: they save what the repository already records, restate
-their own reasoning, and never supersede anything. That port simply never
-registers `capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
-`supersede_thought` or `delete_thought`, so there is nothing to talk it into.
-What remains is search, list, fetch, statistics — and `report_memory_usage`,
-which writes a recall receipt rather than a memory and is asked for by every
-search. Give that port its own `MCP_READ_KEY`: hand out `MCP_OPEN_KEY` instead
-and the same client can simply write on 8791. It serves `/mcp`, `/openapi.json`
-and `/tools/*`, and nothing else — no web UI, no dashboard REST.
-
-The smoke test is read-only by default. Use `-Write` for the complete canary
-suite; test rows are removed in a `finally` block even when a check fails:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
-powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Write
-powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Json
-```
-
-The full tests cover: vault rows are invisible on the open port, secret content never
-leaks, looking a vault row up by id is refused, writing to the vault from outside
-is refused, statistics do not even reveal that the vault exists, the connection
-guide withholds the vault key from the proxied listener, the usage log never
-carries content, a wrong key returns 401, agent memories start as evidence, human
-review changes their trust, and smart ingest preserves source provenance. The
-read-only port is checked the same way: it registers no tool that writes over
-either surface, it refuses `capture_thought`, `supersede_thought` and
-`delete_thought` even when the vault key is presented, nothing those attempts
-sent reaches the memory, it still answers a search, and `MCP_READ_KEY` opens
-that port and neither of the other two.
-
-## Running it
-
-See **[install.md](install.md)** for complete first-time instructions for
-Proxmox LXC, Docker Desktop and Ubuntu Server. The short Docker Desktop path is:
-
-```powershell
-Copy-Item .env.example .env    # fill in POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
+```bash
+git clone https://github.com/Snille/Mimers-Brain.git && cd Mimers-Brain
+cp .env.example .env    # set POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY, CITATION_BASE_URL
 docker compose up -d --build
 ```
 
-The interface: <http://localhost:8790>
-
-The **Review** page contains the trust queue, memories that search keeps
-returning but no answer ever uses (**Rarely useful**), semantically similar
-duplicate candidates, and privacy-preserving recall receipts. Every memory card there and
-under **Thoughts** shows when it was created, as `2026-10-06 - 20:54` in local
-time. Long text entered through
-**New thought** is previewed as atomic memories before anything is saved.
-The **Statistics** page opens with **the brain**: every current memory as a node
-in a 3D wireframe brain, placed by meaning (related memories share a labelled
-region) and sized and sunk by how many connections it has — shared kind, task
-status, project, topic, person, system or similar content, each a line colour
-you can switch off. Drag to turn it, scroll to zoom, grab a memory to pull out
-its lines. The **3D brain** chip switches the whole picture off, which saves the
-CPU it costs to draw and skips the graph query; the browser remembers the choice.
-Below it, the page separates active memories from archived and
-superseded records, then shows trust state, provenance, receipt coverage, recalled-memory
-usefulness, client/tool activity and operational MQTT health. Recall charts begin
-with the first 0.8.0 receipt; older calls are never mislabelled as missing reports.
-
-Generate a key:
-```powershell
--join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Maximum 256) })
-```
-
-**`OPENROUTER_API_KEY` is not optional in practice.** Without it nothing gets an
-embedding, so neither semantic search nor `search_thoughts` works — only listing
-and substring search.
-
-## Connecting Claude Code
+Open <http://localhost:8790>, sign in with `MCP_ACCESS_KEY`, and go to
+**Connect**: it shows ready-to-copy setup for every client, filled in with this
+instance's addresses and keys. For Claude Code on the LAN:
 
 ```bash
 claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <MCP_ACCESS_KEY>"
 ```
 
-From outside — and for other models — use the proxied hostname, which points at
-8791. See [HowToUse.md](HowToUse.md) for every client.
+Without `OPENROUTER_API_KEY` (or another provider) nothing gets an embedding, and
+only listing and text search work.
 
-To have memories come to the prompt without the model having to search, add the
-`UserPromptSubmit` hook in [tools/hooks/](tools/hooks/README.md). It searches
-each prompt once and adds up to three clear hits to the context; a miss adds
-nothing.
+## Three ports
 
-## Authentication
+| Port | Serves | Who may reach it |
+| --- | --- | --- |
+| **8790** | open + vault, web UI, all tools | LAN/VPN only. **Never proxy it.** |
+| **8791** | open tier, web UI | the only port a public reverse proxy forwards to |
+| **8792** | open tier, read-only tools, no UI | a model that may look things up but must not write |
 
-Four ways in, in the order the server tries them:
+The tier is decided by which port a request arrives on, not by any header: the
+open and read listeners are built without the ability to reach vault rows. See
+[docs/how-it-works.md](docs/how-it-works.md#the-tier-boundary).
 
-1. **Bearer key** (`Authorization: Bearer <MCP_ACCESS_KEY>`) — what MCP clients
-   and scripts use.
-2. **Cookie** — the browser trades the key for an HttpOnly cookie once, via
-   `POST /api/login`. It is derived from the key rather than stored, so there is
-   no session table to maintain.
-3. **Forward auth** (Authelia or similar) — on the open listener only. The proxy
-   has already run the request past the authenticator and set `Remote-User`.
-4. **URL key** (`/mcp?key=<MCP_OPEN_KEY>`) — open listener, `/mcp` only, and
-   only if `MCP_OPEN_KEY` is set.
+## MCP tools
 
-Points 3 and 4 are safe *there and only there*: that listener cannot reach vault
-rows at all, so the worst a spoofed header or a leaked URL grants is open-tier
-data anyone on the LAN could read from 8790 anyway. Never do the same on the full
-listener.
+| Tool | 8790 | 8791 | 8792 |
+| --- | :-: | :-: | :-: |
+| `memory_digest` — standing rules; call once per session | ✓ | ✓ | ✓ |
+| `search_thoughts` — search by meaning | ✓ | ✓ | ✓ |
+| `list_thoughts`, `thought_stats` | ✓ | ✓ | ✓ |
+| `search` + `fetch` — the pair ChatGPT expects | ✓ | ✓ | ✓ |
+| `report_memory_usage` — receipt for a search | ✓ | ✓ | ✓ |
+| `capture_thought`, `preview_ingest` + `apply_ingest` | ✓ | ✓ | |
+| `supersede_thought`, `review_memory`, `delete_thought` | ✓ | | |
 
-Point 4 exists because some clients take a URL and offer no way to send a header
-— Claude Desktop's connector dialog is the case that forced it. A credential in a
-URL is a real downgrade: it is stored in the client's config and written to every
-proxy access log, so `MCP_OPEN_KEY` must be a **different** value from
-`MCP_ACCESS_KEY`, and `/mcp` has `access_log off` in
-[docs/nginx-brain.conf](docs/nginx-brain.conf). The cleaner answer for that class
-of client is OAuth, sketched but not built in
-[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md).
-
-The UI is served on **both** ports. On 8790 you see the vault and sign in with
-the key; through the proxy you see the open tier and the authenticator handles
-sign-in.
+The same tools are available as REST for OpenAPI clients: `GET /openapi.json`
+and `POST /tools/<name>` (with `fetch_thought` instead of `search`/`fetch`).
 
 ## The web interface
 
-Three views, and the sign-in described above covers all of them.
-
-**Memories** is the list, hybrid search and metadata editing. Current memories
-are shown by default; projects, kinds, task state, people and systems are
-separate facets. Superseded rows remain readable through their history links.
-**Copy reference** on a card copies its full id and title as one line; paste it
-into a chat with any connected model and say what should change.
-
-**Connect** is the setup instructions for every client — Claude Code, Codex in VS
-Code, the Claude Desktop connector, Open WebUI, ChatGPT, a generic MCP client —
-rendered with *this* instance's addresses, keys and tool list rather than
-placeholders. Copy buttons hand over ready-made commands and JSON.
-
-On the LAN listener the page also has a **Models** card: which provider and
-model does the embedding, the metadata and the contradiction check, and which
-providers exist: OpenRouter, OpenAI, Ollama and one custom OpenAI-compatible
-server. An address or an API key can be set there instead of in `.env`, and a
-value set on the card wins. Keys are sealed with AES-256-GCM under
-`SETTINGS_KEY` before they reach the database, so the nightly dump holds only
-ciphertext; the field is write-only, and the card learns whether a key exists
-and where it came from, never the key. Nothing is stored until a real call with
-the new values has listed the provider's models. Each model choice can be
-tested the same way before it is saved, and model lists come with prices where
-the provider publishes them. The metadata and contradiction models change at once. A new embedding
-model is filled in beside the old one in the background; search keeps the old
-model while it runs, a comparison shows the same question answered by both, and
-only *Switch* replaces the vectors. The card is absent on the open listener,
-which refuses `/api/ai` outright: choosing a model chooses where vault text is
-sent.
-
-The same page also exposes one copyable **memory policy** for every model. MCP
-clients receive a short form during initialization — Claude Code cuts server
-instructions at 2048 characters — that tells them to call `memory_digest` first,
-and the digest opens with the full policy. OpenAPI clients receive the full
-policy in `info.description` and `x-memory-policy`. If a client ignores protocol-level
-instructions, paste the policy into its global or system instructions. For Codex,
-the documented persistent fallback is `~/.codex/AGENTS.md`.
-
-The policy tells models to search before answering about Erik or his systems,
-fetch full details only when needed, and save only atomic, verified knowledge
-that can change a future answer. Project status, completed work, releases and
-session history belong in README and history/changelog files; when either is
-missing, the model should propose creating it instead of using memory as a
-substitute. The policy also defines an unfinished task, reserves
-`user_confirmed` for exact memory text, uses navigable supersession for
-corrections, and forbids raw secrets. The server still validates tiers and
-metadata because instructions alone are not a security boundary.
-
-Keys are masked until you ask for them, and one rule decides which are on the
-page at all: `MCP_ACCESS_KEY` is served **only by the LAN listener**. Reaching
-the UI through the proxy means the authenticator let you in, but sending the
-vault key that way would push the one credential that unlocks the vault out of
-the house and into a browser cache on every visit. `MCP_OPEN_KEY` is shown on
-both, since it is designed to travel in URLs and can only ever reach open
-knowledge.
-
-The LAN address on that page is **learned, not configured**. Asking the OS for it
-from inside a container returns Docker's bridge address, and so does the socket,
-since the port is NAT'd — both would confidently print an address that works for
-nobody. The `Host` header on the LAN listener cannot be wrong in the way that
-matters, though: it is an address a browser just reached us on. So it is taken
-from real visits and stored, which is why the page can still name the LAN address
-when you are reading it through the proxy. `LAN_URL` overrides it if you would
-rather see a hostname; until the LAN listener has been opened once, the page says
-so rather than guessing.
-
-A memory's recall receipts also feed back into search: one that keeps being
-used ranks slightly higher, one that keeps being passed over slightly lower — a
-nudge of a few hundredths, never enough to outrank a better match. Results not
-verified for six months carry an `AGE` note so a model checks before it asserts.
-Every model is told to call `memory_digest` once per session: the confirmed
-preferences and profile memories plus anything pinned on the Thoughts page, so
-a model that never reads a `CLAUDE.md` starts with the same standing rules. The
-**Session digest** filter at the top of the Thoughts sidebar shows exactly what
-it contains. Every model reads the digest every session, so it is held to 15
-memories or 9,000 characters: past that, each extra rule makes the others weigh
-less. What does not fit is named at the end of the digest, so a model knows to
-search for it, and the sidebar says how many are left out. Pin only what a model
-would get wrong without it across many different tasks; search finds the rest.
-
-**Statistics** answers four separate questions: whether the memory is healthy,
-whether recalled memories prove useful, how activity changes over time, and
-whether integrations are operating normally. It therefore combines active and
-historical records, review and metadata quality, provenance, receipt coverage,
-reported usefulness, client/tool activity and MQTT health without turning the
-page into a leaderboard.
-
-Two things worth knowing about those numbers. MCP identifies the **client
-application** — Claude Code, Codex, a ChatGPT connector — and never the model
-answering inside it; a model name is not on the wire, so the page does not
-pretend to know one. And the usage log holds no content: not the search query,
-not the memory, not the result. A traffic log that quoted vault searches back
-would undo the tier split it sits behind. Through the proxy the page counts only
-traffic that arrived on the open listener, so it cannot reveal that vault traffic
-exists either.
-
-## Home Assistant over MQTT
-
-Set `MQTT_URL` in `.env` and the brain announces itself through HA discovery as
-the device **Mimers Brain**, then publishes its counters every `MQTT_INTERVAL_S`
-seconds and immediately after every write.
-
-Entity ids follow from the device name plus each sensor name — not from
-`object_id`, whatever the docs suggest — so they are a contract worth treating as
-one:
-
-| Entity | What |
+| Page | What it is for |
 | --- | --- |
-| `binary_sensor.mimers_brain_online` | connectivity, driven by the last will |
-| `sensor.mimers_brain_memories_total` / `_open` / `_vault` | size of the memory |
-| `sensor.mimers_brain_memories_pending_review` / `_evidence_only` / `_stale` | governance review queue |
-| `sensor.mimers_brain_memories_today` / `_week` / `_month` / `_year` | growth |
-| `sensor.mimers_brain_calls_today` / `_week` / `_month` / `_year` / `_total` | traffic |
-| `sensor.mimers_brain_reads_today`, `_writes_today` | traffic split |
-| `sensor.mimers_brain_clients_week`, `_top_client` | who is using it |
-| `sensor.mimers_brain_recall_searches_today`, `_reports_today`, `_unreported` | privacy-safe recall receipt coverage |
-| `sensor.mimers_brain_recall_memories_returned_today`, `_used_today` | aggregate recall usefulness |
-| `sensor.mimers_brain_recall_reporting_percent_today`, `_use_percent_today` | receipt and use rates |
-| `sensor.mimers_brain_last_memory`, `_last_recall`, `_last_call` | timestamps |
-| `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, and why |
-| `sensor.mimers_brain_uptime` | seconds since start |
-| `number.mimers_brain_unreported_fault` | slider: unreported recalls per day before the status degrades |
+| **Thoughts** | List, hybrid search, facets, editing, pinning memories into the session digest |
+| **Review** | Agent memories awaiting review, duplicates, possible contradictions, rarely useful memories, recently deleted |
+| **Statistics** | A 3D map of the memory, health, recall usefulness, client activity, MQTT status |
+| **Connect** | Setup for every client; on port 8790 also the **Models** card (providers, models, search thresholds) |
 
-Review queue sensors count current memories only. Superseded and archived
-records retain their historical review metadata but never require action.
+The UI is served on 8790 (sign in with `MCP_ACCESS_KEY`) and 8791 (open tier,
+behind your authenticator). It loads its text from JSON catalogs, picks the
+browser language, and remembers a manual choice.
 
-The two counter groups carry different `state_class` values on purpose. The
-**growth** counters are `measurement`, because deleting a memory makes them fall
-and a counter that can fall is a gauge — telling Home Assistant otherwise makes
-it read every deletion as a counter reset and quietly corrupt the long-term
-statistics. The **traffic** counters stay `total_increasing`: a call already made
-cannot be un-made, so they only ever rise within their window.
+![Memory health, recall quality and activity statistics](assets/screenshots/mimers-brain-statistics.png)
 
-Every sensor reads from one retained JSON payload on `<prefix>/state`, so Home
-Assistant repopulates all of them from a single message after a restart instead
-of showing `unknown` until the next tick.
-
-Recall telemetry contains counts, timestamps and trace completion only. Queries,
-answers and memory content never enter MQTT. `sensor.mimers_brain_recall_unreported`
-counts traces from the last 24 hours still unreported after ten minutes. One or
-two of those are sessions that closed before they could file a receipt — ordinary,
-and not something to check — so they show in the count but leave the status `ok`.
-Only when the count reaches the threshold does the status degrade, because that
-many in a day means a client that never reports at all. The threshold is the
-slider `number.mimers_brain_unreported_fault` (1–50); `MQTT_UNREPORTED_FAULT` in
-`.env` is only its starting value, and a slider choice is kept as a retained
-message on the broker so a restart of the brain does not forget it.
-Older traces stay in the statistics but never touch the status: a harness that
-crashed last month is history, not a fault to act on today.
-
-The availability topic carries a **last will**, which is the part that makes
-"is it alive" honest: if the process dies, the broker publishes `offline` on its
-behalf. Without one, a dead brain looks exactly like a healthy one with nothing
-new to say. A planned stop says `offline` deliberately, so a restart reads as a
-short blip rather than a stuck `online`.
-
-`sensor.mimers_brain_problem` is read on an ESPHome wall display whose fonts carry
-a fixed glyph list, so the text is sanitised against that vocabulary before it is
-published — a character outside the list draws as *nothing*, with no fallback box,
-and silently eats part of the sentence. That is why faults are separated by `/`
-and not `|`. The list is a copy of the `glyphs:` line in the device YAML; if that
-changes, `DISPLAY_GLYPHS` in `server/mqtt.mjs` follows.
-
-Counters only. No memory content and no search queries go on the broker — the
-broker is on the LAN, but that is not a reason to publish something that did not
-need publishing. The vault *count* does go out, which is worth knowing if the
-broker is shared.
-
-The broker password lives in `.env` next to the other secrets rather than in a
-settings table, deliberately: the database is dumped nightly, and a credential
-that can be changed with one `docker compose up -d` does not need to be in
-backups too.
-
-## Docker inside an LXC
-
-An unprivileged Proxmox LXC cannot apply an AppArmor profile, so every container
-start fails with `runc run failed: unable to apply apparmor profile`. It shows up
-deviously as an `npm install` failure mid-build — read the whole log for
-`runc run failed` before debugging npm.
-
-`security_opt: [apparmor=unconfined]` in the compose file fixes **running**, and
-is harmless on machines without the problem. **Building** cannot be fixed from
-inside (neither BuildKit nor `DOCKER_BUILDKIT=0` accepts `--security-opt`).
-
-**The proper fix is on the Proxmox host**, not in the container: add
-`lxc.apparmor.profile: unconfined` to `/etc/pve/lxc/<vmid>.conf`, check that
-`features: nesting=1` is set, and reboot the container. Then
-`docker compose up -d --build` works on the server directly.
-
-## Deploying
-
-1. Create an LXC (Debian or Ubuntu, 2 vCPU, 2 GB RAM, 20 GB disk is plenty —
-   pgvector with a few thousand memories is small).
-2. Install Docker, clone the repo, fill in `.env`, `docker compose up -d --build`.
-3. Point a reverse proxy host at `http://<lxc-ip>:8791`. **Check that it says
-   8791 and not 8790.**
-4. If you put an authenticator in front: MCP clients cannot complete an
-   interactive login, so `/mcp` needs a bypass — the bearer key is the protection
-   there. `/.well-known/oauth-*` needs one too, answering **404**: behind forward
-   auth it redirects to a login page that answers 200, and a client probing for
-   OAuth reads that as an authorization server it must register with. See
-   [docs/nginx-brain.conf](docs/nginx-brain.conf).
-
-## Backups
-
-`backup.sh` runs a nightly `pg_dump`, gzips it, and keeps ten days. It verifies
-that the dump is valid gzip **and** contains the thoughts data before rotating
-anything out — a truncated dump must never push a working one off the end.
-
-```
-10 0 * * * /path/to/mimers-brain/backup.sh >> /path/to/backups/backup.log 2>&1
-```
-
-A logical dump complements a full VM or container backup rather than duplicating
-it: it can be restored selectively — a single thought, or the table into a fresh
-database — which an image cannot do.
-
-## Schema
-
-The base remains OB1's `thoughts` table plus `tier`, but metadata v2 adds
-`title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
-`verified_at`, `valid_for_version`, `origin`, `provenance`, `review_status`,
-`captured_by`, allowed-use flags, `source_refs` and `artifact_refs`. The old `type`, `topics` and `people`
-fields remain readable for older clients. Non-canonical migrated tags are kept
-under `legacy_topics` instead of disappearing.
-
-`topics` has a closed vocabulary, so a value outside it never reaches the
-database, and `other` is offered to the extraction as a last resort rather than
-as one option among equals. Both capture and supersession reject direct text of
-1200 characters or more and route long source material through atomic
-`preview_ingest` proposals. The extraction prompt still repeats the closed list
-after the source as defence in depth for legacy and direct callers. `project` is
-deliberately free-form — a new project must be able to name itself — but means
-the repository or service that owns the knowledge, never the client, harness or
-test tool doing the extraction. The extraction is shown existing project names
-and explicit workspace paths take precedence; when ownership is unclear the
-field stays empty.
-
-`thought_relations` stores full UUID links between replacements and the memories
-they supersede, as well as `derived_from`, `related_to`, conflict, merge and
-source relationships. A superseded row is hidden from current-only searches,
-not deleted. Deletion remains a separate confirmed operation.
-
-`thought_changes` is the change log, written by a trigger on `thoughts` so that
-it also records what never passes through the server, such as a psql session.
-Each create, update and delete is one row with the writer's name and the
-changed fields as they were before. The web UI uses it for a per-memory
-**Changes** list with *Restore this version*, and for *Recently deleted* on the
-Review page: a deleted memory keeps its text and relations for
-`CHANGE_LOG_DELETED_DAYS` (30) days and comes back under its own id. *Forget
-now* drops the kept text at once. A change that ever touched the vault is
-filed as vault and never shown on the open listener.
-
-Agent-authored memories default to pending evidence and cannot be treated as
-user instructions. `review_memory` or the Review page can confirm, mark
-stale, retain as evidence, or reject them. `captured_by` records the client
-that wrote the memory — taken from the MCP handshake, never from the caller's
-own metadata — and the review queue shows it, so a brain written to by several
-harnesses at once can still say which one wrote a given memory. `recall_traces` records only the
-client and returned/used memory UUIDs — never the query, answer, or content. A
-crashed harness leaves its receipt unreported for good: the trace is a log, so
-the honest record is that no report ever arrived. Usage events and receipts are
-pruned daily to the retention chosen on the Statistics page — `Keep everything`
-turns pruning off.
-
-One detail in `upsert_thought`: a row can be **promoted** into the vault but
-never silently fall out of it. Capturing the same content again with
-`tier='open'` leaves the row as `vault`.
-
-## Audit
-
-Run `npm run audit` in `server/` for a read-only, deterministic quality pass.
-Besides metadata fields that would be normalized, it reports warning codes for
-oversized or multi-purpose current memories, completed work filed as tasks,
-session-history language, possible secret fragments, metadata not grounded in
-the content, titles or summaries that are only the cut-off opening of the
-content, and projects that disagree with an explicit workspace path. The
-report contains UUIDs, fields and warning codes only — never memory content,
-titles, summaries or secret values. Warnings do not write to the database and
-do not turn the dry run into a failure.
-
-The audit cannot see two memories that disagree, so the server looks for those
-itself. Pairs of current memories with a similarity of 0.6 or more are read by
-an open-weights model (`CONTRADICTION_MODEL`, Qwen3-235B by default), closest first, twenty a night or on demand from the Review page,
-and the ones it judges incompatible are listed as *Possible contradictions*
-with the same choices as duplicates plus *Not a contradiction*. A verdict holds
-until either memory changes. Nothing is changed automatically.
-
-## Measuring recall
-
-The ranking weights and the recall hook's 0.5 floor were set by hand against a
-few probes. `scripts/eval-recall.mjs` measures them against a fixed set of
-questions, each listed with the memories that answer it, so a ranking change is
-judged by numbers before it ships: hit@1, hit@5 and reciprocal rank for search,
-and for the hook, at floors 0.40 to 0.60, how often it shows the right memory,
-only wrong ones, or anything at all for a question nothing should answer.
-
-The same measurement runs from the **Models** card on the Connect page (full
-listener only): upload the question set there, press *Measure*, and the card
-proposes a search threshold and a hook floor for the embedding model in use, or
-for a re-embedding in progress before its switch. Both floors are stored in the
-database and take effect without a restart. An uploaded set is kept in the
-database, beside the memories it is about.
-
-The question set holds real questions about real systems, so it stays out of
-git: copy [eval/recall-questions.example.json](eval/recall-questions.example.json)
-to `eval/recall-questions.local.json` (gitignored) and fill it in. It reaches
-the script on stdin, so it never enters the image either:
+## Development
 
 ```bash
-ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs" < eval/recall-questions.local.json
-ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs --variant 'no-title={\"title\":0}'" < eval/recall-questions.local.json
+cd server
+npm ci
+npm test          # database tests are skipped without TEST_DATABASE_URL
+npm run audit     # read-only quality report on the database in DATABASE_URL
 ```
 
-A variant overrides any of `RANK_WEIGHTS` in `server/lib.mjs`; `current` always
-runs first, and every variant searches with the same embedding of each
-question. The run is read-only and writes no recall trace, so it does not move
-the receipts it measures. An expected memory that has been superseded, deleted
-or sits outside `--tiers` is reported as a warning rather than counted as a
-ranking failure. The report names questions by id and memories by UUID only.
+Database tests need a disposable pgvector Postgres; see the header of
+`server/testing/db.mjs`. A new environment variable must be added to `.env.example`
+and passed under `app.environment` in `docker-compose.yml`.
 
-## Naming
-
-Container names, the Docker volume, and the compose project are `valv`-prefixed
-(Swedish for *vault*), left over from when the project was called Mimers Valv.
-They are deliberately untouched: `name: mimers-valv` is pinned at the top of
-`docker-compose.yml` because Compose otherwise derives the project name from the
-directory, and the volume holding every memory is `mimers-valv_valv-data`. A
-rename would silently create a fresh, empty database.
+The Compose project, containers and volume keep their old `valv` names on
+purpose; renaming them would start an empty database. See
+[docs/how-it-works.md](docs/how-it-works.md#naming).

@@ -42,6 +42,16 @@ memories and kept each text's language. And the Models card's buttons were
 hidden until the pointer was over the card, because `.card .actions` won over
 the card's own rule; they are now always shown.
 
+The documentation was checked against the code and rewritten shorter. README is
+now an overview with a per-port tool table; the design details moved to
+`docs/how-it-works.md` and the MQTT sensors to `docs/home-assistant.md`; install
+and connection steps each live in one place. The check found real drift:
+`MQTT_UNREPORTED_FAULT` was documented but never passed to the container, so it
+had no effect; `CORS_ORIGINS` and `OLLAMA_API_KEY` were missing from
+`.env.example`; HowToUse expected six tools where there are ten, said editing
+tags does not re-embed (it does), and the import guide still spoke of
+credentials in vault rows, which the server has refused since 0.9.26.
+
 ## 2026-10-18 — 0.15.0: the brain can be switched off, and old pending is history
 
 The **Trust and review state** card showed 45 memories as pending while the

@@ -2,17 +2,15 @@
 
 ## mimer-recall.py — memories brought to the prompt
 
-A `UserPromptSubmit` hook. Every prompt you send is searched once in Mimers
-Brain, and up to three memories above a similarity floor are added to the
-model's context before it answers. A miss adds nothing. The idea is OB1's
-*live retrieval* recipe; the reason here is that "search before you act" is a
-rule models follow unevenly, and a hook does not depend on the model
-remembering it.
+A `UserPromptSubmit` hook. Each prompt you send is searched once in Mimers Brain,
+and up to three memories above a similarity floor are added to the model's
+context before it answers. A miss adds nothing. "Search before you act" is a rule
+models follow unevenly; a hook does not depend on the model remembering it.
 
-What it costs: one embedding call per prompt (fractions of a cent) and about
-half a second before the answer starts. What it never does: store the prompt,
-create a recall receipt, or embed a prompt that contains a credential — the
-server checks it against the same secret gate as every write and skips it.
+Cost: one embedding call per prompt and about half a second before the answer
+starts. It never stores the prompt, never creates a recall receipt, and never
+embeds a prompt that contains a credential (the server checks it against the same
+secret gate as every write).
 
 ### Install
 
@@ -22,11 +20,13 @@ server checks it against the same secret gate as every write and skips it.
    cp tools/hooks/mimer-recall.py ~/.claude/hooks/
    ```
 
-2. Put the key for the listener in the environment as `MIMERS_BRAIN_TOKEN`
-   (on Windows a user variable; restart Claude afterwards). The full listener
-   key also brings vault memories; the open key only open ones.
+2. Put the listener's key in the environment variable `MIMERS_BRAIN_TOKEN` (on
+   Windows a user variable; restart Claude afterwards). `MCP_ACCESS_KEY` also
+   brings vault memories.
 
-3. Add the hook to `~/.claude/settings.json`, with your brain's LAN address:
+3. Add the hook to `~/.claude/settings.json`, with your brain's **LAN** address
+   (through the proxy, `/api` sits behind forward auth, which a script cannot
+   pass):
 
    ```json
    "hooks": {
@@ -45,18 +45,19 @@ server checks it against the same secret gate as every write and skips it.
    }
    ```
 
-   Use the LAN address: through the reverse proxy `/api` sits behind forward
-   auth, which a script cannot pass.
+To switch it off, remove that entry.
 
 ### Tuning
 
-`RECALL_HINT_FLOOR` in the server's `.env` sets the semantic floor (default
-`0.5`). Lower finds more and interrupts more. On the Statistics page the calls
-show up as `hook.recall` from the client `mimer-recall`.
+The floor is the **memory hints** threshold on the Models card (Connect page,
+port 8790), default `0.5`. Lower finds more and interrupts more. The card can
+measure it against your own questions. `RECALL_HINT_FLOOR` in `.env` still works
+when nothing is saved on the card. Calls show on the Statistics page as
+`hook.recall` from the client `mimer-recall`.
 
-### Behaviour worth knowing
+### Behaviour
 
 - Prompts shorter than 12 characters and slash commands are not searched.
 - A memory shown once in a session is not shown again in that session.
-- If the server cannot be reached, the hook stays silent and does not try again
-  for ten minutes, so working away from the LAN costs nothing per prompt.
+- If the server cannot be reached, the hook stays silent and waits ten minutes
+  before trying again, so working away from the LAN costs nothing.

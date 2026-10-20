@@ -7,5 +7,5 @@ RUN npm ci --omit=dev --no-audit --no-fund
 
 COPY . .
 
-EXPOSE 8790 8791
+EXPOSE 8790 8791 8792
 CMD ["node", "index.mjs"]

@@ -3,501 +3,119 @@
 *[English](README.md)*
 
 Ett självhostat långtidsminne för språkmodeller. Samma idé som
-[OB1](https://github.com/NateBJones-Projects/OB1), men på egen hårdvara — och med
-en nivå som aldrig lämnar det privata nätverket.
+[OB1](https://github.com/NateBJones-Projects/OB1), men på egen hårdvara, med en
+nivå som aldrig lämnar det lokala nätverket.
 
-Vilken modell som helst som talar MCP kan läsa och skriva till minnet, så
-kunskapen om ens system beskrivs en gång i stället för i varje ny konversation.
-Känslig kontext och SECRET_REF-pekare serveras bara på LAN; råa lösenord,
-tokens, API-nycklar och privata nycklar lagras aldrig — varje väg som sparar
-stoppar text som ser ut som en sådan innan den lämnar servern. Allt annat går att nå
-varifrån som helst.
+Alla klienter som talar MCP (eller OpenAPI) kan söka i och skriva till minnet. Det
+du vet om dina system skrivs ner en gång i stället för att förklaras om i varje
+konversation.
+
+- **Två nivåer.** *Öppen* kunskap nås var som helst via en reverse proxy.
+  *Valvet* — känslig kontext och `SECRET_REF`-pekare — finns bara på LAN.
+  Råa lösenord, tokens och nycklar vägras vid varje skrivning.
+- **Sökning på betydelse**, med metadata, granskningsstatus och kvitton som visar
+  vilka hämtade minnen som faktiskt användes.
+- **Webbgränssnitt** på svenska och engelska för att bläddra, redigera, granska
+  och ansluta klienter.
+
+![Minneslistan med metadatafilter och en valvpost som bara syns på LAN](assets/screenshots/mimers-brain-thoughts.png)
+
+## Dokumentation
 
 | | |
 | --- | --- |
-| **[install.md](install.md)** | Komplett installationsguide för Proxmox LXC, Docker Desktop och Ubuntu Server |
-| **[HowToUse.md](HowToUse.md)** | Koppla in en modell, och sätta upp allt igen efter en ominstallation |
-| **[history.md](history.md)** | Vad som byggts, varför, och vad som gick fel |
-| **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Färdig reverse-proxy-config |
-| **[migrate/](migrate/)** | Engångsimport av befintlig kunskap |
+| **[install.md](install.md)** | Installation på Proxmox LXC, Docker Desktop eller Ubuntu Server: konfiguration, reverse proxy, backup, uppdatering (engelska) |
+| **[HowToUse.sv.md](HowToUse.sv.md)** | Ansluta Claude Code, Codex, Claude Desktop, ChatGPT, Open WebUI; vad som hör hemma i minnet |
+| **[docs/how-it-works.md](docs/how-it-works.md)** | Nivågränsen, autentisering, minnesmodellen, sökning, modeller, underhåll (engelska) |
+| **[docs/home-assistant.md](docs/home-assistant.md)** | MQTT-sensorer för Home Assistant (engelska) |
+| **[tools/hooks/](tools/hooks/README.md)** | Claude Code-hook som lägger relevanta minnen vid varje fråga |
+| **[docs/nginx-brain.conf](docs/nginx-brain.conf)** | Mall för reverse proxy |
+| **[docs/translations.md](docs/translations.md)** | Lägga till ett språk i gränssnittet |
+| **[migrate/](migrate/README.md)** | Engångsimport av befintliga anteckningar |
+| **[history.sv.md](history.sv.md)** | Vad som byggts, varför, och vad som gick fel |
 
-> **Adresser i dokumentationen är platshållare.** `192.0.2.x`
+> **Adresserna i dokumentationen är platshållare.** `192.0.2.x`
 > ([RFC 5737](https://www.rfc-editor.org/rfc/rfc5737)) och `example.net`
-> ([RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)) är reserverade just för
-> dokumentation och pekar aldrig på något verkligt. Byt dem mot dina egna. Den
-> som kör en installation kan hålla sina riktiga värden i
-> `docs/deployment.local.md`, som är gitignorerad.
+> ([RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)) pekar ingenstans. Byt mot
+> dina egna och spara de riktiga värdena i `docs/deployment.local.md`
+> (gitignorerad).
 
-## Skärmbilder
+## Snabbstart
 
-![Mimers Brains tankelista med metadatafilter och en LAN-skyddad valvpost](assets/screenshots/mimers-brain-thoughts.png)
+Kräver Docker med Compose. Fullständiga instruktioner: [install.md](install.md).
 
-![Mimers Brains minneshälsa, återkallningskvalitet och aktivitetsstatistik](assets/screenshots/mimers-brain-statistics.png)
-
-Webbgränssnittet finns på engelska och svenska, väljer webbläsarens språk vid
-första besöket och minns ett manuellt val. Nya översättningar är vanliga
-JSON-kataloger; se [docs/translations.md](docs/translations.md).
-
-## Varför två portar
-
-Nivåuppdelningen bygger **inte** på att inspektera `X-Forwarded-For`. Den kan
-sättas av vem som helst, så en enda header hade räckt för att lyfta ut hela
-valvet. Istället är nivån en egenskap hos **lyssnaren**:
-
-| Port | Innehåll | Vem |
-| --- | --- | --- |
-| **8790** | öppen + valv, plus webbgränssnittet | Endast LAN. **Proxa aldrig hit.** |
-| **8791** | endast öppen nivå | Den enda port NPM ska vidarebefordra `brain.example.net` till |
-| **8792** | öppen nivå, **endast läsning** | För en modell som får slå upp saker men inte ändra något |
-
-MCP-servern på 8791 byggs utan förmågan att nå valvet — verktygen konstrueras med
-`tiers = ['open']` och `delete_thought` registreras inte alls. Det finns ingen
-parameter, header eller sökväg som ändrar det. En angripare som tar sig förbi
-proxyn når fortfarande bara öppen kunskap.
-
-8792 tillämpar samma tanke på skrivning. Mindre kapabla modeller behandlar gärna
-minnet som ett kladdpapper: de sparar det som redan står i repot, upprepar sitt
-eget resonemang och ersätter aldrig något. Den porten registrerar helt enkelt
-aldrig `capture_thought`, `preview_ingest`, `apply_ingest`, `review_memory`,
-`supersede_thought` eller `delete_thought`, så det finns inget att övertala den
-till. Kvar finns sökning, listning, hämtning, statistik — och
-`report_memory_usage`, som skriver ett återkallningskvitto och inte ett minne,
-och som varje sökning ber om. Ge porten en egen `MCP_READ_KEY`: lämnar du ut
-`MCP_OPEN_KEY` i stället kan samma klient bara skriva på 8791. Den serverar
-`/mcp`, `/openapi.json` och `/tools/*`, ingenting annat — inget webbgränssnitt
-och ingen dashboard-REST.
-
-Smoke-testet är skrivskyddat som standard. Använd `-Write` för hela
-canary-sviten; testdata tas bort i ett `finally`-block även om
-en kontroll misslyckas:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1
-powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Write
-powershell -ExecutionPolicy Bypass -File .\test-isolation.ps1 -Json
-```
-
-Den fulla sviten täcker: valv-rader syns inte via öppna porten, hemligt innehåll läcker
-aldrig ut, direkt id-uppslag av en valv-rad nekas, skrivförsök till valvet
-utifrån nekas, statistik avslöjar inte ens att valvet finns, anslutningsguiden
-lämnar inte ut valvnyckeln på den proxade lyssnaren, användningsloggen bär aldrig
-innehåll, fel nyckel ger 401, agentminnen börjar som evidens, mänsklig granskning
-ändrar deras tillit och smart import bevarar källans proveniens. Läsporten
-kontrolleras på samma sätt: den registrerar inget skrivande verktyg på någon av
-ytorna, den nekar `capture_thought`, `supersede_thought` och `delete_thought`
-även när valvnyckeln visas upp, inget av det försöken skickade når minnet, den
-svarar fortfarande på en sökning, och `MCP_READ_KEY` öppnar den porten och
-ingen av de andra två.
-
-## Kom igång lokalt
-
-Se **[install.md](install.md)** för en fullständig förstagångsinstallation i
-Proxmox LXC, Docker Desktop eller Ubuntu Server. Kortversionen för Docker Desktop:
-
-```powershell
-Copy-Item .env.example .env    # fyll i POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY
+```bash
+git clone https://github.com/Snille/Mimers-Brain.git && cd Mimers-Brain
+cp .env.example .env    # sätt POSTGRES_PASSWORD, MCP_ACCESS_KEY, OPENROUTER_API_KEY, CITATION_BASE_URL
 docker compose up -d --build
 ```
 
-Gränssnittet: <http://localhost:8790>
-
-Sidan **Granska** innehåller tillitskön, minnen som sökningen hela tiden hittar
-men inget svar använder (**Sällan till nytta**), semantiskt liknande
-dubblettförslag och integritetssäkra återkallningskvitton. Varje minneskort där och under **Tankar**
-visar när det skapades, som `2026-10-06 - 20:54` i lokal tid. Längre text i
-**Ny tanke** visas först som
-atomära minnesförslag innan något sparas.
-Sidan **Statistik** börjar med **hjärnan**: varje aktuellt minne som en punkt i
-en 3D-hjärna av trådnät, placerad efter betydelse (närliggande minnen delar ett
-namngivet område) och med storlek och djup efter hur många kopplingar minnet har
-— gemensam sort, uppgiftsstatus, projekt, ämne, person, system eller liknande
-innehåll, var och en en linjefärg som går att slå av. Dra för att vrida, scrolla
-för att zooma, ta tag i ett minne för att dra ut dess linjer. Knappen
-**3D-hjärnan** stänger av hela bilden, vilket sparar den CPU som ritningen kostar
-och hoppar över grafens fråga; webbläsaren minns valet. Därunder skiljer
-sidan aktiva minnen från arkiverade och ersatta poster och visar sedan tillitsstatus, proveniens, kvittotäckning, nyttan av återkallade
-minnen, klient-/verktygsaktivitet och MQTT-drift. Återkallningsdiagrammen börjar
-med det första 0.8.0-kvittot; äldre anrop märks aldrig felaktigt som saknade svar.
-
-Generera en nyckel:
-```powershell
--join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Maximum 256) })
-```
-
-**OPENROUTER_API_KEY är inte valfri i praktiken.** Utan den får inget en
-embedding, och då fungerar varken semantisk sökning eller `search_thoughts` —
-bara listning och textsökning.
-
-## Koppla in i Claude Code
+Öppna <http://localhost:8790>, logga in med `MCP_ACCESS_KEY` och gå till
+**Anslut**: där finns färdiga inställningar att kopiera för varje klient, ifyllda
+med den här instansens adresser och nycklar. För Claude Code på LAN:
 
 ```bash
 claude mcp add --transport http mimers-brain http://192.0.2.41:8790/mcp --header "Authorization: Bearer <MCP_ACCESS_KEY>"
 ```
 
-Utifrån (och för andra LLM:er) används `https://brain.example.net/mcp`, som pekar
-på 8791.
+Utan `OPENROUTER_API_KEY` (eller en annan leverantör) får inget en embedding, och
+bara listning och textsökning fungerar.
 
-Vill du att minnena ska komma till frågan utan att modellen behöver söka, lägg
-till `UserPromptSubmit`-hooken i [tools/hooks/](tools/hooks/README.md). Den söker
-en gång på varje fråga och lägger till upp till tre tydliga träffar i kontexten;
-en miss lägger inte till något.
+## Tre portar
 
-## Inloggning
+| Port | Innehåll | Vem får nå den |
+| --- | --- | --- |
+| **8790** | öppet + valv, webbgränssnitt, alla verktyg | bara LAN/VPN. **Proxa den aldrig.** |
+| **8791** | öppen nivå, webbgränssnitt | den enda port en publik reverse proxy pekar på |
+| **8792** | öppen nivå, bara läsverktyg, inget gränssnitt | en modell som får slå upp men inte skriva |
 
-Fyra vägar in, i den ordning servern provar dem:
+Nivån avgörs av vilken port en förfrågan kommer in på, aldrig av en header: den
+öppna och den läsande lyssnaren byggs utan möjlighet att nå valvrader. Se
+[docs/how-it-works.md](docs/how-it-works.md#the-tier-boundary).
 
-1. **Bearer-nyckel** (`Authorization: Bearer <MCP_ACCESS_KEY>`) — det MCP-klienter
-   och skript använder.
-2. **Cookie** — webbläsaren byter nyckeln mot en HttpOnly-cookie en gång via
-   `POST /api/login`. Cookien härleds ur nyckeln, så det finns ingen
-   sessionstabell att underhålla.
-3. **Authelia** — endast på den öppna lyssnaren. nginx har då redan kört
-   requesten förbi Authelia och satt `Remote-User`.
-4. **Nyckel i URL:en** (`/mcp?key=<MCP_OPEN_KEY>`) — öppna lyssnaren, endast
-   `/mcp`, och bara om `MCP_OPEN_KEY` är satt.
+## MCP-verktyg
 
-Punkt 3 och 4 är säkra *just där och bara där*: den lyssnaren kan över huvud taget
-inte nå valv-rader, så det värsta en förfalskad header eller en läckt URL kan ge är
-öppen kunskap som vem som helst på LAN:et ändå kan läsa från 8790. Gör aldrig
-samma sak på den fulla lyssnaren.
+| Verktyg | 8790 | 8791 | 8792 |
+| --- | :-: | :-: | :-: |
+| `memory_digest` — stående regler; anropas en gång per session | ✓ | ✓ | ✓ |
+| `search_thoughts` — sök på betydelse | ✓ | ✓ | ✓ |
+| `list_thoughts`, `thought_stats` | ✓ | ✓ | ✓ |
+| `search` + `fetch` — paret ChatGPT förväntar sig | ✓ | ✓ | ✓ |
+| `report_memory_usage` — kvitto för en sökning | ✓ | ✓ | ✓ |
+| `capture_thought`, `preview_ingest` + `apply_ingest` | ✓ | ✓ | |
+| `supersede_thought`, `review_memory`, `delete_thought` | ✓ | | |
 
-Punkt 4 finns för att vissa klienter tar en URL och inte erbjuder något sätt att
-skicka en header — Claude Desktops connector-dialog är fallet som tvingade fram
-den. En nyckel i en URL är en verklig försämring: den sparas i klientens config
-och skrivs till varje accesslogg i proxyn. Därför måste `MCP_OPEN_KEY` vara ett
-**annat** värde än `MCP_ACCESS_KEY`, och `/mcp` har `access_log off` i
-[docs/nginx-brain.conf](docs/nginx-brain.conf). Den snyggare lösningen för den
-sortens klienter är OAuth, skissad men inte byggd i
-[docs/oidc-connector-plan.md](docs/oidc-connector-plan.md).
-
-Gränssnittet serveras på **båda** portarna. På 8790 (LAN) ser du valvet och loggar
-in med nyckeln; via `brain.example.net` ser du bara öppen nivå och Authelia
-sköter inloggningen.
+Samma verktyg finns som REST för OpenAPI-klienter: `GET /openapi.json` och
+`POST /tools/<namn>` (med `fetch_thought` i stället för `search`/`fetch`).
 
 ## Webbgränssnittet
 
-Tre vyer, och inloggningen ovan gäller alla tre.
-
-**Tankar** är listan, hybridsökningen och metadataredigeringen. Aktuella minnen
-visas som standard; projekt, sort, uppgiftsstatus, personer och system är skilda
-facetter. Överspelade rader går fortfarande att läsa via historiklänkarna.
-**Kopiera referens** på ett kort kopierar hela id:t och titeln som en rad;
-klistra in den i en chatt med vilken ansluten modell som helst och skriv vad som
-ska ändras.
-
-**Anslut** är uppkopplingsanvisningarna för varje klient — Claude Code, Codex i
-VS Code, Claude Desktops connector, Open WebUI, ChatGPT, en generisk MCP-klient —
-återgivna med *den här* instansens adresser, nycklar och verktygslista i stället
-för platshållare. Kopieringsknappar ger färdiga kommandon och färdig JSON.
-
-På LAN-lyssnaren har sidan också rutan **Modeller**: vilken leverantör och modell
-som sköter inbäddningen, metadatan och motsägelsekontrollen, och vilka
-leverantörer som finns: OpenRouter, OpenAI, Ollama och en egen OpenAI-kompatibel
-server. En adress eller en API-nyckel kan sättas där i stället för i `.env`, och
-ett värde satt i rutan gäller före. Nycklar förseglas med AES-256-GCM under
-`SETTINGS_KEY` innan de når databasen, så den nattliga dumpen innehåller bara
-chiffertext; fältet går bara att skriva i, och rutan får veta om en nyckel finns
-och varifrån den kommer, aldrig själva nyckeln. Inget sparas förrän ett riktigt
-anrop med de nya värdena har listat leverantörens modeller. Varje modellval kan
-testas på samma sätt innan det sparas, och modellistorna visar pris när
-leverantören publicerar det. Metadata- och
-motsägelsemodellen byts direkt. En ny inbäddningsmodell fylls i bredvid den gamla
-i bakgrunden; sökningen använder den gamla så länge, en jämförelse visar samma
-fråga besvarad av båda, och först *Byt* ersätter vektorerna. Rutan finns inte på
-den öppna lyssnaren, som vägrar `/api/ai` helt: att välja modell är att välja vart
-valvets text skickas.
-
-Samma sida visar också en kopierbar **minnespolicy** för alla modeller. MCP-klienter
-får en kort form vid initieringen — Claude Code klipper serverinstruktioner vid
-2048 tecken — som säger åt dem att anropa `memory_digest` först, och
-startpaketet börjar med hela policyn. OpenAPI-klienter får hela policyn i
-`info.description` och `x-memory-policy`. Om en klient ignorerar instruktioner på
-protokollnivå klistras policyn in i dess globala instruktioner eller
-systeminstruktioner. För Codex är den dokumenterade beständiga reservvägen
-`~/.codex/AGENTS.md`.
-
-Policyn säger åt modellerna att söka innan de svarar om Erik eller hans system,
-hämta fullständiga detaljer bara vid behov och bara spara atomär, verifierad
-kunskap som kan ändra ett framtida svar. Projektstatus, färdigt arbete,
-releaser och sessionshistorik hör hemma i README och historik/changelog; saknas
-någon av filerna ska modellen föreslå att skapa den i stället för att använda
-Minnet som ersättning. Policyn definierar också vad en oavslutad uppgift är,
-reserverar `user_confirmed` för den exakta minnestexten, använder navigerbar
-ersättning vid rättelser och förbjuder råa hemligheter. Servern fortsätter
-samtidigt att validera nivåer och metadata, eftersom instruktioner i sig inte är
-en säkerhetsgräns.
-
-Nycklarna är maskerade tills du ber om dem, och en regel avgör vilka som alls
-ligger på sidan: `MCP_ACCESS_KEY` serveras **bara av LAN-lyssnaren**. Att nå
-gränssnittet via proxyn betyder att autentiseraren släppte in dig, men att skicka
-valvnyckeln den vägen hade tryckt ut den enda credential som låser upp valvet ur
-huset och in i en webbläsarcache varje gång sidan öppnas. `MCP_OPEN_KEY` visas på
-båda, eftersom den är gjord för att resa i URL:er och aldrig kan nå mer än öppen
-nivå.
-
-LAN-adressen på den sidan är **inlärd, inte konfigurerad**. Att fråga OS:et om den
-inifrån en container ger Dockers bryggadress, och socketen ger samma sak eftersom
-porten är NAT:ad — båda hade självsäkert skrivit ut en adress som inte fungerar
-för någon. `Host`-headern på LAN-lyssnaren kan däremot inte vara fel på det sätt
-som spelar roll: det är en adress en webbläsare precis kom fram på. Den tas alltså
-från riktiga besök och sparas, vilket är varför sidan kan namnge LAN-adressen även
-när du läser den via proxyn. `LAN_URL` går före om du hellre vill se ett värdnamn;
-innan LAN-lyssnaren öppnats en gång säger sidan det i stället för att gissa.
-
-Ett minnes återkallningskvitton påverkar också sökningen: ett som används ofta
-hamnar lite högre, ett som ofta förbigås lite lägre — en knuff på några
-hundradelar, aldrig nog för att gå förbi en bättre träff. Träffar som inte
-verifierats på sex månader får en `AGE`-notering så att en modell kontrollerar
-innan den påstår. Varje modell ombeds anropa `memory_digest` en gång per
-session: de bekräftade preferenserna och profilminnena plus allt som fästs på
-sidan Tankar, så att en modell som aldrig läser en `CLAUDE.md` börjar med samma
-grundregler. Filtret **Startpaket** överst i sidomenyn på sidan Tankar visar
-exakt vad det innehåller. Varje modell läser startpaketet i varje session, så
-det hålls till 15 minnen eller 9 000 tecken: därutöver gör varje ny regel att de
-andra väger mindre. Det som inte får plats nämns sist i startpaketet, så att
-modellen vet att den ska söka efter det, och sidomenyn visar hur många som
-hamnar utanför. Fäst bara det som en modell skulle göra fel utan, i många olika
-uppgifter; sökningen hittar resten.
-
-**Statistik** svarar på fyra separata frågor: om minnet mår bra, om återkallade
-minnen faktiskt blir användbara, hur aktiviteten förändras över tid och om
-integrationerna fungerar normalt. Sidan kombinerar därför aktiva och historiska
-poster, gransknings- och metadatakvalitet, proveniens, kvittotäckning, rapporterad
-nytta, klient-/verktygsaktivitet och MQTT-hälsa utan att bli en topplista.
-
-Två saker är värda att veta om de siffrorna. MCP uppger **klientappen** — Claude
-Code, Codex, en ChatGPT-connector — aldrig vilken modell som svarar inuti den;
-modellnamnet finns inte på tråden, så sidan låtsas inte veta det. Och
-användningsloggen innehåller inget innehåll: inte sökfrågan, inte minnet, inte
-svaret. En trafiklogg som citerade valvsökningar tillbaka hade upphävt den
-nivådelning den ligger bakom. Via proxyn räknas dessutom bara trafik som kom in
-på den öppna lyssnaren, så sidan kan inte avslöja att valvtrafik existerar.
-
-## Home Assistant över MQTT
-
-Sätt `MQTT_URL` i `.env` så anmäler sig hjärnan via HA:s discovery som enheten
-**Mimers Brain**, och publicerar sedan sina räknare var `MQTT_INTERVAL_S` sekund
-och direkt efter varje skrivning.
-
-Entitets-ID:n följer av enhetsnamnet plus varje sensornamn — inte av `object_id`,
-vad dokumentationen än antyder — så de är ett kontrakt värt att behandla som ett:
-
-| Entitet | Vad |
+| Sida | Till för |
 | --- | --- |
-| `binary_sensor.mimers_brain_online` | uppkoppling, driven av last will |
-| `sensor.mimers_brain_memories_total` / `_open` / `_vault` | minnets storlek |
-| `sensor.mimers_brain_memories_pending_review` / `_evidence_only` / `_stale` | granskningskö för styrningen |
-| `sensor.mimers_brain_memories_today` / `_week` / `_month` / `_year` | tillväxt |
-| `sensor.mimers_brain_calls_today` / `_week` / `_month` / `_year` / `_total` | trafik |
-| `sensor.mimers_brain_reads_today`, `_writes_today` | läs/skriv |
-| `sensor.mimers_brain_clients_week`, `_top_client` | vilka som använder det |
-| `sensor.mimers_brain_recall_searches_today`, `_reports_today`, `_unreported` | täckning för integritetssäkra återkallningskvitton |
-| `sensor.mimers_brain_recall_memories_returned_today`, `_used_today` | sammanlagd nytta av återkallade minnen |
-| `sensor.mimers_brain_recall_reporting_percent_today`, `_use_percent_today` | kvitto- och användningsgrad |
-| `sensor.mimers_brain_last_memory`, `_last_recall`, `_last_call` | tidpunkter |
-| `sensor.mimers_brain_status`, `_problem` | `ok` / `degraded` / `error`, och varför |
-| `number.mimers_brain_unreported_fault` | dragbar: orapporterade återkallningar per dygn innan statusen degraderas |
-| `sensor.mimers_brain_uptime` | sekunder sedan start |
+| **Tankar** | Lista, hybridsökning, filter, redigering, fästa minnen i startpaketet (`memory_digest`) |
+| **Granska** | Agentminnen som väntar på granskning, dubbletter, möjliga motsägelser, sällan till nytta, nyligen raderade |
+| **Statistik** | En 3D-karta över minnet, hälsa, hur användbara hämtade minnen är, klientaktivitet, MQTT-status |
+| **Anslut** | Inställningar för varje klient; på port 8790 även kortet **Modeller** (leverantörer, modeller, sökgränser) |
 
-Granskningskö-sensorerna räknar endast aktuella minnen. Ersatta och arkiverade
-poster behåller historisk granskningsmetadata men kräver aldrig någon åtgärd.
+Gränssnittet finns på 8790 (logga in med `MCP_ACCESS_KEY`) och 8791 (öppen nivå,
+bakom din autentisering). Texterna laddas från JSON-kataloger, webbläsarens språk
+väljs första gången och ett manuellt val sparas.
 
-De två räknargrupperna har olika `state_class` med flit. **Tillväxt**-räknarna är
-`measurement`, eftersom ett raderat minne får dem att sjunka och en räknare som
-kan sjunka är en mätare — säger man något annat till Home Assistant tolkas varje
-radering som en nollställd räknare och långtidsstatistiken förstörs tyst.
-**Trafik**-räknarna är kvar som `total_increasing`: ett anrop som redan gjorts
-kan inte ogöras, så de kan bara stiga inom sitt fönster.
+![Minnets hälsa, recall-kvalitet och aktivitet](assets/screenshots/mimers-brain-statistics.png)
 
-Alla sensorer läser ur en enda retained JSON-payload på `<prefix>/state`, så Home
-Assistant fyller alla på nytt från ett meddelande efter en omstart i stället för
-att visa `unknown` fram till nästa tick.
-
-Återkallningstelemetrin innehåller bara antal, tidpunkter och om ett spår fått
-ett kvitto. Frågor, svar och minnesinnehåll går aldrig ut över MQTT.
-`sensor.mimers_brain_recall_unreported` räknar spår från det senaste dygnet som
-fortfarande saknar kvitto efter tio minuter. Ett eller två sådana är sessioner
-som stängdes innan de hann rapportera — vardag, inget att kolla — så de syns i
-räknaren men lämnar statusen `ok`. Först när antalet når gränsen degraderas
-statusen, för så många på ett dygn betyder en klient som aldrig rapporterar.
-Gränsen är dragbaren `number.mimers_brain_unreported_fault` (1–50);
-`MQTT_UNREPORTED_FAULT` i `.env` är bara dess startvärde, och ett val i dragbaren
-sparas som ett retained-meddelande på brokern så att en omstart av hjärnan inte
-glömmer det. Äldre spår finns kvar i statistiken men rör aldrig statusen:
-en harness som kraschade förra månaden är historik, inte ett fel att agera på i
-dag.
-
-Availability-topicen bär en **last will**, och det är den delen som gör "lever
-den" ärlig: dör processen publicerar brokern `offline` åt den. Utan en sådan ser
-en död hjärna exakt ut som en frisk som inte har något nytt att säga. Ett planerat
-stopp säger `offline` medvetet, så en omstart läses som en kort blink i stället
-för ett fastnat `online`.
-
-`sensor.mimers_brain_problem` läses på en ESPHome-display vars fonter har en fast
-glyph-lista, så texten saneras mot den vokabulären före publicering — ett tecken
-utanför listan ritas som *ingenting*, utan fallback-ruta, och äter tyst upp en del
-av meningen. Det är därför fel separeras med `/` och inte `|`. Listan är en kopia
-av `glyphs:`-raden i enhetens YAML; ändras den följer `DISPLAY_GLYPHS` i
-`server/mqtt.mjs` med.
-
-Bara räknare. Inget minnesinnehåll och inga sökfrågor går ut på brokern — brokern
-står på hemnätet, men det är inget skäl att publicera något som inte behövde
-publiceras. Antalet valvrader går däremot ut, vilket är värt att veta om brokern
-delas.
-
-Brokerlösenordet bor i `.env` bredvid de andra hemligheterna i stället för i en
-inställningstabell, medvetet: databasen dumpas varje natt, och en credential som
-ändras med ett `docker compose up -d` behöver inte ligga i backuperna också.
-
-## Docker i LXC
-
-I en oprivilegierad Proxmox-LXC kan containrar inte applicera en AppArmor-profil.
-Varje containerstart failar med `runc run failed: unable to apply apparmor
-profile`. Det visar sig lömskt nog som ett `npm install`-fel mitt i ett bygge —
-läs hela loggen efter `runc run failed` innan du felsöker npm.
-
-`security_opt: [apparmor=unconfined]` i compose-filen löser **körningen** och är
-ofarligt på maskiner utan problemet. **Bygget** går inte att rädda inifrån
-(varken BuildKit eller `DOCKER_BUILDKIT=0` tar `--security-opt`), så imagen byggs
-på laptopen och skeppas över:
-
-```powershell
-docker build -t mimers-brain:latest ./server
-docker save -o img.tar mimers-brain:latest
-scp img.tar valv:/tmp/ ; ssh valv 'docker load -i /tmp/img.tar && rm /tmp/img.tar'
-ssh valv 'cd ~/mimers-brain && docker compose up -d'
-```
-
-Compose har både `build:` och `image:`, så laptopen bygger med `--build` medan
-servern använder den inlästa imagen utan.
-
-**Permanent fix (rekommenderas)** — på Proxmox-värden, inte i containern:
-lägg `lxc.apparmor.profile: unconfined` i `/etc/pve/lxc/<vmid>.conf`, kontrollera
-att `features: nesting=1` är satt, starta om LXC:n. Då fungerar `docker compose
-up -d --build` direkt på servern och hela skeppandet ovan försvinner.
-
-## Deploy till Proxmox
-
-1. Skapa en LXC på `192.0.2.12` (Debian 12, 2 vCPU, 2 GB RAM, 20 GB disk räcker
-   gott — pgvector med några tusen minnen är litet).
-2. Installera Docker, klona repot, fyll i `.env`, `docker compose up -d`.
-3. I Nginx Proxy Manager: ny proxy host `brain.example.net` →
-   `http://<lxc-ip>:8791`. **Kontrollera att det står 8791 och inte 8790.**
-4. Authelia framför den: notera att MCP-klienter inte kan göra en interaktiv
-   inloggning, så sökvägen `/mcp` behöver en bypass-regel — skyddet där är
-   bearer-nyckeln. `/.well-known/oauth-*` behöver också en, som svarar **404**:
-   bakom forward-auth omdirigerar den till en inloggningssida som svarar 200, och
-   en klient som letar efter OAuth läser det som en auktoriseringsserver den måste
-   registrera sig hos. Gränssnittet på 8791 visar enbart den öppna nivån.
-
-## Migrera från Mimers Brain
-
-De minnen som ligger i Supabase idag flyttas genom att läsa dem med
-`list_thoughts` och skriva in dem med `capture_thought` mot 8790. De är få och
-små. Koppla bort Supabase-connectorn efteråt så det bara finns en sanning, men
-låt projektet ligga vilande ett tag som fallback.
-
-## Schema
-
-Basen är fortfarande OB1:s `thoughts`-tabell plus `tier`, men metadata v2 lägger
-till `title`, `summary`, `kind`, `lifecycle`, `task_status`, `project`, `systems`,
-`verified_at`, `valid_for_version`, `origin`, `provenance`, `review_status`,
-`captured_by`, regler för tillåten användning, `source_refs` och `artifact_refs`. Äldre klienter kan fortfarande läsa
-`type`, `topics` och `people`. Migrerade specialetiketter bevaras under
-`legacy_topics` i stället för att försvinna.
-
-`topics` har en sluten ordlista, så ett värde utanför den når aldrig databasen,
-och `other` erbjuds extraheringen som sista utväg i stället för som ett val bland
-likvärdiga. Både capture och supersession vägrar direkt text på 1200 tecken
-eller mer och skickar långt källmaterial genom atomära förslag från
-`preview_ingest`. Extraktionsprompten upprepar ändå den slutna listan efter
-källtexten som försvar för äldre innehåll och direkta anrop. `project` är fritt
-med flit — ett nytt projekt måste kunna döpa sig självt — men betyder repot eller
-tjänsten som äger kunskapen, aldrig klienten, harnesset eller testverktyget som
-gör extraktionen. Extraktionen får se befintliga projektnamn och uttryckliga
-workspace-sökvägar går före; när ägarskapet är oklart lämnas fältet tomt.
-
-`thought_relations` lagrar fullständiga UUID-länkar mellan ersättare och minnena
-de ersätter, samt `derived_from`, relaterade, konflikt-, sammanslagnings- och
-källrelationer. En överspelad rad döljs från sökningar efter aktuellt innehåll
-men raderas inte. Radering är fortfarande en separat, bekräftad handling.
-
-`thought_changes` är ändringsloggen. Den skrivs av en trigger på `thoughts`, så
-den sparar även det som aldrig går genom servern, till exempel en psql-session.
-Varje skapande, ändring och radering blir en rad med skribentens namn och de
-ändrade fälten som de var före. Webbgränssnittet använder den till listan
-**Ändringar** på varje minne, med *Återställ den här versionen*, och till
-*Nyligen raderade* på sidan Granska: ett raderat minne behåller sin text och sina
-relationer i `CHANGE_LOG_DELETED_DAYS` (30) dagar och kommer tillbaka under sitt
-eget id. *Glöm nu* tar bort den sparade texten direkt. En ändring som någon gång
-rört valvet räknas som valv och visas aldrig på den öppna lyssnaren.
-
-Agentens egna minnen blir som standard väntande evidens och får inte behandlas
-som användarinstruktioner. `review_memory` eller sidan Granska kan bekräfta,
-markera gammalt, behålla som evidens eller avvisa dem. `captured_by`
-registrerar vilken klient som skrev minnet — hämtat ur MCP-handskakningen, aldrig
-ur anroparens egen metadata — och granskningskön visar det, så en hjärna som
-flera harnesses skriver till samtidigt ändå kan säga vem som skrev vad.
-`recall_traces` sparar bara klienten och returnerade/använda minnes-UUID:n —
-aldrig sökfrågan, svaret eller innehållet. En harness som kraschar lämnar sitt
-kvitto orapporterat för alltid: spåret är en logg, så den ärliga uppgiften är att
-ingen rapport kom. Användningshändelser och kvitton gallras dagligen enligt den
-tid som väljs på sidan Statistik — `Spara allt` stänger av gallringen.
-
-En detalj i `upsert_thought`: en post kan **befordras** till valvet men aldrig
-tyst falla ur det. Fångar samma innehåll upp igen med `tier='open'` behåller
-raden `vault`.
-
-## Audit
-
-Kör `npm run audit` i `server/` för en skrivskyddad, deterministisk
-kvalitetskontroll. Utöver metadatafält som skulle normaliseras rapporterar den
-varningskoder för för stora eller mångsyftande aktuella minnen, färdigt arbete
-som lagts som uppgift, sessionshistoriskt språk, möjliga hemlighetsfragment,
-metadata som inte stöds av innehållet, titlar eller sammanfattningar som bara är
-textens avklippta början och projekt som inte stämmer med en
-uttrycklig workspace-sökväg. Rapporten innehåller bara UUID:n, fält och
-varningskoder — aldrig minnesinnehåll, titlar, sammanfattningar eller hemliga
-värden. Varningarna skriver inget till databasen och gör inte torrkörningen till
-ett fel.
-
-Granskningen ser inte två minnen som säger emot varandra, så servern letar
-efter dem själv. Par av aktuella minnen med en likhet på 0,6 eller mer läses av
-en modell med öppna vikter (`CONTRADICTION_MODEL`, Qwen3-235B som standard), de mest lika först, tjugo per natt eller på begäran från sidan
-Granska, och de
-som bedöms oförenliga listas som *Möjliga motsägelser* med samma val som
-dubbletter plus *Ingen motsägelse*. Ett utlåtande gäller tills något av minnena
-ändras. Inget ändras automatiskt.
-
-## Mäta sökträffar
-
-Vikterna i rankingen och recall-hookens golv på 0,5 sattes för hand mot några
-få prov. `scripts/eval-recall.mjs` mäter dem mot en fast uppsättning frågor, var
-och en med de minnen som besvarar den, så att en ändring i rankingen bedöms med
-siffror innan den går ut: hit@1, hit@5 och reciprok rang för sökningen, och för
-hooken, vid golv från 0,40 till 0,60, hur ofta den visar rätt minne, bara fel
-minnen, eller något alls för en fråga som inget minne ska svara på.
-
-Samma mätning körs från **Models**-kortet på Connect-sidan (bara på den fulla
-lyssnaren): ladda upp frågorna där, tryck *Mät*, och kortet föreslår en
-sökgräns och ett golv för hooken för inbäddningsmodellen som används, eller för
-en ny inbäddning före bytet. Båda gränserna sparas i databasen och gäller utan
-omstart. En uppladdad frågeuppsättning sparas i databasen, bredvid minnena den
-handlar om.
-
-Frågorna är riktiga frågor om riktiga system och hålls därför utanför git:
-kopiera [eval/recall-questions.example.json](eval/recall-questions.example.json)
-till `eval/recall-questions.local.json` (gitignorerad) och fyll i den. Den når
-skriptet via stdin och hamnar därför inte heller i imagen:
+## Utveckling
 
 ```bash
-ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs" < eval/recall-questions.local.json
-ssh valv "docker exec -i valv-app node scripts/eval-recall.mjs --variant 'no-title={\"title\":0}'" < eval/recall-questions.local.json
+cd server
+npm ci
+npm test          # databastesterna hoppas över utan TEST_DATABASE_URL
+npm run audit     # läsande kvalitetsrapport över databasen i DATABASE_URL
 ```
 
-En variant ändrar valfria värden i `RANK_WEIGHTS` i `server/lib.mjs`; `current`
-körs alltid först, och alla varianter söker med samma embedding av varje fråga.
-Körningen läser bara och skriver inget recall-kvitto, så den rubbar inte de
-kvitton den mäter. Ett förväntat minne som har ersatts, tagits bort eller ligger
-utanför `--tiers` rapporteras som en varning i stället för att räknas som ett
-rankingfel. Rapporten nämner frågor med id och minnen med UUID, inget annat.
+Databastesterna behöver en tillfällig Postgres med pgvector; se början av
+`server/testing/db.mjs`. En ny miljövariabel ska läggas i `.env.example` och
+skickas under `app.environment` i `docker-compose.yml`.
+
+Compose-projektet, containrarna och volymen behåller sina gamla `valv`-namn med
+flit; att byta namn skulle starta en tom databas. Se
+[docs/how-it-works.md](docs/how-it-works.md#naming).
