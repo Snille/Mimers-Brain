@@ -12,6 +12,7 @@ Steps, in order:
 4. [Network and reverse proxy](#4-network-and-reverse-proxy) (optional)
 5. [Backups](#5-backups)
 6. [Updating](#6-updating)
+7. [Tune the search thresholds](#7-tune-the-search-thresholds) (once you have memories)
 
 [Troubleshooting](#troubleshooting) is at the end.
 
@@ -261,6 +262,59 @@ docker compose logs --tail=100 app
 
 The app adds any new tables and columns at startup. `db/init.sql` runs only when
 a new, empty volume is created.
+
+## 7. Tune the search thresholds
+
+Search shows memories above a similarity of **0.3**, and the recall hook above
+**0.5**. Those values were measured with `openai/text-embedding-3-small` on one
+brain. Once yours holds a few dozen memories, measure them on your own questions.
+Do it again after every change of embedding model, since another model scores the
+same text differently.
+
+**1. Write a question set.** Copy
+[eval/recall-questions.example.json](eval/recall-questions.example.json) to
+`eval/recall-questions.local.json` (gitignored: it describes your systems).
+
+```json
+{ "questions": [
+  { "id": "proxy-port", "q": "Which port does the reverse proxy forward to?", "expect": ["<memory id>"] },
+  { "id": "weather",    "q": "What will the weather be like this weekend?",   "expect": [] }
+] }
+```
+
+- `q` is a question you would really ask, worded as you would ask it. Questions
+  taken from real sessions are worth the most.
+- `expect` lists the ids of the memories that answer it; any one counts as a hit.
+  Copy an id with **Copy reference** on the Thoughts page.
+- `expect: []` marks a question nothing should answer. These measure noise from
+  the recall hook.
+- For a suggestion you need at least **3 questions with an answer and 1
+  without**. Around 40 and 5 give stable numbers.
+
+**2. Measure.** On port 8790, open **Connect → Models → Search thresholds**.
+Choose **Upload questions**, then **Measure**. It runs in the background and
+takes a few seconds per question; it changes nothing.
+
+**3. Read the result.**
+
+| Line | Meaning | Good |
+| --- | --- | --- |
+| Right first | the right memory is the first search result | 75 % or more |
+| In the first five | the right memory is among the first five | 90 % or more |
+| Memory hints: right / noise | the hook shows the right memory / shows something for a question with no answer | high / 0 % |
+| "*n* expected memories no longer exist or have been replaced" | a question points at a superseded or deleted memory | fix the `expect` id and upload again |
+
+**4. Apply.** If the warnings are gone and the suggestion looks sensible, choose
+**Use the suggestion**. It takes effect at once, without a restart. **Change**
+sets the values by hand; an empty field brings back the default.
+
+**When you change embedding model:** wait until the re-embedding is finished, but
+do not switch yet. Choose **Measure** for the *new* model and **Save the
+suggestion** for it. Its thresholds then take effect in the same step as
+*Switch*.
+
+The same measurement runs from the command line, with variants of the ranking
+weights; see [docs/how-it-works.md](docs/how-it-works.md#measuring-recall).
 
 ## Troubleshooting
 
