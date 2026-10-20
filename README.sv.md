@@ -478,6 +478,13 @@ siffror innan den går ut: hit@1, hit@5 och reciprok rang för sökningen, och f
 hooken, vid golv från 0,40 till 0,60, hur ofta den visar rätt minne, bara fel
 minnen, eller något alls för en fråga som inget minne ska svara på.
 
+Samma mätning körs från **Models**-kortet på Connect-sidan (bara på den fulla
+lyssnaren): ladda upp frågorna där, tryck *Mät*, och kortet föreslår en
+sökgräns och ett golv för hooken för inbäddningsmodellen som används, eller för
+en ny inbäddning före bytet. Båda gränserna sparas i databasen och gäller utan
+omstart. En uppladdad frågeuppsättning sparas i databasen, bredvid minnena den
+handlar om.
+
 Frågorna är riktiga frågor om riktiga system och hålls därför utanför git:
 kopiera [eval/recall-questions.example.json](eval/recall-questions.example.json)
 till `eval/recall-questions.local.json` (gitignorerad) och fyll i den. Den når

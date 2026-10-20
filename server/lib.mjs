@@ -253,10 +253,6 @@ export async function listThoughts(tiers, {
   return (await pool.query(sql, args)).rows;
 }
 
-// 0.3, not OB1's 0.5: measured against Swedish paraphrases, an identical
-// sentence scores 1.00, shared keywords ~0.79, and a loose rewording with no
-// words in common ~0.43. A 0.5 default silently drops that last case, which is
-// exactly the kind of recall the brain exists for.
 // What the recall receipts say about each memory: how often it was returned
 // and then used, and how often returned and passed over. Counted since the
 // memory was last reviewed, so confirming a memory on the Review page gives it
@@ -329,10 +325,40 @@ export function rankWeights(overrides = {}) {
   return out;
 }
 
+// --- recall thresholds ----------------------------------------------------------
+//
+// The two similarity floors belong to the embedding model that measured them:
+// another model scores the same pair higher or lower. So they are settings, not
+// constants - stored from the Models card (recall-settings.mjs), with these as
+// the values measured for text-embedding-3-small. RECALL_HINT_FLOOR in .env
+// still works, below a stored value.
+//
+// Search 0.3, not OB1's 0.5: measured against Swedish paraphrases, an identical
+// sentence scores 1.00, shared keywords ~0.79, and a loose rewording with no
+// words in common ~0.43. A 0.5 default silently drops that last case, which is
+// exactly the kind of recall the brain exists for.
+export const DEFAULT_THRESHOLDS = Object.freeze({ search: 0.3, hint: 0.5 });
+const envHint = Number(process.env.RECALL_HINT_FLOOR);
+let thresholds = { search: DEFAULT_THRESHOLDS.search, hint: envHint > 0 ? envHint : DEFAULT_THRESHOLDS.hint };
+
+export const recallThresholds = () => ({ ...thresholds });
+export function applyRecallThresholds({ search, hint } = {}) {
+  thresholds = {
+    search: Number(search) > 0 ? Number(search) : DEFAULT_THRESHOLDS.search,
+    hint: Number(hint) > 0 ? Number(hint) : envHint > 0 ? envHint : DEFAULT_THRESHOLDS.hint,
+  };
+  return recallThresholds();
+}
+
+// `column` lets the recall evaluation search the vectors of a re-embedding
+// in progress, so thresholds can be measured before the switch, not after.
+const VECTOR_COLUMNS = new Set(["embedding", "embedding_next"]);
+
 export async function searchThoughts(tiers, query, {
-  limit = 10, threshold = 0.3, kind, lifecycle = "current", taskStatus, project,
-  vector: given, weights,
+  limit = 10, threshold = thresholds.search, kind, lifecycle = "current", taskStatus, project,
+  vector: given, weights, column = "embedding",
 } = {}) {
+  if (!VECTOR_COLUMNS.has(column)) throw new Error(`Unknown vector column: ${column}`);
   // A generic semantic query for "what remains" otherwise ranks incident
   // reports that contain those words above the actual pending tasks. Treat this
   // common intent as a structured filter unless the caller chose one itself.
@@ -356,7 +382,7 @@ export async function searchThoughts(tiers, query, {
     `WITH ${RECEIPTS_CTE},
      ranked AS (
        SELECT ${COLS},
-              coalesce(1 - (embedding <=> $1::vector), 0) AS semantic_score,
+              coalesce(1 - (${column} <=> $1::vector), 0) AS semantic_score,
               ts_rank_cd(
                 setweight(to_tsvector('simple', coalesce(metadata->>'title', '')), 'A') ||
                 setweight(to_tsvector('simple', coalesce(metadata->>'summary', '')), 'B') ||
@@ -400,11 +426,10 @@ export async function searchThoughts(tiers, query, {
 // a trace it was never told about would only sit in the statistics as overdue.
 // The prompt itself is never stored, like every other query. It does reach the
 // embedder, so a prompt with a credential pasted into it is not searched at all.
-export const HINT_FLOOR = Number(process.env.RECALL_HINT_FLOOR || 0.5);
 const HINT_MAX = 3;
 const HINT_PROMPT_CHARS = 2000;
 
-export async function recallHint(tiers, prompt, { exclude = [], floor = HINT_FLOOR } = {}) {
+export async function recallHint(tiers, prompt, { exclude = [], floor = thresholds.hint } = {}) {
   const text = String(prompt || "").trim().slice(0, HINT_PROMPT_CHARS);
   if (text.length < 12) return { hits: [], skipped: "short" };
   try { refuseSecrets(text); } catch { return { hits: [], skipped: "secret" }; }

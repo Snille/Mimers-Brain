@@ -16,6 +16,7 @@
 import * as ai from "./ai.mjs";
 import { embed, getSetting, pool, setSetting, transaction } from "./lib.mjs";
 import { embeddingText } from "./memory-model.mjs";
+import { dropNextThresholds, promoteNextThresholds } from "./recall-settings.mjs";
 import * as box from "./secret-box.mjs";
 
 const ROLES_KEY = "ai_roles";
@@ -290,6 +291,8 @@ export async function switchEmbedding() {
       [ROLES_KEY, JSON.stringify(roles)]);
   });
   await loadModelSettings();
+  // Floors measured on the new vectors take effect with them.
+  await promoteNextThresholds(state.model);
   // Anything that slipped through the narrow window, or failed above, gets a
   // vector from the new model now rather than staying unfindable.
   fillMissingEmbeddings().catch((error) => console.error("fill embeddings:", error.message));
@@ -304,6 +307,7 @@ export async function cancelReembed() {
     await client.query(`ALTER TABLE thoughts DROP COLUMN IF EXISTS embedding_next`);
     await client.query(`DELETE FROM app_settings WHERE key = $1`, [MIGRATION_KEY]);
   });
+  await dropNextThresholds();
   return { cancelled: true };
 }
 

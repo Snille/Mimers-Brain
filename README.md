@@ -470,6 +470,13 @@ judged by numbers before it ships: hit@1, hit@5 and reciprocal rank for search,
 and for the hook, at floors 0.40 to 0.60, how often it shows the right memory,
 only wrong ones, or anything at all for a question nothing should answer.
 
+The same measurement runs from the **Models** card on the Connect page (full
+listener only): upload the question set there, press *Measure*, and the card
+proposes a search threshold and a hook floor for the embedding model in use, or
+for a re-embedding in progress before its switch. Both floors are stored in the
+database and take effect without a restart. An uploaded set is kept in the
+database, beside the memories it is about.
+
 The question set holds real questions about real systems, so it stays out of
 git: copy [eval/recall-questions.example.json](eval/recall-questions.example.json)
 to `eval/recall-questions.local.json` (gitignored) and fill it in. It reaches

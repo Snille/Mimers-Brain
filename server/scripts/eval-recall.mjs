@@ -12,8 +12,10 @@
 // Every question is embedded once and searched once per variant with the same
 // vector, so variants differ only in ranking. A variant is a name and a JSON
 // object of RANK_WEIGHTS overrides (lib.mjs); "current" is always run first.
-// Each search is the one search_thoughts does: current memories, threshold
-// 0.3. The recall hook columns apply recallHint's rule to the same rows.
+// Each search is the one search_thoughts does: current memories, at the search
+// threshold in use. The recall hook columns apply recallHint's rule to the same
+// rows. The measurement itself is evaluate() in recall-settings.mjs, which the
+// Models card runs too; it also proposes thresholds for the model in use.
 //
 // Read only. No recall trace and no usage event is written, so the evaluation
 // does not move the receipts it is measuring. The receipt nudge in the ranking
@@ -23,9 +25,10 @@
 // The report names questions by their id and memories by their UUID - never
 // memory content, titles or summaries.
 
-import { embed, pool, rankWeights, searchThoughts } from "../lib.mjs";
+import { pool, rankWeights } from "../lib.mjs";
 import { loadModelSettings } from "../model-settings.mjs";
-import { DEFAULT_FLOORS, formatReport, parseQuestionSet, summarise } from "../recall-eval.mjs";
+import { formatReport, parseQuestionSet } from "../recall-eval.mjs";
+import { evaluate, loadRecallSettings } from "../recall-settings.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(name);
@@ -45,42 +48,22 @@ const chunks = [];
 for await (const chunk of process.stdin) chunks.push(chunk);
 const questions = parseQuestionSet(Buffer.concat(chunks).toString("utf8"));
 
+const fixed = (value) => (value == null ? "-" : value.toFixed(2));
+
 try {
   await loadModelSettings();
-
-  // An expected memory that is gone, replaced or outside these tiers can never
-  // be found; say so instead of letting it read as a ranking failure.
-  const expected = [...new Set(questions.flatMap((q) => q.expect))];
-  const { rows: known } = await pool.query(
-    `SELECT t.id::text, t.tier, coalesce(t.metadata->>'lifecycle', 'current') AS lifecycle,
-            (SELECT r.from_id::text FROM thought_relations r
-              WHERE r.to_id = t.id AND r.relation = 'supersedes' LIMIT 1) AS replaced_by
-       FROM thoughts t WHERE t.id = ANY($1::uuid[])`,
-    [expected],
-  );
-  const byId = new Map(known.map((row) => [row.id, row]));
-  const warnings = [];
-  for (const q of questions)
-    for (const id of q.expect) {
-      const row = byId.get(id);
-      if (!row) warnings.push(`${q.id}: ${id} does not exist`);
-      else if (row.lifecycle !== "current")
-        warnings.push(`${q.id}: ${id} is ${row.lifecycle}${row.replaced_by ? `, replaced by ${row.replaced_by}` : ""}`);
-      else if (!tiers.includes(row.tier)) warnings.push(`${q.id}: ${id} is in the ${row.tier} tier, outside --tiers`);
-    }
-
-  const runs = variants.map(() => []);
-  for (const q of questions) {
-    const vector = await embed(q.q);
-    if (!vector) throw new Error("No embedding model is configured");
-    for (const [i, variant] of variants.entries()) {
-      const rows = await searchThoughts(tiers, q.q, { limit: 20, threshold: 0.3, vector, weights: variant.weights });
-      runs[i].push({ id: q.id, expect: q.expect, rows });
-    }
+  await loadRecallSettings();
+  const out = await evaluate(tiers, questions, { variants });
+  const report = out.variants.map((variant, i) => ({ ...variant, weights: rankWeights(variants[i].weights) }));
+  if (flag("--json")) process.stdout.write(`${JSON.stringify({ ...out, variants: report }, null, 2)}
+`);
+  else {
+    const { search, hint } = out.suggestion;
+    process.stdout.write(`${formatReport(report, { warnings: out.warnings })}
+Thresholds: search ${fixed(out.searchThreshold)}, hint ${fixed(out.hintFloor)}.
+Suggested: search ${search ? `${fixed(search.value)} (lowest right answer ${fixed(search.lowest)})` : "- (needs 3 answered questions)"}, hint ${hint ? fixed(hint.value) : "- (needs 3 answered and 1 unanswerable question)"}.
+`);
   }
-
-  const report = variants.map((variant, i) => ({ name: variant.name, weights: rankWeights(variant.weights), summary: summarise(runs[i], { floors: DEFAULT_FLOORS }) }));
-  process.stdout.write(flag("--json") ? `${JSON.stringify({ tiers, warnings, variants: report }, null, 2)}\n` : formatReport(report, { warnings }));
 } finally {
   await pool.end();
 }

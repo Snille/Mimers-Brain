@@ -6,6 +6,42 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-20 — 0.16.0: thresholds belong to their embedding model
+
+0.11.0 made a new embedding model a matter of a few clicks, but the two
+similarity floors stayed behind: search 0.3 and the recall hook 0.5, both
+measured with text-embedding-3-small. A score means something only for the
+model that produced it, so after a switch the floors were guesses until someone
+ran `scripts/eval-recall.mjs` over SSH, edited `.env` and restarted.
+
+The Models card now has a **Search thresholds** section. Both floors are stored
+in the database, a stored value wins over `RECALL_HINT_FLOOR` in `.env`, and a
+change takes effect without a restart. The card says which embedding model the
+floors were set for and warns when it is not the one in use.
+
+The measurement runs from the card in the background. The question set is
+uploaded there as the same JSON the script reads; it is kept in the database
+beside the memories it is about, never in git or the image, and only on the full
+listener. A result names questions by id and memories by UUID. It proposes
+floors: search is the lowest score any right answer reached, less 0.1 (how 0.3
+came about); the hint floor is the one that shows the right memory most often
+minus how often it shows something for a question with no answer, a tie going
+to the higher floor. During a re-embedding the new model can be measured on its
+own vectors, and floors saved for it take effect in the same step as the
+switch. A cancelled run takes them with it.
+
+The script and the card share one measurement, `evaluate()` in
+`recall-settings.mjs`. The duplicate (0.86) and contradiction (0.6) thresholds
+are still fixed.
+
+Also in this release: the metadata model's default is `openai/gpt-6-luna`.
+OpenRouter retires gpt-4o-mini on 2027-01-14. In a side-by-side test Qwen3-235B
+split a long Swedish note into 30 memories with copies and two invented facts,
+and wrote Swedish metadata for English text; gpt-6-luna gave nine clean
+memories and kept each text's language. And the Models card's buttons were
+hidden until the pointer was over the card, because `.card .actions` won over
+the card's own rule; they are now always shown.
+
 ## 2026-10-18 — 0.15.0: the brain can be switched off, and old pending is history
 
 The **Trust and review state** card showed 45 memories as pending while the

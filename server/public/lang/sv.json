@@ -547,7 +547,7 @@
     "testFailed": "Fungerade inte: {error}",
     "embeddingWarning": "En ny inbäddningsmodell bäddar in alla minnen igen i bakgrunden. Sökningen använder den nuvarande modellen tills du byter, och inget ändras om du avbryter.",
     "reembedConfirm": "Bädda in alla minnen igen med {model}? Sökningen påverkas inte förrän du byter.",
-    "thresholds": "Likhetsgränserna - sökning 0,3, recall-hooken 0,5, dubbletter 0,86, motsägelser 0,6 - är uppmätta med text-embedding-3-small. En annan inbäddningsmodell kan ge högre eller lägre värden; jämför några sökningar innan du byter.",
+    "thresholds": "Dubblettgränsen 0,86 och motsägelsegränsen 0,6 är fortfarande fasta och uppmätta med text-embedding-3-small.",
     "migration": {
       "title": "Ny inbäddning med {model}",
       "status": {
@@ -591,6 +591,47 @@
       "checking": "Kontrollerar leverantören…",
       "clear": "Ta bort värden satta här",
       "clearConfirm": "Ta bort adress, namn och nyckel som satts här? Då gäller det som står i .env igen."
+    },
+    "recall": {
+      "title": "Sökgränser",
+      "description": "Hur lika ett minne måste vara frågan för att visas. Värdena hör till inbäddningsmodellen som mätte dem: en annan modell ger högre eller lägre poäng för samma par.",
+      "search": "Sökning",
+      "searchHint": "Lägsta likhet för en träff i search_thoughts.",
+      "hint": "Minnestips",
+      "hintHint": "Lägsta likhet för att recall-hooken ska visa ett minne utan att någon frågat.",
+      "source": {
+        "settings": "sparad här",
+        "environment": "från .env",
+        "default": "standard"
+      },
+      "otherModel": "Gränserna är satta för {model}, men sökningen använder {embedding}. Mät och spara nya gränser.",
+      "unknownModel": "Det är okänt vilken modell gränserna mättes med. Sökningen använder {embedding}; mät gärna igen.",
+      "nextSaved": "Sparade för {model}: sökning {search}, minnestips {hint}. De gäller när du byter till den modellen.",
+      "emptyIsDefault": "Tomt fält betyder standardvärdet.",
+      "measureTitle": "Mätning",
+      "noQuestions": "Ingen frågeuppsättning. Ladda upp en JSON-fil i formatet från eval/recall-questions.example.json.",
+      "questions": "{count} frågor: {positives} med svar, {negatives} utan svar.",
+      "uploadQuestions": "Ladda upp frågor",
+      "replaceQuestions": "Byt frågor",
+      "clearQuestions": "Ta bort frågor",
+      "clearConfirm": "Ta bort frågeuppsättningen från databasen?",
+      "measure": "Mät {model}",
+      "running": "Mäter {model} i bakgrunden.",
+      "progress": "{done} av {total} frågor",
+      "failed": "Mätningen stoppades: {error}",
+      "measured": "Mätt med {model}, {when}.",
+      "warnings": "{n} förväntade minnen finns inte längre eller är ersatta. Se över frågorna.",
+      "hit1": "Rätt först:",
+      "hit5": "Bland fem första:",
+      "hintAt": "Minnestips vid {floor}: rätt",
+      "noise": "brus",
+      "suggested": "Förslag: sökning {search}, minnestips {hint}.",
+      "searchBasis": "Sökning = lägsta poäng för ett rätt svar ({lowest}) minus 0,1.",
+      "searchNeeds": "Sökning behöver minst tre frågor med svar.",
+      "hintBasis": "Minnestips: rätt {hit}, brus {noise}.",
+      "hintNeeds": "Minnestips behöver minst tre frågor med svar och en utan.",
+      "apply": "Använd förslaget",
+      "applyNext": "Spara förslaget för {model}"
     }
   }
 }

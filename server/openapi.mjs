@@ -107,14 +107,14 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
         properties: {
           query: str("What you are looking for"),
           limit: { type: "integer", default: 5, description: "Raise this when searching broadly" },
-          threshold: { type: "number", default: 0.3 },
+          threshold: { type: "number", description: "Omitted, the search threshold set on the Models card" },
           kind: { type: "string", enum: MEMORY_KINDS },
           lifecycle: { type: "string", enum: [...MEMORY_LIFECYCLES, "all"], default: "current" },
           task_status: { type: "string", enum: TASK_STATUSES },
           project: str("Only memories owned by this project"),
         },
       },
-      async run({ query, limit = 5, threshold = 0.3, kind, lifecycle = "current", task_status, project }) {
+      async run({ query, limit = 5, threshold, kind, lifecycle = "current", task_status, project }) {
         if (!String(query || "").trim()) throw new BadRequest("query is required");
         const rows = await db.searchThoughts(tiers, String(query).trim(), {
           limit, threshold, kind, lifecycle, taskStatus: task_status, project,

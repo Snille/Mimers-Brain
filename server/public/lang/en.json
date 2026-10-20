@@ -547,7 +547,7 @@
     "testFailed": "Did not work: {error}",
     "embeddingWarning": "A new embedding model embeds every memory again in the background. Search keeps the current model until you switch, and nothing changes if you cancel.",
     "reembedConfirm": "Embed every memory again with {model}? Search is not affected until you switch.",
-    "thresholds": "The similarity thresholds - search 0.3, recall hook 0.5, duplicates 0.86, contradictions 0.6 - were measured with text-embedding-3-small. Another embedding model may score higher or lower; compare a few searches before switching.",
+    "thresholds": "The duplicate threshold 0.86 and the contradiction threshold 0.6 are still fixed, measured with text-embedding-3-small.",
     "migration": {
       "title": "Re-embedding with {model}",
       "status": {
@@ -591,6 +591,47 @@
       "checking": "Checking the provider…",
       "clear": "Remove values set here",
       "clearConfirm": "Remove the address, name and key set here? Whatever .env says applies again."
+    },
+    "recall": {
+      "title": "Search thresholds",
+      "description": "How similar a memory must be to the question to be shown. The values belong to the embedding model that measured them: another model scores the same pair higher or lower.",
+      "search": "Search",
+      "searchHint": "Lowest similarity for a hit in search_thoughts.",
+      "hint": "Memory hints",
+      "hintHint": "Lowest similarity for the recall hook to show a memory nobody asked for.",
+      "source": {
+        "settings": "saved here",
+        "environment": "from .env",
+        "default": "default"
+      },
+      "otherModel": "The thresholds were set for {model}, but search uses {embedding}. Measure and save new ones.",
+      "unknownModel": "It is not known which model these thresholds were measured with. Search uses {embedding}; consider measuring again.",
+      "nextSaved": "Saved for {model}: search {search}, memory hints {hint}. They apply when you switch to that model.",
+      "emptyIsDefault": "An empty field means the default.",
+      "measureTitle": "Measurement",
+      "noQuestions": "No question set. Upload a JSON file in the format of eval/recall-questions.example.json.",
+      "questions": "{count} questions: {positives} with an answer, {negatives} without.",
+      "uploadQuestions": "Upload questions",
+      "replaceQuestions": "Replace questions",
+      "clearQuestions": "Remove questions",
+      "clearConfirm": "Remove the question set from the database?",
+      "measure": "Measure {model}",
+      "running": "Measuring {model} in the background.",
+      "progress": "{done} of {total} questions",
+      "failed": "The measurement stopped: {error}",
+      "measured": "Measured with {model}, {when}.",
+      "warnings": "{n} expected memories no longer exist or have been replaced. Review the questions.",
+      "hit1": "Right first:",
+      "hit5": "In the first five:",
+      "hintAt": "Memory hints at {floor}: right",
+      "noise": "noise",
+      "suggested": "Suggested: search {search}, memory hints {hint}.",
+      "searchBasis": "Search = the lowest score of a right answer ({lowest}) minus 0.1.",
+      "searchNeeds": "Search needs at least three questions with an answer.",
+      "hintBasis": "Memory hints: right {hit}, noise {noise}.",
+      "hintNeeds": "Memory hints need at least three questions with an answer and one without.",
+      "apply": "Use the suggestion",
+      "applyNext": "Save the suggestion for {model}"
     }
   }
 }

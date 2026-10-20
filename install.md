@@ -240,7 +240,7 @@ Assistant integration is wanted. Set `STATS_TZ` to the installation's IANA time
 zone, for example `Europe/Stockholm` or `America/New_York`.
 `CHANGE_LOG_DELETED_DAYS` (default 30) is how long a deleted memory stays
 restorable, and `RECALL_HINT_FLOOR` (default 0.5) tunes the optional Claude Code
-hook in `tools/hooks/`.
+hook in `tools/hooks/`; a floor saved on the **Models** card wins over it.
 
 `OPENROUTER_API_KEY` is the only provider most installations need. Other
 providers — OpenAI, Ollama, a custom OpenAI-compatible server — can be set up

@@ -6,6 +6,42 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-20 — 0.16.0: gränsvärdena hör till sin inbäddningsmodell
+
+0.11.0 gjorde en ny inbäddningsmodell till några klick, men de två
+likhetsgränserna följde inte med: sökning 0,3 och recall-hooken 0,5, båda
+uppmätta med text-embedding-3-small. En poäng betyder bara något för modellen
+som gav den, så efter ett byte var gränserna gissningar tills någon körde
+`scripts/eval-recall.mjs` över SSH, ändrade `.env` och startade om.
+
+Models-kortet har nu en del **Sökgränser**. Båda gränserna sparas i databasen,
+ett sparat värde går före `RECALL_HINT_FLOOR` i `.env`, och en ändring gäller
+utan omstart. Kortet visar vilken inbäddningsmodell gränserna sattes för och
+varnar när det inte är den som används.
+
+Mätningen körs från kortet i bakgrunden. Frågeuppsättningen laddas upp där som
+samma JSON som skriptet läser; den sparas i databasen bredvid minnena den
+handlar om, aldrig i git eller imagen, och bara på den fulla lyssnaren. Ett
+resultat namnger frågor med id och minnen med UUID. Det föreslår gränser:
+sökning är den lägsta poäng ett rätt svar fick, minus 0,1 (så kom 0,3 till);
+gränsen för minnestips är den som visar rätt minne oftast minus hur ofta den
+visar något för en fråga utan svar, och vid lika vinner den högre. Under en ny
+inbäddning kan den nya modellen mätas på sina egna vektorer, och gränser som
+sparas för den börjar gälla i samma steg som bytet. Avbryts körningen försvinner
+de med den.
+
+Skriptet och kortet delar en och samma mätning, `evaluate()` i
+`recall-settings.mjs`. Gränserna för dubbletter (0,86) och motsägelser (0,6) är
+fortfarande fasta.
+
+Också i den här versionen: metadatamodellens standard är `openai/gpt-6-luna`.
+OpenRouter stänger av gpt-4o-mini 2027-01-14. I ett jämförande test delade
+Qwen3-235B en lång svensk anteckning i 30 minnen med kopior och två påhittade
+fakta, och skrev svensk metadata för engelsk text; gpt-6-luna gav nio rena
+minnen och behöll varje texts språk. Och knapparna på Models-kortet var dolda
+tills pekaren var över kortet, eftersom `.card .actions` vann över kortets egen
+regel; nu visas de alltid.
+
 ## 2026-10-18 — 0.15.0: hjärnan går att stänga av, och gammalt väntande är historik
 
 Kortet **Tillit och granskningsstatus** visade 45 minnen som väntande medan

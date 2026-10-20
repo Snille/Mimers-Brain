@@ -108,7 +108,10 @@ function defaults() {
   const embedBase = legacyBase("EMBED_URL", "embeddings");
   const embedProvider = !embedBase ? "openrouter"
     : embedBase === legacyBase("META_URL", "chat/completions") ? "env-chat" : "env-embed";
-  const metaModel = process.env.META_MODEL || "openai/gpt-4o-mini";
+  // gpt-4o-mini retires on OpenRouter on 2027-01-14. gpt-6-luna replaced it
+  // after a side-by-side test against Qwen3-235B: no invented atoms when
+  // splitting, and English text kept English metadata.
+  const metaModel = process.env.META_MODEL || "openai/gpt-6-luna";
   return {
     embedding: { provider: embedProvider, model: process.env.EMBED_MODEL || "openai/text-embedding-3-small", dimensions: 1536 },
     metadata: { provider: chatProvider, model: metaModel },

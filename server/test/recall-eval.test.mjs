@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { formatReport, hintIds, parseQuestionSet, rankOf, summarise } from "../recall-eval.mjs";
+import { formatReport, hintIds, parseQuestionSet, rankOf, suggestThresholds, summarise } from "../recall-eval.mjs";
 import { RANK_WEIGHTS, rankWeights } from "../lib.mjs";
 
 const A = "00000000-0000-4000-8000-00000000000a";
@@ -64,4 +64,31 @@ test("rank weights default to the shipped ranking and refuse unknown keys", () =
   assert.equal(rankWeights({ title: 0 }).title, 0);
   assert.throws(() => rankWeights({ titel: 0 }), /Unknown rank weight/);
   assert.throws(() => rankWeights({ title: "x" }), /must be a number/);
+});
+
+test("suggested thresholds: lowest right answer less a margin, and the hint floor with least noise", () => {
+  const results = [
+    { id: "a", expect: [A], expectedScore: 0.92, rows: [row(A, 0.92)] },
+    { id: "b", expect: [B], expectedScore: 0.63, rows: [row(B, 0.63), row(C, 0.4)] },
+    { id: "c", expect: [C], expectedScore: 0.57, rows: [row(C, 0.57)] },
+    { id: "none", expect: [], expectedScore: null, rows: [row(A, 0.44)] },
+  ];
+  const s = suggestThresholds(results);
+  // 0.57 - 0.1 = 0.47, rounded down to 0.45.
+  assert.equal(s.search.value, 0.45);
+  assert.equal(s.search.lowest, 0.57);
+  // Every floor from 0.45 to 0.55 shows all three answers and no noise; the
+  // highest of them wins.
+  assert.equal(s.hint.value, 0.55);
+  assert.equal(s.hint.hit, 1);
+  assert.equal(s.hint.noise, 0);
+});
+
+test("no suggestion without enough questions to rest it on", () => {
+  const one = [{ id: "a", expect: [A], expectedScore: 0.9, rows: [row(A, 0.9)] }];
+  assert.deepEqual(suggestThresholds(one), { search: null, hint: null, positives: 1, negatives: 0 });
+  const answeredOnly = ["a", "b", "c"].map((id) => ({ id, expect: [A], expectedScore: 0.99, rows: [row(A, 0.99)] }));
+  const s = suggestThresholds(answeredOnly);
+  assert.equal(s.search.value, 0.6, "clamped: a high score never makes search strict");
+  assert.equal(s.hint, null, "a floor needs a question with no answer to measure noise");
 });

@@ -74,6 +74,48 @@ export function summarise(results, { floors = DEFAULT_FLOORS } = {}) {
   };
 }
 
+// --- suggested thresholds ------------------------------------------------------
+//
+// What the Models card proposes after a measurement, so a new embedding model
+// gets floors measured on it rather than inherited from the old one.
+//
+// Search: the lowest score any right answer reached, less a margin of 0.1, so a
+// looser rewording than the set contains still passes. That is how 0.3 came
+// about for text-embedding-3-small (a loose rewording scored ~0.43).
+// Hint: the floor that shows the right memory most often minus how often it
+// shows something for a question with no answer; a tie goes to the higher
+// floor, since a hint nobody asked for costs more than a search result.
+export const SEARCH_MARGIN = 0.1;
+export const HINT_GRID = Array.from({ length: 23 }, (_, i) => Math.round((0.3 + i * 0.025) * 1000) / 1000);
+const MIN_POSITIVES = 3;
+
+const roundDown = (value, step) => Math.floor(value / step + 1e-9) * step;
+const clamp = (value, lo, hi) => Math.min(hi, Math.max(lo, value));
+
+// results: [{ id, expect, rows, expectedScore }], expectedScore being the best
+// semantic score of any expected memory, whether or not it ranked.
+export function suggestThresholds(results) {
+  const positives = results.filter((r) => r.expect.length);
+  const negatives = results.filter((r) => !r.expect.length);
+  const scores = positives.map((r) => Number(r.expectedScore)).filter((s) => Number.isFinite(s) && s > 0);
+
+  let search = null;
+  if (scores.length >= MIN_POSITIVES) {
+    const lowest = Math.min(...scores);
+    search = { value: Math.round(clamp(roundDown(lowest - SEARCH_MARGIN, 0.05), 0.1, 0.6) * 100) / 100, lowest, answered: scores.length };
+  }
+
+  let hint = null;
+  if (positives.length >= MIN_POSITIVES && negatives.length) {
+    for (const h of summarise(results, { floors: HINT_GRID }).hint) {
+      const score = h.hit - h.noise;
+      if (!hint || score >= hint.score) hint = { value: h.floor, score, hit: h.hit, noise: h.noise, offTarget: h.offTarget };
+    }
+    delete hint.score;
+  }
+  return { search, hint, positives: positives.length, negatives: negatives.length };
+}
+
 const pct = (value) => (value === null ? "   -" : `${(value * 100).toFixed(0).padStart(3)}%`);
 const num = (value) => (value === null ? "    -" : value.toFixed(3));
 

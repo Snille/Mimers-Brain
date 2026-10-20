@@ -30,6 +30,7 @@ import { spec, callTool } from "./openapi.mjs";
 import * as db from "./lib.mjs";
 import * as ai from "./ai.mjs";
 import * as models from "./model-settings.mjs";
+import * as recall from "./recall-settings.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -640,6 +641,24 @@ function makeListener(tiers, {
             note("ui.ai.cancel", "write", { results: 1 });
             return json(res, 200, out);
           }
+          // Recall thresholds and the measurement behind them. See recall-settings.mjs.
+          if (path === "/api/ai/recall" && req.method === "GET")
+            return json(res, 200, await recall.recallSettings());
+          if (path === "/api/ai/recall/thresholds" && req.method === "POST") {
+            const out = await recall.saveThresholds(await body(req));
+            note("ui.recall.thresholds", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          if (path === "/api/ai/recall/questions" && req.method === "POST") {
+            const out = await recall.saveQuestions(await body(req));
+            note("ui.recall.questions", "write", { results: out.questions?.count || 0 });
+            return json(res, 200, out);
+          }
+          if (path === "/api/ai/recall/evaluate" && req.method === "POST") {
+            const out = await recall.startEvaluation(tiers, await body(req));
+            note("ui.recall.evaluate", "read", { results: 1 });
+            return json(res, 200, out);
+          }
           return json(res, 404, { error: "Unknown endpoint" });
         }
 
@@ -821,6 +840,7 @@ await db.ensureSchema();
 // Before the listeners open: the first save must already use the chosen models.
 await models.loadModelSettings();
 await models.resumeReembed();
+await recall.loadRecallSettings();
 await loadLearnedLan();
 
 const listeners = [

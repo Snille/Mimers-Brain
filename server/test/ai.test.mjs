@@ -21,7 +21,7 @@ test("roles default to the environment, and stored choices win", async () => {
       Object.fromEntries(ai.ROLES.map((name) => [name, [ai.role(name).provider, ai.role(name).model]])),
       {
         embedding: ["openrouter", "openai/text-embedding-3-small"],
-        metadata: ["openrouter", "openai/gpt-4o-mini"],
+        metadata: ["openrouter", "openai/gpt-6-luna"],
         contradiction: ["openrouter", "qwen/qwen3-235b-a22b-2507"],
       });
     const byId = Object.fromEntries(ai.providers().map((p) => [p.id, p]));

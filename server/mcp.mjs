@@ -116,7 +116,8 @@ export function buildServer(tiers, ctx = {}) {
       // few hundred tokens of the caller's context. In practice the answer is in
       // the first result or two. Raise it explicitly when casting a wide net.
       limit: z.number().default(5).describe("Raise this when searching broadly"),
-      threshold: z.number().default(0.3),
+      // Omitted, the server uses the search threshold set on the Models card.
+      threshold: z.number().optional(),
       kind: z.enum(MEMORY_KINDS).optional(),
       lifecycle: z.enum([...MEMORY_LIFECYCLES, "all"]).default("current"),
       task_status: z.enum(TASK_STATUSES).optional(),
@@ -352,7 +353,7 @@ export function buildServer(tiers, ctx = {}) {
     inputSchema: { query: z.string() },
   }, track("search", "read", async ({ query }, note) => {
     try {
-      const rows = await db.searchThoughts(tiers, query, { limit: 10, threshold: 0.4 });
+      const rows = await db.searchThoughts(tiers, query, { limit: 10, threshold: db.recallThresholds().search + 0.1 });
       note.count = rows.length;
       const trace = rows.length ? await db.createRecallTrace(tiers, rows, ctx) : null;
       return text(JSON.stringify({
