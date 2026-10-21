@@ -49,7 +49,7 @@ To switch it off, remove that entry.
 
 ### Tuning
 
-The floor is the **memory hints** threshold on the Models card (Connect page,
+The floor is the **memory hints** threshold on the Models card (Settings page,
 port 8790), default `0.5`. Lower finds more and interrupts more. The card can
 measure it against your own questions. `RECALL_HINT_FLOOR` in `.env` still works
 when nothing is saved on the card. Calls show on the Statistics page as

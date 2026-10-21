@@ -144,7 +144,7 @@ memories by UUID only.
 
 ## Models
 
-The Models card (Connect page, LAN listener only) chooses the provider and model
+The Models card (Settings page, LAN listener only) chooses the provider and model
 for three jobs: embedding, metadata and the contradiction check. Providers are
 OpenRouter, OpenAI, Ollama and one custom OpenAI-compatible server. Defaults:
 `openai/text-embedding-3-small`, `openai/gpt-6-luna` and
@@ -174,6 +174,8 @@ contradictions.
   the Models card: 0.6 by default, measured with text-embedding-3-small; 0.65
   for bge-m3. Conflicts appear on the Review page as
   *Possible contradictions*. A verdict holds until either memory changes.
+  **Settings → Contradiction test** measures a model against pairs with known
+  answers before it is put to work; see install.md, section 9.
 - **Duplicates.** Pairs with similarity at or above the duplicate floor appear on
   the Review page. Like the contradiction floor it is set on the Models card:
   0.86 by default, measured with text-embedding-3-small; 0.82 for bge-m3, where

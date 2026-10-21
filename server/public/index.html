@@ -263,6 +263,7 @@
     <button data-view="review" data-i18n="nav.review">Review</button>
     <button data-view="stats" data-i18n="nav.statistics">Statistics</button>
     <button data-view="connect" data-i18n="nav.connect">Connect</button>
+    <button data-view="settings" data-i18n="nav.settings" hidden>Settings</button>
   </nav>
   <div class="grow"></div>
   <select id="language" data-i18n-aria-label="app.language" aria-label="Language"></select>
@@ -300,6 +301,7 @@
 <section class="content page" id="view-stats"></section>
 <section class="content page" id="view-review"></section>
 <section class="content page" id="view-connect"></section>
+<section class="content page" id="view-settings"></section>
 
 <dialog id="login">
   <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px">
@@ -792,6 +794,7 @@ const views = {
   review: { el: "#view-review", mod: "./review.mjs", loaded: false },
   stats: { el: "#view-stats", mod: "./stats.mjs", loaded: false },
   connect: { el: "#view-connect", mod: "./connect.mjs", loaded: false },
+  settings: { el: "#view-settings", mod: "./settings.mjs", loaded: false },
 };
 
 async function show(name) {
@@ -832,6 +835,8 @@ const cfg = await api("/api/config").catch(() => ({}));
 $("#hostinfo").textContent =
   tr(cfg.vault ? "header.fullAccess" : "header.openOnly") + (cfg.version ? ` · ${cfg.version}` : "");
 if (!cfg.vault) $("#dlg-tier").querySelector('[value=vault]').disabled = true;
+// Settings can only be changed on the full listener.
+$('nav [data-view="settings"]').hidden = !cfg.vault;
 
 if (cfg.authed === false) {
   $("#login").showModal();

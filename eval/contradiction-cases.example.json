@@ -1,0 +1,30 @@
+{
+  "about": "Copy to contradiction-cases.local.json (gitignored) and replace with real cases. left and right are each a memory id or the text itself, so a conflict can be planted against a real memory. expect is \"conflict\" or \"consistent\"; leave it out for a pair nobody has answered yet - it is run and shown, but not counted. Upload on Settings -> Contradiction test.",
+  "cases": [
+    {
+      "id": "dismissed-two-prefixes",
+      "left": "00000000-0000-4000-8000-000000000001",
+      "right": "00000000-0000-4000-8000-000000000002",
+      "expect": "consistent",
+      "note": "Dismissed on the Review page: two prefixes that route to two services."
+    },
+    {
+      "id": "planted-proxy-port",
+      "left": "00000000-0000-4000-8000-000000000003",
+      "right": "The reverse proxy forwards to port 8790.",
+      "expect": "conflict",
+      "note": "The memory says 8791; the planted side says 8790."
+    },
+    {
+      "id": "planted-agrees",
+      "left": "00000000-0000-4000-8000-000000000003",
+      "right": "Port 8792 is the read-only listener and has a key of its own.",
+      "expect": "consistent"
+    },
+    {
+      "id": "not-yet-answered",
+      "left": "00000000-0000-4000-8000-000000000004",
+      "right": "00000000-0000-4000-8000-000000000005"
+    }
+  ]
+}

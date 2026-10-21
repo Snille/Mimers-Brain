@@ -900,8 +900,10 @@ export function contradictionPrompt(left, right) {
     `write "first", "second", "memory A" or "memory B".`;
 }
 
-async function judgeContradiction(left, right) {
-  const parsed = await ai.chatJson(ai.role("contradiction"), contradictionPrompt(left, right), { temperature: 0 });
+// `cfg` lets the contradiction measurement (contradiction-eval.mjs) put another
+// model to the same question.
+export async function judgeContradiction(left, right, cfg = ai.role("contradiction")) {
+  const parsed = await ai.chatJson(cfg, contradictionPrompt(left, right), { temperature: 0 });
   const verdict = parsed.verdict === "conflict" ? "conflict" : "consistent";
   return { verdict, reason: verdict === "conflict" ? String(parsed.reason || "").slice(0, 500) : "" };
 }

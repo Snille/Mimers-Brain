@@ -31,6 +31,7 @@ import * as db from "./lib.mjs";
 import * as ai from "./ai.mjs";
 import * as models from "./model-settings.mjs";
 import * as recall from "./recall-settings.mjs";
+import * as contradictionEval from "./contradiction-eval.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -591,8 +592,8 @@ function makeListener(tiers, {
         // Which provider and model each job uses. A vault-listener decision,
         // like retention, and for a stronger reason: the embedding and metadata
         // models read every memory, vault included, so choosing them chooses
-        // where that text is sent. The open listener answers 403 and its
-        // Connect page never shows the card.
+        // where that text is sent. The open listener answers 403 and hides
+        // the Settings view that holds the card.
         if (path.startsWith("/api/ai")) {
           if (!tiers.includes("vault"))
             return json(res, 403, { error: "Models are chosen on the full listener" });
@@ -657,6 +658,19 @@ function makeListener(tiers, {
           if (path === "/api/ai/recall/evaluate" && req.method === "POST") {
             const out = await recall.startEvaluation(tiers, await body(req));
             note("ui.recall.evaluate", "read", { results: 1 });
+            return json(res, 200, out);
+          }
+          // The contradiction measurement. See contradiction-eval.mjs.
+          if (path === "/api/ai/contradiction" && req.method === "GET")
+            return json(res, 200, await contradictionEval.contradictionSettings());
+          if (path === "/api/ai/contradiction/cases" && req.method === "POST") {
+            const out = await contradictionEval.saveCases(await body(req));
+            note("ui.contradiction.cases", "write", { results: out.cases?.count || 0 });
+            return json(res, 200, out);
+          }
+          if (path === "/api/ai/contradiction/evaluate" && req.method === "POST") {
+            const out = await contradictionEval.startEvaluation(tiers, await body(req));
+            note("ui.contradiction.evaluate", "read", { results: 1 });
             return json(res, 200, out);
           }
           return json(res, 404, { error: "Unknown endpoint" });
@@ -841,6 +855,7 @@ await db.ensureSchema();
 await models.loadModelSettings();
 await models.resumeReembed();
 await recall.loadRecallSettings();
+await contradictionEval.loadContradictionSettings();
 await loadLearnedLan();
 
 const listeners = [

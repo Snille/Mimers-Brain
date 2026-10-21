@@ -95,7 +95,8 @@ Samma verktyg finns som REST för OpenAPI-klienter: `GET /openapi.json` och
 | **Tankar** | Lista, hybridsökning, filter, redigering, fästa minnen i startpaketet (`memory_digest`) |
 | **Granska** | Agentminnen som väntar på granskning, dubbletter, möjliga motsägelser, sällan till nytta, nyligen raderade |
 | **Statistik** | En 3D-karta över minnet, hälsa, hur användbara hämtade minnen är, klientaktivitet, MQTT-status |
-| **Anslut** | Inställningar för varje klient; på port 8790 även kortet **Modeller** (leverantörer, modeller, sökgränser) |
+| **Anslut** | Inställningar för varje klient |
+| **Inställningar** | Bara port 8790: leverantörer, modeller, omindexering, likhetsgränser och mätningarna av recall och motsägelser |
 
 Gränssnittet finns på 8790 (logga in med `MCP_ACCESS_KEY`) och 8791 (öppen nivå,
 bakom din autentisering). Texterna laddas från JSON-kataloger, webbläsarens språk

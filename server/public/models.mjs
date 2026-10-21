@@ -1,4 +1,4 @@
-// The Models card on the Connect page: which provider and model each job uses.
+// The Models card on the Settings page: which provider and model each job uses.
 //
 // Only on the full listener - the server refuses /api/ai elsewhere, because
 // these choices decide where vault text is sent. Keys never pass through here;

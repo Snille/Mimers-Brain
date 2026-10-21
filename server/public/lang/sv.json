@@ -17,7 +17,8 @@
     "thoughts": "Tankar",
     "review": "Granska",
     "statistics": "Statistik",
-    "connect": "Anslut"
+    "connect": "Anslut",
+    "settings": "Inställningar"
   },
   "header": {
     "fullAccess": "full åtkomst (LAN)",
@@ -635,6 +636,47 @@
       "hintNeeds": "Minnestips behöver minst tre frågor med svar och en utan.",
       "apply": "Använd förslaget",
       "applyNext": "Spara förslaget för {model}"
+    }
+  },
+  "settings": {
+    "fullOnly": "Inställningarna kan bara visas och ändras på den fullständiga lyssnaren, port 8790."
+  },
+  "contradiction": {
+    "title": "Test av motsägelser",
+    "description": "Ställer den nattliga motsägelsekontrollens egen fråga till en eller två modeller, för par där du vet rätt svar. Använd det innan du byter motsägelsemodell, eller för att se om modellen som används fortfarande håller. Inget ändras och inga bedömningar sparas.",
+    "noCases": "Ingen testsamling ännu. Ladda upp en JSON-fil, till exempel eval/contradiction-cases.local.json - se eval/contradiction-cases.example.json.",
+    "cases": "{count} fall: {conflicts} motsägelser, {consistent} utan motsägelse, {unlabelled} utan svar.",
+    "uploadCases": "Ladda upp fall",
+    "replaceCases": "Byt fall",
+    "clearCases": "Ta bort fall",
+    "clearConfirm": "Ta bort testsamlingen från hjärnan?",
+    "first": "Modell 1: {model} (den som används)",
+    "second": "Modell 2 (valfri)",
+    "secondPlaceholder": "t.ex. openai/gpt-6-luna",
+    "measure": "Mät",
+    "running": "Mäter …",
+    "progress": "{done} av {total} fall",
+    "failed": "Mätningen misslyckades: {error}",
+    "measured": "Mätt {when}.",
+    "warnings": "{n} minnen i testsamlingen finns inte eller kan inte läsas här; {skipped} fall hoppades över.",
+    "caught": "Hittade motsägelser",
+    "falseAlarms": "Falsklarm",
+    "errors": "Fel",
+    "time": "Tid",
+    "ofTotal": "{n} av {total}",
+    "inUse": "används",
+    "use": "Använd för motsägelser",
+    "useConfirm": "Använda {model} för den nattliga motsägelsekontrollen? Par som den gamla modellen har bedömt bedöms igen.",
+    "casesTitle": "Fall att titta på",
+    "casesHint": "Fel svar i fetstil. Ett fall utan svar räknas inte förrän du ger det ett svar i filen.",
+    "case": "Fall",
+    "expected": "Rätt svar",
+    "unlabelled": "inte angivet",
+    "allRight": "Alla modeller svarade rätt på alla fall.",
+    "verdict": {
+      "conflict": "motsägelse",
+      "consistent": "ingen motsägelse",
+      "error": "fel"
     }
   }
 }

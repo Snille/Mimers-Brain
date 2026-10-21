@@ -14,6 +14,7 @@ Steps, in order:
 6. [Updating](#6-updating)
 7. [Tune the search thresholds](#7-tune-the-search-thresholds) (once you have memories)
 8. [Run the embedding model locally](#8-run-the-embedding-model-locally) (optional)
+9. [Test the contradiction model](#9-test-the-contradiction-model) (optional)
 
 [Troubleshooting](#troubleshooting) is at the end.
 
@@ -161,7 +162,7 @@ port 8790. Set `STATS_TZ` to your IANA time zone, e.g. `Europe/Stockholm`.
 
 Model providers other than OpenRouter (OpenAI, Ollama, any OpenAI-compatible
 server) can be configured in `.env` or later on the **Models** card of the
-Connect page. The card is also where the embedding, metadata and contradiction
+Settings page. The card is also where the embedding, metadata and contradiction
 models and the search thresholds are chosen; a value saved there wins over
 `.env`.
 
@@ -292,7 +293,7 @@ same text differently.
 - For a suggestion you need at least **3 questions with an answer and 1
   without**. Around 40 and 5 give stable numbers.
 
-**2. Measure.** On port 8790, open **Connect → Models → Search thresholds**.
+**2. Measure.** On port 8790, open **Settings → Models → Search thresholds**.
 Choose **Upload questions**, then **Measure**. It runs in the background and
 takes a few seconds per question; it changes nothing.
 
@@ -316,6 +317,10 @@ suggestion** for it. Its thresholds then take effect in the same step as
 
 The same measurement runs from the command line, with variants of the ranking
 weights; see [docs/how-it-works.md](docs/how-it-works.md#measuring-recall).
+
+The same card holds two more floors, **Contradictions** and **Duplicates**. The
+questions do not measure them; set them by hand after a change of model, see
+[section 8](#8-run-the-embedding-model-locally).
 
 ## 8. Run the embedding model locally
 
@@ -375,7 +380,7 @@ docker cp Modelfile.bge-m3-cpu4 ollama:/tmp/Modelfile
 docker exec ollama ollama create bge-m3:cpu4 -f /tmp/Modelfile
 ```
 
-Then, on port 8790, open **Connect → Models**:
+Then, on port 8790, open **Settings → Models**:
 
 1. Set the Ollama address to `http://ollama:11434`.
 2. **Test** the embedding role with provider Ollama and model `bge-m3:cpu4`.
@@ -393,6 +398,63 @@ Then, on port 8790, open **Connect → Models**:
 Choose the variant's name before the switch. A new name counts as a new model,
 and a new model means a new re-embedding. If the container later gets more
 cores, make a new variant and re-embed to it.
+
+**Finding the pair floors for another model.** The values above are for
+`bge-m3`. For any other model, compare the same pairs under both models: the
+backup taken before the switch still holds the old vectors.
+
+1. Restore that dump into a throwaway container with no network
+   (`docker run --rm --network none ... pgvector/pgvector:pg17`), so it can never
+   be mistaken for the live database.
+2. There, export every pair at or above 0.6 with its old similarity
+   (`1 - (a.embedding <=> b.embedding)`) to CSV.
+3. Load the CSV into a temporary table on the live database and add each pair's
+   new similarity.
+4. **Contradictions:** pick the new floor that lets through about as many
+   current pairs as the old floor did.
+   **Duplicates:** look at the pairs you merged, superseded or kept on the Review
+   page (`duplicate_resolutions`); pick a floor just below the lowest pair you
+   merged or superseded.
+5. Stop the throwaway container and delete the CSV: it names your memories.
+
+## 9. Test the contradiction model
+
+Every night the contradiction model reads pairs of similar memories and puts
+the ones it calls a conflict on the Review page. A model that cries wolf fills
+that page; one that misses lets an old port number live next to a new one.
+**Settings → Contradiction test** puts the nightly check's own question to one
+or two models over pairs whose right answer you know. It changes nothing.
+
+**1. Write a case set.** Copy
+[eval/contradiction-cases.example.json](eval/contradiction-cases.example.json) to
+`eval/contradiction-cases.local.json` (gitignored).
+
+- `left` and `right` are each a memory id or the text itself. Text lets you
+  plant a conflict against a real memory: take a memory that says port 8791 and
+  write "the proxy forwards to port 8790".
+- `expect` is `"conflict"` or `"consistent"`. Leave it out for a pair you have
+  not judged yet: it is run and shown, but not counted.
+- Good sources: pairs you dismissed on the Review page (consistent), pairs the
+  model flagged that you agreed with (conflict), and planted conflicts. A dozen
+  of each gives a useful picture.
+
+**2. Measure.** Upload the file, name a second model if you want a comparison,
+and choose **Measure**. Model 1 is always the one in use.
+
+**3. Read the result.**
+
+| Column | Meaning | Good |
+| --- | --- | --- |
+| Conflicts caught | planted or confirmed conflicts the model found | all of them |
+| False alarms | pairs you know are fine that it called a conflict | 0 |
+| Errors | calls that failed | 0 |
+
+Below the table, **Cases worth a look** lists every case a model got wrong, two
+models disagree on, or that has no answer yet. Read those two memories, put the
+answer in the file and upload it again.
+
+**4. Apply.** **Use for contradictions** makes that model the one the nightly
+check uses. Pairs judged by the old model are judged again.
 
 ## Troubleshooting
 

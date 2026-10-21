@@ -17,7 +17,8 @@
     "thoughts": "Thoughts",
     "review": "Review",
     "statistics": "Statistics",
-    "connect": "Connect"
+    "connect": "Connect",
+    "settings": "Settings"
   },
   "header": {
     "fullAccess": "full access (LAN)",
@@ -635,6 +636,47 @@
       "hintNeeds": "Memory hints need at least three questions with an answer and one without.",
       "apply": "Use the suggestion",
       "applyNext": "Save the suggestion for {model}"
+    }
+  },
+  "settings": {
+    "fullOnly": "Settings can only be viewed and changed on the full listener, port 8790."
+  },
+  "contradiction": {
+    "title": "Contradiction test",
+    "description": "Puts the nightly contradiction check's own question to one or two models over pairs whose right answer you know. Use it before changing the contradiction model, or to see whether the one in use still holds up. It changes nothing and records no verdicts.",
+    "noCases": "No case set yet. Upload a JSON file, for example eval/contradiction-cases.local.json - see eval/contradiction-cases.example.json.",
+    "cases": "{count} cases: {conflicts} conflicts, {consistent} consistent, {unlabelled} without an answer.",
+    "uploadCases": "Upload cases",
+    "replaceCases": "Replace cases",
+    "clearCases": "Remove cases",
+    "clearConfirm": "Remove the case set from the brain?",
+    "first": "Model 1: {model} (the one in use)",
+    "second": "Model 2 (optional)",
+    "secondPlaceholder": "e.g. openai/gpt-6-luna",
+    "measure": "Measure",
+    "running": "Measuring …",
+    "progress": "{done} of {total} cases",
+    "failed": "The measurement failed: {error}",
+    "measured": "Measured {when}.",
+    "warnings": "{n} memories in the case set do not exist or cannot be read here; {skipped} cases were skipped.",
+    "caught": "Conflicts caught",
+    "falseAlarms": "False alarms",
+    "errors": "Errors",
+    "time": "Time",
+    "ofTotal": "{n} of {total}",
+    "inUse": "in use",
+    "use": "Use for contradictions",
+    "useConfirm": "Use {model} for the nightly contradiction check? Pairs judged by the old model are judged again.",
+    "casesTitle": "Cases worth a look",
+    "casesHint": "Wrong answers in bold. A case without an answer counts for nothing until you give it one in the file.",
+    "case": "Case",
+    "expected": "Right answer",
+    "unlabelled": "not given",
+    "allRight": "Every model answered every case right.",
+    "verdict": {
+      "conflict": "conflict",
+      "consistent": "consistent",
+      "error": "error"
     }
   }
 }
