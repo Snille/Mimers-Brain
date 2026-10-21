@@ -1,23 +1,57 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Mimers Brain</title>
+<script>
+  // The last known theme and accent, before anything is drawn, so a light theme
+  // or another accent does not flash dark green first. /api/config corrects it.
+  try {
+    const a = JSON.parse(localStorage.getItem("appearance") || "null");
+    if (a) {
+      const root = document.documentElement;
+      if (a.theme === "system") root.removeAttribute("data-theme");
+      else root.setAttribute("data-theme", a.theme === "light" ? "light" : "dark");
+      if (/^#[0-9a-f]{6}$/i.test(a.accent)) root.style.setProperty("--accent", a.accent);
+      if (/^#[0-9a-f]{6}$/i.test(a.on)) root.style.setProperty("--on-accent", a.on);
+    }
+  } catch { /* storage unavailable: the defaults stand */ }
+</script>
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
 <style>
+  /* Theme and accent come from Settings -> Appearance (appearance.mjs): data-theme
+     on <html> is "dark" or "light", or absent to follow the system; --accent and
+     --on-accent are set inline. Neutral greys, so any accent sits well on them. */
   :root {
-    --bg: #0d1117; --panel: #161b22; --panel-2: #1c2330; --line: #2a3441;
-    --ink: #e6edf3; --muted: #8b98a9; --accent: #4aa3c7; --accent-dim: #2d6c87;
+    --bg: #0e1011; --panel: #16191b; --panel-2: #1d2124; --line: #2b3034;
+    --ink: #e6eaec; --muted: #8e979c;
+    --accent: #95c200; --on-accent: #0e1011;
+    --accent-dim: color-mix(in srgb, var(--accent) 45%, var(--panel));
+    --accent-text: var(--accent);
     --warn: #d98b4a; --danger: #cf5b5b; --ok: #5bbf8a;
+    --err-bg: #40201f; --err-ink: #ffd9d7;
     --radius: 10px;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f7; --panel: #ffffff; --panel-2: #eef1f2; --line: #d9dfe2;
+    --ink: #172024; --muted: #5d6a70;
+    --accent-dim: color-mix(in srgb, var(--accent) 40%, var(--panel));
+    --accent-text: color-mix(in srgb, var(--accent) 62%, #000);
+    --err-bg: #fdecec; --err-ink: #7a2320;
+    color-scheme: light;
   }
   @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f4f6f8; --panel: #ffffff; --panel-2: #eef2f6; --line: #d8e0e8;
-      --ink: #17212b; --muted: #5f6f80; --accent: #1f6f92; --accent-dim: #a8cbdb;
+    :root:not([data-theme]) {
+      --bg: #f4f6f7; --panel: #ffffff; --panel-2: #eef1f2; --line: #d9dfe2;
+      --ink: #172024; --muted: #5d6a70;
+      --accent-dim: color-mix(in srgb, var(--accent) 40%, var(--panel));
+      --accent-text: color-mix(in srgb, var(--accent) 62%, #000);
+      --err-bg: #fdecec; --err-ink: #7a2320;
+      color-scheme: light;
     }
   }
   * { box-sizing: border-box; }
@@ -35,7 +69,7 @@
   }
   .logo-lg { width: 62px; height: 62px; }
   h1 { margin: 0; font-size: 19px; letter-spacing: .3px; }
-  h1 span { color: var(--accent); }
+  h1 span { color: var(--accent-text); }
   .sub { color: var(--muted); font-size: 13px; }
   .grow { flex: 1; }
   main { display: grid; grid-template-columns: 250px 1fr; gap: 0; min-height: calc(100vh - 62px); }
@@ -51,9 +85,9 @@
     padding: 3px 9px; border-radius: 999px; font-size: 12.5px; margin: 0 5px 5px 0;
   }
   .chip:hover { border-color: var(--accent); }
-  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .chip b { color: var(--muted); font-weight: 500; }
-  .chip.on b { color: #dbeef7; }
+  .chip.on b { color: var(--on-accent); opacity: .7; }
 
   section.content { padding: 18px 22px; }
   .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
@@ -65,13 +99,13 @@
   input[type=search] { flex: 1; min-width: 220px; }
   textarea { width: 100%; resize: vertical; line-height: 1.5; }
   button {
-    background: var(--accent); color: #fff; border: 1px solid transparent;
+    background: var(--accent); color: var(--on-accent); border: 1px solid transparent;
     border-radius: var(--radius); padding: 9px 15px; font: inherit; cursor: pointer;
   }
   button:hover { filter: brightness(1.08); }
   button.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
   button.ghost:hover { border-color: var(--accent); filter: none; }
-  button.danger { background: var(--danger); }
+  button.danger { background: var(--danger); color: #fff; }
   button:disabled { opacity: .5; cursor: default; filter: none; }
 
   .card {
@@ -80,7 +114,7 @@
   }
   .card .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; font-size: 12.5px; color: var(--muted); }
   .tag { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; }
-  .tag.type { color: var(--accent); border-color: var(--accent-dim); }
+  .tag.type { color: var(--accent-text); border-color: var(--accent-dim); }
   .tag.sim { color: var(--ok); border-color: var(--ok); }
   .tag.vault { color: var(--warn); border-color: var(--warn); font-weight: 600; }
   .card.vault { border-left: 3px solid var(--warn); }
@@ -109,8 +143,7 @@
   .card .actions { margin-top: 10px; display: none; gap: 8px; }
   .card:hover .actions, .card.editing .actions { display: flex; }
   .empty { color: var(--muted); text-align: center; padding: 50px 0; }
-  .err { background: #40201f; border: 1px solid var(--danger); color: #ffd9d7; padding: 10px 14px; border-radius: var(--radius); margin-bottom: 14px; }
-  @media (prefers-color-scheme: light) { .err { background: #fdecec; color: #7a2320; } }
+  .err { background: var(--err-bg); border: 1px solid var(--danger); color: var(--err-ink); padding: 10px 14px; border-radius: var(--radius); margin-bottom: 14px; }
   .stat { font-size: 12.5px; color: var(--muted); }
 
   /* --- navigation between the three views --- */
@@ -247,6 +280,13 @@
   .review-section > h2 { margin-bottom: 4px; }
   .review-actions { flex-wrap: wrap; }
   .duplicate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .choices { display: flex; gap: 16px; flex-wrap: wrap; }
+  .choice { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .choice input { accent-color: var(--accent); }
+  .swatches { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .swatch { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--line); }
+  .swatch.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--bg) inset; }
+  .swatches input[type=color] { width: 40px; height: 30px; padding: 0 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); vertical-align: middle; }
   .case-text { white-space: pre-wrap; max-height: 260px; overflow: auto; margin-top: 6px; font-size: 13px; }
   .review-memory { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
   .ingest-candidate { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; margin: 10px 0; }
@@ -372,6 +412,7 @@ import {
   availableLanguages, chooseLanguage, currentLanguage, formatStamp, initI18n, t as tr,
 } from "./i18n.mjs";
 import { copy } from "./clipboard.mjs";
+import { apply as applyAppearance } from "./appearance.mjs";
 
 await initI18n();
 
@@ -833,6 +874,7 @@ for (const b of document.querySelectorAll("nav button"))
   b.onclick = () => show(b.dataset.view);
 
 const cfg = await api("/api/config").catch(() => ({}));
+if (cfg.appearance) applyAppearance(cfg.appearance);
 $("#hostinfo").textContent =
   tr(cfg.vault ? "header.fullAccess" : "header.openOnly") + (cfg.version ? ` · ${cfg.version}` : "");
 if (!cfg.vault) $("#dlg-tier").querySelector('[value=vault]').disabled = true;

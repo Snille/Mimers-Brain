@@ -691,5 +691,19 @@
     "missing": "Det här minnet finns inte eller kan inte läsas här.",
     "question": "Kan båda vara sanna samtidigt? Om inte är det en motsägelse.",
     "unanswer": "Ta bort svaret"
+  },
+  "appearance": {
+    "title": "Utseende",
+    "description": "Tema och accentfärg för webbgränssnittet, samma i varje webbläsare som öppnar den här hjärnan.",
+    "themeTitle": "Tema",
+    "theme": {
+      "dark": "Mörkt",
+      "light": "Ljust",
+      "system": "Följ systemet"
+    },
+    "accentTitle": "Accentfärg",
+    "custom": "Annan:",
+    "reset": "Tillbaka till standard",
+    "saved": "Sparat."
   }
 }

@@ -96,7 +96,7 @@ and `POST /tools/<name>` (with `fetch_thought` instead of `search`/`fetch`).
 | **Review** | Agent memories awaiting review, duplicates, possible contradictions, rarely useful memories, recently deleted |
 | **Statistics** | A 3D map of the memory, health, recall usefulness, client activity, MQTT status |
 | **Connect** | Setup for every client |
-| **Settings** | Port 8790 only: providers, models, re-embedding, similarity thresholds, and the recall and contradiction measurements |
+| **Settings** | Port 8790 only: theme and accent colour, providers, models, re-embedding, similarity thresholds, and the recall and contradiction measurements |
 
 The UI is served on 8790 (sign in with `MCP_ACCESS_KEY`) and 8791 (open tier,
 behind your authenticator). It loads its text from JSON catalogs, picks the

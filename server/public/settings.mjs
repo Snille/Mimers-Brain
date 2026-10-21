@@ -6,6 +6,7 @@
 // header hides the button on the open listener, and this page says so too in
 // case someone arrives by its address.
 
+import { renderAppearance } from "./appearance.mjs";
 import { renderContradiction } from "./contradiction.mjs";
 import { t } from "./i18n.mjs";
 import { renderModels } from "./models.mjs";
@@ -19,9 +20,10 @@ export async function render(el) {
     el.innerHTML = `<div class="empty">${esc(t("settings.fullOnly"))}</div>`;
     return;
   }
-  el.innerHTML = `<div id="models-host"></div><div id="contradiction-host"></div>`;
+  el.innerHTML = `<div id="appearance-host"></div><div id="models-host"></div><div id="contradiction-host"></div>`;
   const models = el.querySelector("#models-host");
   await Promise.all([
+    renderAppearance(el.querySelector("#appearance-host")),
     renderModels(models),
     renderContradiction(el.querySelector("#contradiction-host"), () => renderModels(models)),
   ]);

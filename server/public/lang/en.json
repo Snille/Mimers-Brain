@@ -691,5 +691,19 @@
     "missing": "This memory does not exist or cannot be read here.",
     "question": "Can both be true at the same time? If not, it is a conflict.",
     "unanswer": "Remove answer"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Theme and accent colour for the web interface, the same in every browser that opens this brain.",
+    "themeTitle": "Theme",
+    "theme": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "Follow the system"
+    },
+    "accentTitle": "Accent colour",
+    "custom": "Other:",
+    "reset": "Back to the defaults",
+    "saved": "Saved."
   }
 }

@@ -32,6 +32,7 @@ import * as ai from "./ai.mjs";
 import * as models from "./model-settings.mjs";
 import * as recall from "./recall-settings.mjs";
 import * as contradictionEval from "./contradiction-eval.mjs";
+import * as appearanceSettings from "./appearance.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -498,6 +499,7 @@ function makeListener(tiers, {
             vault: tiers.includes("vault"),
             authed: authOk(req, url, { allowAuthelia, allowReadKey }),
             needsKey: Boolean(ACCESS_KEY) && !allowAuthelia,
+            appearance: await appearanceSettings.appearance(),
           });
 
         if (path === "/api/login" && req.method === "POST")
@@ -584,6 +586,16 @@ function makeListener(tiers, {
         if (forget && req.method === "POST") {
           const out = await db.forgetDeleted(tiers, forget[1]);
           note("ui.forget", "delete", { results: out.forgotten });
+          return json(res, 200, out);
+        }
+
+        // Theme and accent for every page; read through /api/config above. Like
+        // the rest of Settings, only the full listener may change it.
+        if (path === "/api/appearance" && req.method === "POST") {
+          if (!tiers.includes("vault"))
+            return json(res, 403, { error: "Settings are changed on the full listener" });
+          const out = await appearanceSettings.saveAppearance(await body(req));
+          note("ui.appearance", "write", { results: 1 });
           return json(res, 200, out);
         }
 
