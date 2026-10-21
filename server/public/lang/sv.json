@@ -547,7 +547,6 @@
     "testFailed": "Fungerade inte: {error}",
     "embeddingWarning": "En ny inbäddningsmodell bäddar in alla minnen igen i bakgrunden. Sökningen använder den nuvarande modellen tills du byter, och inget ändras om du avbryter.",
     "reembedConfirm": "Bädda in alla minnen igen med {model}? Sökningen påverkas inte förrän du byter.",
-    "thresholds": "Dubblettgränsen 0,86 och motsägelsegränsen 0,6 är fortfarande fasta och uppmätta med text-embedding-3-small.",
     "migration": {
       "title": "Ny inbäddning med {model}",
       "status": {
@@ -601,6 +600,8 @@
       "hintHint": "Lägsta likhet för att recall-hooken ska visa ett minne utan att någon frågat.",
       "contradiction": "Motsägelser",
       "contradictionHint": "Lägsta likhet för att två minnen ska jämföras med varandra på natten. Frågorna mäter inte den här gränsen; ställ in den för hand efter ett modellbyte.",
+      "duplicate": "Dubbletter",
+      "duplicateHint": "Lägsta likhet för att två minnen ska visas som möjliga dubbletter på Granska-sidan. Frågorna mäter inte den här gränsen; ställ in den för hand efter ett modellbyte.",
       "source": {
         "settings": "sparad här",
         "environment": "från .env",

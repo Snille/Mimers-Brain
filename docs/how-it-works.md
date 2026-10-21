@@ -174,7 +174,10 @@ contradictions.
   the Models card: 0.6 by default, measured with text-embedding-3-small; 0.65
   for bge-m3. Conflicts appear on the Review page as
   *Possible contradictions*. A verdict holds until either memory changes.
-- **Duplicates.** Pairs with similarity ≥ 0.86 appear on the Review page.
+- **Duplicates.** Pairs with similarity at or above the duplicate floor appear on
+  the Review page. Like the contradiction floor it is set on the Models card:
+  0.86 by default, measured with text-embedding-3-small; 0.82 for bge-m3, where
+  0.86 showed nothing and the pairs merged or superseded by hand scored 0.83-0.90.
 - **Audit.** `npm run audit` in `server/` is a read-only quality pass: metadata
   that would be normalised, oversized or multi-purpose memories, completed work
   filed as tasks, possible secret fragments, titles that are only the cut-off

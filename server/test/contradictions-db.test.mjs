@@ -90,6 +90,15 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     db.applyRecallThresholds({});
     assert.equal(db.recallThresholds().contradiction, 0.6, "the default is back");
     assert.equal((await db.checkContradictions(db.ALL)).checked, 1);
+
+    // The duplicate floor is the same kind of setting. At 0.86 the 0.72 pair is
+    // not a duplicate; at 0.7 it is, and an explicit threshold still wins.
+    const isPair = (row) => [row.left_id, row.right_id].sort().join() === [a, v].sort().join();
+    assert.equal((await db.duplicateCandidates(db.ALL)).some(isPair), false);
+    db.applyRecallThresholds({ duplicate: 0.7 });
+    assert.equal((await db.duplicateCandidates(db.ALL)).some(isPair), true);
+    assert.equal((await db.duplicateCandidates(db.ALL, { threshold: 0.9 })).some(isPair), false);
+    db.applyRecallThresholds({});
   } finally {
     globalThis.fetch = realFetch;
     await db.pool.end();

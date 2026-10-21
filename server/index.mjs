@@ -542,7 +542,7 @@ function makeListener(tiers, {
               limit: Math.min(Number(url.searchParams.get("limit")) || 100, 500),
             }),
             duplicates: await db.duplicateCandidates(tiers, {
-              threshold: Number(url.searchParams.get("threshold")) || 0.86,
+              threshold: Number(url.searchParams.get("threshold")) || undefined,
               limit: 50,
             }),
             rarelyUseful: await db.rarelyUseful(tiers),

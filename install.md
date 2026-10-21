@@ -384,9 +384,11 @@ Then, on port 8790, open **Connect → Models**:
 4. Measure the new model and save its suggestion (see
    [section 7](#7-tune-the-search-thresholds)), then **Switch**. Switching drops
    the old vectors, so run `./backup.sh` first.
-5. Set **Contradictions** under **Search thresholds → Change**. The questions do
-   not measure it. With `bge-m3`, 0.65 compares about as many pairs as 0.6 did
-   with text-embedding-3-small; at 0.6 it compared five times as many.
+5. Set **Contradictions** and **Duplicates** under **Search thresholds →
+   Change**. The questions do not measure them. With `bge-m3`, 0.65 compares
+   about as many pairs as 0.6 did with text-embedding-3-small (at 0.6 it
+   compared five times as many), and 0.82 for duplicates keeps every pair that
+   was merged by hand (at 0.86 the list was empty).
 
 Choose the variant's name before the switch. A new name counts as a new model,
 and a new model means a new re-embedding. If the container later gets more

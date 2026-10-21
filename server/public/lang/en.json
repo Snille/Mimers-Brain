@@ -547,7 +547,6 @@
     "testFailed": "Did not work: {error}",
     "embeddingWarning": "A new embedding model embeds every memory again in the background. Search keeps the current model until you switch, and nothing changes if you cancel.",
     "reembedConfirm": "Embed every memory again with {model}? Search is not affected until you switch.",
-    "thresholds": "The duplicate threshold 0.86 and the contradiction threshold 0.6 are still fixed, measured with text-embedding-3-small.",
     "migration": {
       "title": "Re-embedding with {model}",
       "status": {
@@ -601,6 +600,8 @@
       "hintHint": "Lowest similarity for the recall hook to show a memory nobody asked for.",
       "contradiction": "Contradictions",
       "contradictionHint": "Lowest similarity for two memories to be checked against each other at night. Not measured by the questions; set it by hand after a change of model.",
+      "duplicate": "Duplicates",
+      "duplicateHint": "Lowest similarity for two memories to be shown as possible duplicates on the Review page. Not measured by the questions; set it by hand after a change of model.",
       "source": {
         "settings": "saved here",
         "environment": "from .env",

@@ -338,22 +338,26 @@ export function rankWeights(overrides = {}) {
 // words in common ~0.43. A 0.5 default silently drops that last case, which is
 // exactly the kind of recall the brain exists for.
 //
-// The contradiction floor is the third score of the same kind: see
-// contradictionPairs() below.
-export const DEFAULT_THRESHOLDS = Object.freeze({ search: 0.3, hint: 0.5, contradiction: 0.6 });
+// The contradiction and duplicate floors are scores of the same kind: see
+// contradictionPairs() and duplicateCandidates().
+export const DEFAULT_THRESHOLDS = Object.freeze({ search: 0.3, hint: 0.5, contradiction: 0.6, duplicate: 0.86 });
+// Set by hand on the Models card; the question set does not measure them.
+export const PAIR_FLOORS = Object.freeze(["contradiction", "duplicate"]);
 const envHint = Number(process.env.RECALL_HINT_FLOOR);
 let thresholds = {
   search: DEFAULT_THRESHOLDS.search,
   hint: envHint > 0 ? envHint : DEFAULT_THRESHOLDS.hint,
   contradiction: DEFAULT_THRESHOLDS.contradiction,
+  duplicate: DEFAULT_THRESHOLDS.duplicate,
 };
 
 export const recallThresholds = () => ({ ...thresholds });
-export function applyRecallThresholds({ search, hint, contradiction } = {}) {
+export function applyRecallThresholds(stored = {}) {
+  const { search, hint } = stored;
   thresholds = {
     search: Number(search) > 0 ? Number(search) : DEFAULT_THRESHOLDS.search,
     hint: Number(hint) > 0 ? Number(hint) : envHint > 0 ? envHint : DEFAULT_THRESHOLDS.hint,
-    contradiction: Number(contradiction) > 0 ? Number(contradiction) : DEFAULT_THRESHOLDS.contradiction,
+    ...Object.fromEntries(PAIR_FLOORS.map((k) => [k, Number(stored[k]) > 0 ? Number(stored[k]) : DEFAULT_THRESHOLDS[k]])),
   };
   return recallThresholds();
 }
@@ -746,7 +750,10 @@ export async function applyIngest(tiers, {
   return { source_id: sourceId, count: saved.length, memories: saved };
 }
 
-export async function duplicateCandidates(tiers, { threshold = 0.86, limit = 50 } = {}) {
+// The floor is a similarity score and belongs to the embedding model; see
+// DEFAULT_THRESHOLDS. 0.86 is for text-embedding-3-small. With bge-m3 it showed
+// nothing: the pairs Erik had merged or superseded scored 0.83-0.90 there.
+export async function duplicateCandidates(tiers, { threshold, limit = 50 } = {}) {
   const { rows } = await pool.query(
     `WITH candidates AS (
        SELECT ${COLS}, embedding FROM thoughts
@@ -767,7 +774,7 @@ export async function duplicateCandidates(tiers, { threshold = 0.86, limit = 50 
            WHERE d.left_id = a.id AND d.right_id = b.id
              AND d.resolved_at >= greatest(a.updated_at, b.updated_at))
       ORDER BY similarity DESC LIMIT $3`,
-    [tiers, Number(threshold) || 0.86, Math.min(Number(limit) || 50, 200)],
+    [tiers, Number(threshold) || thresholds.duplicate, Math.min(Number(limit) || 50, 200)],
   );
   return rows;
 }

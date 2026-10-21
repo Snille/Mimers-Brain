@@ -148,7 +148,7 @@ function recallPanel() {
       ${th.model !== recall.embedding ? `<p class="sub warn">${esc(th.model
         ? t("models.recall.otherModel", { model: th.model, embedding: recall.embedding })
         : t("models.recall.unknownModel", { embedding: recall.embedding }))}</p>` : ""}
-      <table class="grid">${row("search")}${row("hint")}${row("contradiction")}</table>
+      <table class="grid">${row("search")}${row("hint")}${row("contradiction")}${row("duplicate")}</table>
       ${th.next ? `<p class="sub">${esc(t("models.recall.nextSaved", {
         model: th.next.model, search: fixed(th.next.search ?? th.defaults.search), hint: fixed(th.next.hint ?? th.defaults.hint) }))}</p>` : ""}
       <div class="actions model-actions">
@@ -162,6 +162,8 @@ function recallPanel() {
             <input id="recall-hint" type="number" step="0.01" min="0.05" max="0.95" value="${esc(th.source.hint === "settings" ? th.hint : "")}" placeholder="${fixed(th.defaults.hint)}" /></label>
           <label>${esc(t("models.recall.contradiction"))}
             <input id="recall-contradiction" type="number" step="0.01" min="0.05" max="0.95" value="${esc(th.source.contradiction === "settings" ? th.contradiction : "")}" placeholder="${fixed(th.defaults.contradiction)}" /></label>
+          <label>${esc(t("models.recall.duplicate"))}
+            <input id="recall-duplicate" type="number" step="0.01" min="0.05" max="0.95" value="${esc(th.source.duplicate === "settings" ? th.duplicate : "")}" placeholder="${fixed(th.defaults.duplicate)}" /></label>
           <div class="sub">${esc(t("models.recall.emptyIsDefault"))}</div>
           <div class="actions model-actions">
             <button id="recall-save">${esc(t("models.save"))}</button>
@@ -197,6 +199,7 @@ function wireRecall() {
       recall = await post("/api/ai/recall/thresholds", {
         search: host.querySelector("#recall-search").value, hint: host.querySelector("#recall-hint").value,
         contradiction: host.querySelector("#recall-contradiction").value,
+        duplicate: host.querySelector("#recall-duplicate").value,
       });
       editingThresholds = false;
       draw();
@@ -322,7 +325,6 @@ function draw() {
       </table>
       ${migrationPanel()}
       ${recallPanel()}
-      <p class="sub">${esc(t("models.thresholds"))}</p>
     </div>`;
 
   for (const b of host.querySelectorAll("[data-edit]"))

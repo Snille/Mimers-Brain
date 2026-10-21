@@ -15,7 +15,8 @@
 
 import * as ai from "./ai.mjs";
 import {
-  DEFAULT_THRESHOLDS, applyRecallThresholds, embed, getSetting, pool, recallThresholds, searchThoughts, setSetting,
+  DEFAULT_THRESHOLDS, PAIR_FLOORS, applyRecallThresholds, embed, getSetting, pool, recallThresholds, searchThoughts,
+  setSetting,
 } from "./lib.mjs";
 import { DEFAULT_FLOORS, parseQuestionSet, summarise, suggestThresholds } from "./recall-eval.mjs";
 
@@ -56,16 +57,16 @@ export async function recallSettings() {
     thresholds: {
       search: active.search,
       hint: active.hint,
-      contradiction: active.contradiction,
+      ...Object.fromEntries(PAIR_FLOORS.map((k) => [k, active[k]])),
       source: {
         search: stored.search ? "settings" : "default",
         hint: stored.hint ? "settings" : envHint ? "environment" : "default",
-        contradiction: stored.contradiction ? "settings" : "default",
+        ...Object.fromEntries(PAIR_FLOORS.map((k) => [k, stored[k] ? "settings" : "default"])),
       },
       defaults: DEFAULT_THRESHOLDS,
       // The embedding model these floors were set for. The card warns when it
       // is not the one in use.
-      model: stored.search || stored.hint || stored.contradiction ? stored.model || null : DEFAULTS_MEASURED_WITH,
+      model: ["search", "hint", ...PAIR_FLOORS].some((k) => stored[k]) ? stored.model || null : DEFAULTS_MEASURED_WITH,
       next: stored.next || null,
     },
     embedding: ai.role("embedding").model,
@@ -90,23 +91,24 @@ function threshold(value, name) {
 // target "current" changes the floors in use now. target "next" stores floors
 // for the re-embedding in progress; switchEmbedding() puts them in force in the
 // same step as the new vectors. An empty value brings back the default.
-// The contradiction floor changes only when the call names it: the
-// measurement suggests search and hint, and saving that suggestion must not
-// throw away a contradiction floor set by hand.
-export async function saveThresholds({ search, hint, contradiction, target = "current" } = {}) {
+// The pair floors (contradiction, duplicate) change only when the call names
+// them: the measurement suggests search and hint, and saving that suggestion
+// must not throw away a floor set by hand.
+export async function saveThresholds({ search, hint, target = "current", ...rest } = {}) {
   const values = { search: threshold(search, "search"), hint: threshold(hint, "hint") };
-  const named = contradiction !== undefined;
-  const floor = threshold(contradiction, "contradiction");
+  const named = PAIR_FLOORS.filter((k) => rest[k] !== undefined);
+  const floors = Object.fromEntries(named.map((k) => [k, threshold(rest[k], k)]));
   const stored = (await readJson(THRESHOLDS_KEY)) || {};
   if (target === "next") {
     const migration = await readJson(MIGRATION_KEY);
     if (!migration) throw fail(409, "No re-embedding is in progress");
-    const kept = stored.next?.model === migration.model ? stored.next.contradiction : undefined;
-    const next = named ? floor : kept;
-    stored.next = { ...values, ...(next ? { contradiction: next } : {}), model: migration.model };
+    const kept = stored.next?.model === migration.model ? stored.next : {};
+    const pairs = Object.fromEntries(PAIR_FLOORS
+      .map((k) => [k, named.includes(k) ? floors[k] : kept[k]]).filter(([, v]) => v));
+    stored.next = { ...values, ...pairs, model: migration.model };
   } else {
     for (const key of ["search", "hint"]) if (values[key] === undefined) delete stored[key]; else stored[key] = values[key];
-    if (named) { if (floor === undefined) delete stored.contradiction; else stored.contradiction = floor; }
+    for (const key of named) if (floors[key] === undefined) delete stored[key]; else stored[key] = floors[key];
     stored.model = ai.role("embedding").model;
   }
   await setSetting(THRESHOLDS_KEY, JSON.stringify(stored));
@@ -122,7 +124,7 @@ export async function promoteNextThresholds(model) {
   const next = stored.next;
   delete stored.next;
   const promoted = next?.model === model
-    ? { model, ...Object.fromEntries(["search", "hint", "contradiction"].filter((k) => next[k]).map((k) => [k, next[k]])) }
+    ? { model, ...Object.fromEntries(["search", "hint", ...PAIR_FLOORS].filter((k) => next[k]).map((k) => [k, next[k]])) }
     : stored;
   await setSetting(THRESHOLDS_KEY, JSON.stringify(promoted));
   applyRecallThresholds(promoted);
