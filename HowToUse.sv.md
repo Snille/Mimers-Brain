@@ -4,7 +4,7 @@
 
 Hur du ansluter en modell till minnet, vad som ska in i det, och hur du ansluter
 igen efter en ominstallation. Installationen av servern finns i
-[install.md](install.md).
+[install.sv.md](install.sv.md).
 
 > **Börja med sidan Anslut.** Öppna webbgränssnittet och gå till **Anslut**:
 > samma instruktioner som nedan, ifyllda med din instans adresser, nycklar och
@@ -223,6 +223,6 @@ en lösenfras av två citattecken:
 cmd /c 'ssh-keygen -t ed25519 -C "mimers-brain" -f C:\Users\<du>\.ssh\mimers_brain -N ""'
 ```
 
-**Servern:** installera enligt [install.md](install.md) och återställ sedan
+**Servern:** installera enligt [install.sv.md](install.sv.md) och återställ sedan
 senaste dumpen med `./restore.sh`. Återanvänd gamla `.env` om du har den; en ny
 `MCP_ACCESS_KEY` betyder att varje klient måste uppdateras.

@@ -24,7 +24,7 @@ konversation.
 
 | | |
 | --- | --- |
-| **[install.md](install.md)** | Installation på Proxmox LXC, Docker Desktop eller Ubuntu Server: konfiguration, reverse proxy, backup, uppdatering (engelska) |
+| **[install.sv.md](install.sv.md)** | Installation på Proxmox LXC, Docker Desktop eller Ubuntu Server: konfiguration, reverse proxy, backup, uppdatering, lokal inbäddningsmodell, test av motsägelser |
 | **[HowToUse.sv.md](HowToUse.sv.md)** | Ansluta Claude Code, Codex, Claude Desktop, ChatGPT, Open WebUI; vad som hör hemma i minnet |
 | **[docs/how-it-works.md](docs/how-it-works.md)** | Nivågränsen, autentisering, minnesmodellen, sökning, modeller, underhåll (engelska) |
 | **[docs/home-assistant.md](docs/home-assistant.md)** | MQTT-sensorer för Home Assistant (engelska) |
@@ -42,7 +42,7 @@ konversation.
 
 ## Snabbstart
 
-Kräver Docker med Compose. Fullständiga instruktioner: [install.md](install.md).
+Kräver Docker med Compose. Fullständiga instruktioner: [install.sv.md](install.sv.md).
 
 ```bash
 git clone https://github.com/Snille/Mimers-Brain.git && cd Mimers-Brain
