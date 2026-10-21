@@ -98,6 +98,26 @@ export const READ_ONLY_SCOPE =
 export const CAPTURE_GUIDANCE =
   "Write one current, verified, standalone memory with one main purpose only when it can change a future answer or action and is not already represented by repository documentation, history, or source. Project status and completed work belong in README or history/changelog; if either file is missing, propose creating it instead of using memory as a substitute. Never store raw passwords, tokens, API keys, private keys, or other secret values. Use an exact SECRET_REF pointer instead.";
 
+// How a model goes through the Review page's possible contradictions with the
+// user; shared by the MCP and OpenAPI tools.
+export const CONTRADICTION_GUIDANCE =
+  "List the pairs the nightly check calls possible contradictions, newest first, with both texts and the checker's reason. " +
+  "For each pair: read both, search the memory for what else bears on the subject, and propose one decision to the user - " +
+  "not a contradiction (dismiss_contradiction), one memory wrong or outdated (supersede_thought with a corrected text; the pair then leaves the list), " +
+  "or unclear (ask the user what you cannot know). Act only on the user's answer for that pair. The checker errs; its reason is a lead, not a verdict.";
+
+// One pair as a tool returns it: both sides with what is needed to judge them.
+export function contradictionPair(row) {
+  const side = (prefix) => ({
+    id: row[`${prefix}_id`],
+    title: row[`${prefix}_metadata`]?.title || null,
+    tier: row[`${prefix}_tier`],
+    created_at: row[`${prefix}_created_at`],
+    text: row[`${prefix}_content`],
+  });
+  return { left: side("left"), right: side("right"), reason: row.reason, checked_at: row.checked_at };
+}
+
 // The full policy. memory_digest hands it over at the start of a session,
 // OpenAPI clients get it in the spec, and the Connect page offers it for
 // pasting into clients that ignore MCP server instructions.

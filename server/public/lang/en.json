@@ -510,7 +510,9 @@
       "thought_stats": "Totals, types, topics and people",
       "search": "Search in the shape ChatGPT and Gemini expect",
       "fetch": "Fetch one memory by id",
-      "delete_thought": "LAN listener only"
+      "delete_thought": "LAN listener only",
+      "list_contradictions": "Possible contradictions with both texts",
+      "dismiss_contradiction": "Mark a pair as not a contradiction"
     }
   },
   "models": {

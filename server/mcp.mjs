@@ -18,6 +18,8 @@ import { publishSoon } from "./mqtt.mjs";
 import { recallReference } from "./recall.mjs";
 import {
   CAPTURE_GUIDANCE,
+  CONTRADICTION_GUIDANCE,
+  contradictionPair,
   MEMORY_POLICY,
   SESSION_POLICY,
   MEMORY_KINDS,
@@ -389,6 +391,36 @@ export function buildServer(tiers, ctx = {}) {
       }));
     } catch (e) { return fail(e); }
   }));
+
+  // The Review page's "Possible contradictions", for a model asked to go through
+  // them with Erik. Full listener only, like the page's actions: a pair may hold
+  // a vault memory, and the verdicts are his.
+  if (full) {
+    server.registerTool("list_contradictions", {
+      title: "List possible contradictions",
+      description: CONTRADICTION_GUIDANCE,
+      inputSchema: { limit: z.number().int().min(1).max(50).default(10) },
+    }, track("list_contradictions", "read", async ({ limit }, note) => {
+      try {
+        const pairs = await db.contradictions(tiers, { limit });
+        note.count = pairs.length;
+        if (!pairs.length) return text("No open contradictions.");
+        return text(JSON.stringify({ contradiction_model: db.contradictionModel(), pairs: pairs.map(contradictionPair) }));
+      } catch (e) { return fail(e); }
+    }));
+
+    registerWrite("dismiss_contradiction", {
+      title: "Dismiss a possible contradiction",
+      description: "Mark a pair from list_contradictions as not a contradiction, as the Review page does. The verdict holds until either memory changes. Only after the user has agreed; when one memory is wrong, use supersede_thought instead and the pair leaves the list by itself.",
+      inputSchema: { left_id: z.string().uuid(), right_id: z.string().uuid() },
+    }, track("dismiss_contradiction", "write", async ({ left_id, right_id }, note) => {
+      try {
+        const out = await db.dismissContradiction(tiers, { left_id, right_id });
+        note.count = 1;
+        return text(`Dismissed the pair ${out.left_id} / ${out.right_id}.`);
+      } catch (e) { return fail(e); }
+    }));
+  }
 
   if (full) {
     registerWrite("delete_thought", {

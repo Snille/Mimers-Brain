@@ -84,6 +84,7 @@ open and read listeners are built without the ability to reach vault rows. See
 | `report_memory_usage` — receipt for a search | ✓ | ✓ | ✓ |
 | `capture_thought`, `preview_ingest` + `apply_ingest` | ✓ | ✓ | |
 | `supersede_thought`, `review_memory`, `delete_thought` | ✓ | | |
+| `list_contradictions` + `dismiss_contradiction` — go through the Review page's possible contradictions | ✓ | | |
 
 The same tools are available as REST for OpenAPI clients: `GET /openapi.json`
 and `POST /tools/<name>` (with `fetch_thought` instead of `search`/`fetch`).

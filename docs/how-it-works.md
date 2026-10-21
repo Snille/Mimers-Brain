@@ -18,7 +18,7 @@ The tier is a property of the **listener**, never of a header. A check on
 | Port | Built with | Tools |
 | --- | --- | --- |
 | 8790 full | `tiers = ['open', 'vault']` | all |
-| 8791 open | `tiers = ['open']` | all except `review_memory`, `supersede_thought`, `delete_thought` |
+| 8791 open | `tiers = ['open']` | all except `review_memory`, `supersede_thought`, `delete_thought`, `list_contradictions`, `dismiss_contradiction` |
 | 8792 read | `tiers = ['open']`, no write tools | search, list, fetch, digest, statistics, `report_memory_usage` |
 
 The open and read listeners are constructed without the ability to reach vault
@@ -175,7 +175,11 @@ contradictions.
   for bge-m3. Conflicts appear on the Review page as
   *Possible contradictions*. A verdict holds until either memory changes.
   **Settings → Contradiction test** measures a model against pairs with known
-  answers before it is put to work; see install.md, section 9.
+  answers before it is put to work; see install.md, section 9. On port 8790 a
+  model can go through the list with you: `list_contradictions` gives both
+  texts and the reason, `dismiss_contradiction` does what the Review page's
+  "Not a contradiction" does, and `supersede_thought` fixes the wrong memory,
+  which takes the pair off the list.
 - **Duplicates.** Pairs with similarity at or above the duplicate floor appear on
   the Review page. Like the contradiction floor it is set on the Models card:
   0.86 by default, measured with text-embedding-3-small; 0.82 for bge-m3, where

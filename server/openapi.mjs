@@ -21,6 +21,8 @@ import { publishSoon } from "./mqtt.mjs";
 import { recallReference } from "./recall.mjs";
 import {
   CAPTURE_GUIDANCE,
+  CONTRADICTION_GUIDANCE,
+  contradictionPair,
   MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
@@ -325,6 +327,42 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
         });
         publishSoon();
         return memory(row);
+      },
+    });
+
+    // The same pair as the MCP tools; see mcp.mjs.
+    tools.push({
+      name: "list_contradictions",
+      action: "read",
+      summary: "List possible contradictions",
+      description: CONTRADICTION_GUIDANCE,
+      schema: {
+        type: "object",
+        properties: { limit: { type: "integer", minimum: 1, maximum: 50, default: 10 } },
+      },
+      async run({ limit = 10 }) {
+        const pairs = await db.contradictions(tiers, { limit: Math.min(Math.max(Number(limit) || 10, 1), 50) });
+        return { contradiction_model: db.contradictionModel(), pairs: pairs.map(contradictionPair) };
+      },
+    });
+
+    tools.push({
+      name: "dismiss_contradiction",
+      action: "write",
+      summary: "Dismiss a possible contradiction",
+      description: "Mark a pair from list_contradictions as not a contradiction, as the Review page does. The verdict holds until either memory changes. Only after the user has agreed; when one memory is wrong, use supersede_thought instead and the pair leaves the list by itself.",
+      schema: {
+        type: "object",
+        required: ["left_id", "right_id"],
+        properties: { left_id: str("One memory's uuid"), right_id: str("The other memory's uuid") },
+      },
+      async run({ left_id, right_id }) {
+        try {
+          return await db.dismissContradiction(tiers, { left_id: uuid(left_id), right_id: uuid(right_id) });
+        } catch (error) {
+          if (error instanceof BadRequest) throw error;
+          throw new BadRequest("No such contradiction pair on this tier");
+        }
       },
     });
 

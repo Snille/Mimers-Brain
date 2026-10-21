@@ -84,6 +84,7 @@ Nivån avgörs av vilken port en förfrågan kommer in på, aldrig av en header:
 | `report_memory_usage` — kvitto för en sökning | ✓ | ✓ | ✓ |
 | `capture_thought`, `preview_ingest` + `apply_ingest` | ✓ | ✓ | |
 | `supersede_thought`, `review_memory`, `delete_thought` | ✓ | | |
+| `list_contradictions` + `dismiss_contradiction` — gå igenom Granska-sidans möjliga motsägelser | ✓ | | |
 
 Samma verktyg finns som REST för OpenAPI-klienter: `GET /openapi.json` och
 `POST /tools/<namn>` (med `fetch_thought` i stället för `search`/`fetch`).

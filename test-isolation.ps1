@@ -58,7 +58,7 @@ function Finish {
 # Every tool that can change a memory. report_memory_usage is deliberately not
 # here: it writes a recall receipt, not a memory, and every search asks for one.
 $WriteTools = @("capture_thought", "preview_ingest", "apply_ingest",
-                "review_memory", "supersede_thought", "delete_thought")
+                "review_memory", "supersede_thought", "delete_thought", "dismiss_contradiction")
 
 # The stateless MCP endpoint answers either plain JSON or a single SSE frame,
 # depending on what the client said it accepts. Both shapes turn up in practice,

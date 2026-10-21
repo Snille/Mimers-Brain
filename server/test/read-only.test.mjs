@@ -11,8 +11,17 @@ import { READ_ONLY_SCOPE } from "../memory-model.mjs";
 
 const WRITERS = [
   "capture_thought", "apply_ingest", "preview_ingest",
-  "review_memory", "supersede_thought", "delete_thought",
+  "review_memory", "supersede_thought", "delete_thought", "dismiss_contradiction",
 ];
+
+test("the contradiction tools are on the full MCP listener only", () => {
+  const names = (tiers, ctx) => Object.keys(buildServer(tiers, ctx)._registeredTools || {});
+  for (const name of ["list_contradictions", "dismiss_contradiction"]) {
+    assert.equal(names(["open", "vault"]).includes(name), true, name);
+    assert.equal(names(["open"]).includes(name), false, name);
+    assert.equal(names(["open"], { writable: false }).includes(name), false, name);
+  }
+});
 
 test("a read-only MCP server registers no tool that writes", () => {
   // Vault tiers on purpose: read-only must hold even where every tool exists.

@@ -91,6 +91,19 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     assert.equal(db.recallThresholds().contradiction, 0.6, "the default is back");
     assert.equal((await db.checkContradictions(db.ALL)).checked, 1);
 
+    // The tools a model uses for the same list: both texts and the reason, and
+    // a dismissal that takes the pair off it.
+    const { toolsFor } = await import("../openapi.mjs");
+    const tool = (name) => toolsFor(db.ALL).find((t) => t.name === name);
+    const listed = await tool("list_contradictions").run({ limit: 10 });
+    const pair = listed.pairs.find((p) => [p.left.id, p.right.id].includes(v));
+    assert.ok(pair, "the vault pair is listed on the full listener");
+    assert.match(pair.reason, /different ports/);
+    assert.ok(pair.left.text && pair.right.text && pair.left.title !== undefined);
+    await tool("dismiss_contradiction").run({ left_id: pair.right.id, right_id: pair.left.id });
+    assert.equal((await tool("list_contradictions").run({})).pairs.some((p) => [p.left.id, p.right.id].includes(v)), false);
+    await assert.rejects(tool("dismiss_contradiction").run({ left_id: v, right_id: e }), /No such contradiction pair/);
+
     // The duplicate floor is the same kind of setting. At 0.86 the 0.72 pair is
     // not a duplicate; at 0.7 it is, and an explicit threshold still wins.
     const isPair = (row) => [row.left_id, row.right_id].sort().join() === [a, v].sort().join();

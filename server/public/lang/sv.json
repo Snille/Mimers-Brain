@@ -510,7 +510,9 @@
       "thought_stats": "Summor, typer, ämnen och personer",
       "search": "Sökning i formen som ChatGPT och Gemini förväntar sig",
       "fetch": "Hämta ett minne med id",
-      "delete_thought": "Endast LAN-lyssnaren"
+      "delete_thought": "Endast LAN-lyssnaren",
+      "list_contradictions": "Möjliga motsägelser med båda texterna",
+      "dismiss_contradiction": "Markera ett par som ingen motsägelse"
     }
   },
   "models": {

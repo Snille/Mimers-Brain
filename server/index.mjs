@@ -312,6 +312,8 @@ function connectInfo(req, { tiers, allowUrlKey }) {
       { name: "fetch", what: "Fetch one memory by id" },
       ...(full ? [
         { name: "review_memory", what: "Review trust and allowed use of an agent memory" },
+        { name: "list_contradictions", what: "Possible contradictions from the Review page, with both texts" },
+        { name: "dismiss_contradiction", what: "Mark a pair as not a contradiction, after the user agreed" },
         { name: "supersede_thought", what: "Replace memories and preserve navigable history" },
         { name: "delete_thought", what: "LAN listener only" },
       ] : []),
