@@ -6,6 +6,61 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-21 — 0.17.0: a local embedding model, and Settings of its own
+
+The brain now embeds locally. `bge-m3` runs in Ollama beside it on the same
+LXC, and against 51 real questions it beat `text-embedding-3-small`: the right
+memory first 89 % of the time against 80 %, and the recall hook off target 2 %
+against 9 %. Getting there cost two traps, both now in install.md, section 8.
+The Ollama image and model take about 10 GB and filled the 16 GB LXC to 100 %
+on the first try; the stack was removed at once and the disk grown. And inside
+an LXC Ollama sees every core of the host: it started 16 threads on 4 cores,
+and one short text took 20 seconds. `/v1/embeddings` takes no options, so the
+thread count lives in a model variant, `bge-m3:cpu4`, which answers in 0.2–0.45
+seconds. OpenRouter stays the default for anyone without the disk or the CPU.
+
+The switch showed that two more floors belonged to the old model. At 0.6 the
+contradiction check let 1226 pairs through with bge-m3 where it had let about
+260 through before; at 0.86 the Review page's duplicate list was empty. Both
+floors are now settings next to the search thresholds, stored per embedding
+model and carried through a switch. To choose them, the backup taken before the
+switch was restored into a throwaway container with no network and the same
+pairs were compared under both models: 0.65 for contradictions keeps the number
+of pairs about where it was, and 0.82 for duplicates keeps every pair that had
+been merged by hand.
+
+**Settings** is a page of its own on port 8790. Connect had grown a Models card
+under every client's setup; it now holds the client setup only. Settings holds
+the theme and accent, providers and models, the re-embedding, all four
+similarity floors, and two measurements.
+
+The second measurement is new: **Contradiction test**. The contradiction model
+was chosen once, on 16 pairs. Put to 57 pairs from the live brain, Qwen3-235B
+found every planted conflict but raised five false alarms on six pairs Erik had
+already dismissed; gpt-6-luna raised one and missed one planted conflict. The
+brain moved to luna. The test puts the nightly check's own prompt to one or two
+models over a case set with known answers - memory ids, or planted text against
+a real memory - kept in the database like the recall questions. The first
+version listed all 56 cases by id and left the reader to look memories up and
+edit a file. It now shows only the cases that need a person, opens both
+memories, and takes the answer with a button; the scores update without asking
+the models again.
+
+A model can now go through the Review page's possible contradictions with Erik:
+`list_contradictions` gives each pair with both texts and the checker's reason,
+and `dismiss_contradiction` does what the page's "Not a contradiction" does. A
+wrong memory is fixed with `supersede_thought`, which takes the pair off the
+list. Both are on port 8790 only, on MCP and OpenAPI. The first run settled all
+three open pairs: two memories corrected, one pair dismissed.
+
+**Appearance**: the interface was blue because it was built before Erik's
+preferences were in the brain. Theme (dark, light, or follow the system) and
+accent colour are one setting for the whole brain, served with `/api/config`;
+the default is dark with Erik's green, `#95c200`. Text on the accent turns black
+or white by its luminance, and the greys are neutral so any accent sits well.
+
+Also: `install.sv.md`, the installation guide in Swedish.
+
 ## 2026-10-20 — 0.16.0: thresholds belong to their embedding model
 
 0.11.0 made a new embedding model a matter of a few clicks, but the two

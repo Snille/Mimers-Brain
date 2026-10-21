@@ -6,6 +6,61 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-21 — 0.17.0: en lokal inbäddningsmodell, och Inställningar på egen sida
+
+Hjärnan bäddar nu in lokalt. `bge-m3` körs i Ollama bredvid den på samma LXC,
+och mot 51 riktiga frågor slog den `text-embedding-3-small`: rätt minne först i
+89 % av fallen mot 80 %, och recall-hooken fel i 2 % mot 9 %. Vägen dit kostade
+två fällor, som båda nu står i install.sv.md, avsnitt 8. Ollama-imagen och
+modellen tar cirka 10 GB och fyllde LXC:n på 16 GB till 100 % vid första
+försöket; stacken togs bort direkt och disken utökades. Och i en LXC ser Ollama
+alla värdens kärnor: den startade 16 trådar på 4 kärnor, och en kort text tog
+20 sekunder. `/v1/embeddings` tar inte emot inställningar, så antalet trådar
+ligger i en modellvariant, `bge-m3:cpu4`, som svarar på 0,2–0,45 sekunder.
+OpenRouter är fortfarande standard för den som saknar disk eller CPU.
+
+Bytet visade att två gränser till hörde till den gamla modellen. Vid 0,6 släppte
+motsägelsekontrollen igenom 1226 par med bge-m3, mot cirka 260 förut; vid 0,86
+var Granska-sidans dubblettlista tom. Båda gränserna är nu inställningar bredvid
+sökgränserna, sparade per inbäddningsmodell och med i ett byte. För att välja
+dem lästes backupen från före bytet in i en tillfällig container utan nätverk,
+och samma par jämfördes med båda modellerna: 0,65 för motsägelser håller antalet
+par ungefär där det var, och 0,82 för dubbletter behåller alla par som slagits
+ihop för hand.
+
+**Inställningar** är en egen sida på port 8790. Anslut hade fått en
+Modeller-ruta under varje klients instruktioner; nu har den bara
+klientinstruktionerna. Inställningar har tema och accentfärg, leverantörer och
+modeller, omindexeringen, alla fyra likhetsgränser och två mätningar.
+
+Den andra mätningen är ny: **Test av motsägelser**. Motsägelsemodellen valdes en
+gång, på 16 par. Ställd mot 57 par från den riktiga hjärnan hittade Qwen3-235B
+alla planterade motsägelser men larmade på fem av sex par som Erik redan
+avfärdat; gpt-6-luna larmade på ett och missade en planterad motsägelse.
+Hjärnan bytte till luna. Testet ställer den nattliga kontrollens egen fråga till
+en eller två modeller, för en samling fall med kända svar - minnes-id, eller
+planterad text mot ett riktigt minne - sparad i databasen som recall-frågorna.
+Första versionen listade alla 56 fall med id och lät läsaren slå upp minnena och
+redigera en fil. Nu visar den bara fallen som behöver en människa, öppnar båda
+minnena och tar emot svaret med en knapp; siffrorna räknas om utan att
+modellerna frågas igen.
+
+En modell kan nu gå igenom Granska-sidans möjliga motsägelser med Erik:
+`list_contradictions` ger varje par med båda texterna och kontrollens skäl, och
+`dismiss_contradiction` gör det sidans "Ingen motsägelse" gör. Ett felaktigt
+minne rättas med `supersede_thought`, som tar bort paret ur listan. Båda finns
+bara på port 8790, via MCP och OpenAPI. Första körningen löste alla tre öppna
+par: två minnen rättades och ett par avfärdades.
+
+**Utseende**: gränssnittet var blått eftersom det byggdes innan Eriks
+preferenser fanns i hjärnan. Tema (mörkt, ljust eller följ systemet) och
+accentfärg är en inställning för hela hjärnan och skickas med `/api/config`;
+standard är mörkt med Eriks gröna `#95c200`. Text på accentfärgen blir svart
+eller vit efter dess ljusstyrka, och de grå tonerna är neutrala så att alla
+accentfärger passar.
+
+Dessutom: `install.sv.md`, installationsguiden på svenska.
+
 ## 2026-10-20 — 0.16.0: gränsvärdena hör till sin inbäddningsmodell
 
 0.11.0 gjorde en ny inbäddningsmodell till några klick, men de två
