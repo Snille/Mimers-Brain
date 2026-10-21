@@ -667,16 +667,29 @@
     "inUse": "används",
     "use": "Använd för motsägelser",
     "useConfirm": "Använda {model} för den nattliga motsägelsekontrollen? Par som den gamla modellen har bedömt bedöms igen.",
-    "casesTitle": "Fall att titta på",
-    "casesHint": "Fel svar i fetstil. Ett fall utan svar räknas inte förrän du ger det ett svar i filen.",
+    "casesTitle": "Fall som behöver dig ({n})",
+    "casesHint": "Fel svar står i fetstil. Tryck Visa för att läsa båda minnena och svara sedan. Svaret sparas i hjärnan och räknas direkt; Ladda ner fall håller din fil uppdaterad.",
     "case": "Fall",
     "expected": "Rätt svar",
     "unlabelled": "inte angivet",
-    "allRight": "Alla modeller svarade rätt på alla fall.",
+    "allRight": "Inget behöver dig: alla fall med svar fick rätt svar, och modellerna är överens om resten.",
     "verdict": {
       "conflict": "motsägelse",
       "consistent": "ingen motsägelse",
       "error": "fel"
-    }
+    },
+    "when": "Du behöver bara det här när du funderar på en annan motsägelsemodell, eller ibland för att se att den som används fortfarande håller. Den nattliga kontrollen behöver det inte.",
+    "notMeasured": "Inte mätt ännu. Tryck på Mät.",
+    "summary": "Hittade {caught} av {conflicts} kända motsägelser; falsklarm på {alarms} av {consistent} par som är kända som OK.",
+    "downloadCases": "Ladda ner fall",
+    "quiet": "{n} fall utan svar är dolda: alla modeller säger att de inte är motsägelser.",
+    "show": "Visa",
+    "hide": "Dölj",
+    "first1": "Första",
+    "second2": "Andra",
+    "ownText": "text i fallet",
+    "missing": "Det här minnet finns inte eller kan inte läsas här.",
+    "question": "Kan båda vara sanna samtidigt? Om inte är det en motsägelse.",
+    "unanswer": "Ta bort svaret"
   }
 }

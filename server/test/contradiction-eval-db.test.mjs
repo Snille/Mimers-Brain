@@ -48,6 +48,33 @@ test("the contradiction measurement reads memories, runs two models and stores i
       { id: "a", left: port, right: docker, expect: "consistent" }, { id: "b", left: "x", right: "y" }] }) });
     assert.deepEqual(settings.cases, { ...settings.cases, count: 2, conflicts: 0, consistent: 1, unlabelled: 1 });
     await assert.rejects(evalMod.startEvaluation(db.ALL, { models: [{ provider: "nowhere", model: "m" }] }), /not configured/);
+
+    // A stored run, then an answer given on the page: the texts are read on
+    // request, the answer counts at once and the file can be downloaded.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ verdict: "conflict", reason: "x" }) } }] }));
+    try {
+      await evalMod.startEvaluation(db.ALL, { models: [{ provider: "openrouter", model: "always" }] });
+      await evalMod.waitForEvaluation();
+    } finally { globalThis.fetch = realFetch; }
+    let { evaluation } = await evalMod.contradictionSettings();
+    assert.equal(evaluation.status, "done", evaluation.error);
+    assert.deepEqual([evaluation.result.models[0].falseAlarms, evaluation.result.models[0].consistent], [1, 1]);
+
+    const texts = await evalMod.caseTexts(db.ALL, "b");
+    assert.deepEqual([texts.left.text, texts.right.text, texts.expect], ["x", "y", null]);
+    assert.equal((await evalMod.caseTexts(db.ALL, "a")).right.text, "The brain runs in Docker");
+    await assert.rejects(evalMod.caseTexts(db.ALL, "nope"), /No case/);
+
+    await assert.rejects(evalMod.labelCase({ id: "b", expect: "maybe" }), /expect must be/);
+    ({ evaluation } = await evalMod.labelCase({ id: "b", expect: "conflict" }));
+    assert.deepEqual([evaluation.result.models[0].caught, evaluation.result.models[0].conflicts], [1, 1]);
+    assert.equal(evaluation.result.cases.find((c) => c.id === "b").expect, "conflict");
+    assert.deepEqual((await evalMod.exportCases()).cases.map((c) => c.expect), ["consistent", "conflict"]);
+    await evalMod.labelCase({ id: "b", expect: "" });
+    assert.equal((await evalMod.exportCases()).cases[1].expect, undefined);
+
     assert.equal((await evalMod.saveCases({ clear: true })).cases, null);
     assert.equal(Number((await db.pool.query("SELECT count(*) FROM contradiction_checks")).rows[0].count), 0);
   } finally {

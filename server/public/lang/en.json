@@ -667,16 +667,29 @@
     "inUse": "in use",
     "use": "Use for contradictions",
     "useConfirm": "Use {model} for the nightly contradiction check? Pairs judged by the old model are judged again.",
-    "casesTitle": "Cases worth a look",
-    "casesHint": "Wrong answers in bold. A case without an answer counts for nothing until you give it one in the file.",
+    "casesTitle": "Cases that need you ({n})",
+    "casesHint": "A wrong answer is in bold. Choose Show to read both memories, then answer. The answer is saved in the brain and counts at once; Download cases keeps your file up to date.",
     "case": "Case",
     "expected": "Right answer",
     "unlabelled": "not given",
-    "allRight": "Every model answered every case right.",
+    "allRight": "Nothing needs you: every answered case was answered right, and the models agree on the rest.",
     "verdict": {
       "conflict": "conflict",
       "consistent": "consistent",
       "error": "error"
-    }
+    },
+    "when": "You only need this when you consider another contradiction model, or now and then to see that the one in use still holds up. The nightly check does not depend on it.",
+    "notMeasured": "Not measured yet. Choose Measure.",
+    "summary": "Found {caught} of {conflicts} known conflicts; raised a false alarm on {alarms} of {consistent} pairs known to be fine.",
+    "downloadCases": "Download cases",
+    "quiet": "{n} cases without an answer are hidden: every model calls them consistent.",
+    "show": "Show",
+    "hide": "Hide",
+    "first1": "First",
+    "second2": "Second",
+    "ownText": "text in the case",
+    "missing": "This memory does not exist or cannot be read here.",
+    "question": "Can both be true at the same time? If not, it is a conflict.",
+    "unanswer": "Remove answer"
   }
 }

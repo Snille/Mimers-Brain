@@ -5,7 +5,9 @@
 // The contradiction model was chosen on 16 pairs once, and on 2026-10-21 a test
 // of 57 pairs showed that choice had aged: Qwen3-235B raised again all four
 // pairs Erik had dismissed, while gpt-6-luna missed a planted conflict. Without
-// a way to rerun it, the next model change would be a guess again.
+// a way to rerun it, the next model change would be a guess again. Rerun on the
+// live brain the same day, Qwen raised five false alarms in six known-fine
+// pairs and luna one, and the brain moved to luna.
 //
 // A case names its two sides by memory id or gives the text itself, so a
 // conflict can be planted against a real memory. Like the recall question set
@@ -47,8 +49,18 @@ export function parseCaseSet(text) {
     };
     const expect = entry.expect == null || entry.expect === "" ? null : String(entry.expect);
     if (expect !== null && !EXPECT.has(expect)) throw new Error(`${id}: expect must be "conflict", "consistent" or left out`);
-    return { id, left: side("left"), right: side("right"), expect };
+    const note = typeof entry.note === "string" && entry.note.trim() ? { note: entry.note.trim().slice(0, 500) } : {};
+    return { id, left: side("left"), right: side("right"), expect, ...note };
   });
+}
+
+// The stored set in the file's own shape, so answers given on the page can be
+// downloaded and kept with the local file.
+export function caseFile(cases) {
+  const side = (s) => s.memory ?? s.text;
+  return { cases: cases.map((c) => ({
+    id: c.id, left: side(c.left), right: side(c.right), ...(c.expect ? { expect: c.expect } : {}), ...(c.note ? { note: c.note } : {}),
+  })) };
 }
 
 // Pure, so the arithmetic can be tested without a model.
@@ -93,6 +105,52 @@ export async function saveCases({ text, clear } = {}) {
   try { cases = parseCaseSet(String(text || "")); } catch (error) { throw fail(400, error.message); }
   await setSetting(CASES_KEY, JSON.stringify({ cases, updated_at: new Date().toISOString() }));
   return contradictionSettings();
+}
+
+// The two texts of one case, for the person deciding its answer. The result
+// itself never holds text; this reads it when asked, within the caller's tiers.
+export async function caseTexts(tiers, id) {
+  const c = (await readJson(CASES_KEY))?.cases?.find((x) => x.id === id);
+  if (!c) throw fail(404, `No case ${id}`);
+  const ids = [c.left.memory, c.right.memory].filter(Boolean);
+  const { rows } = await pool.query(
+    `SELECT id::text, content, metadata->>'title' AS title FROM thoughts WHERE id = ANY($1::uuid[]) AND tier = ANY($2)`,
+    [ids, tiers]);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const side = (s) => (s.text ? { text: s.text } : byId.has(s.memory)
+    ? { memory: s.memory, title: byId.get(s.memory).title, text: byId.get(s.memory).content }
+    : { memory: s.memory, missing: true });
+  return { id: c.id, expect: c.expect, note: c.note || null, left: side(c.left), right: side(c.right) };
+}
+
+// An answer given on the page. It is stored in the case set and applied to the
+// last result at once - the verdicts are already there, so no model is asked again.
+export async function labelCase({ id, expect } = {}) {
+  const value = expect == null || expect === "" ? null : String(expect);
+  if (value !== null && !EXPECT.has(value)) throw fail(400, 'expect must be "conflict", "consistent" or empty');
+  const stored = await readJson(CASES_KEY);
+  const c = stored?.cases?.find((x) => x.id === id);
+  if (!c) throw fail(404, `No case ${id}`);
+  c.expect = value;
+  await setSetting(CASES_KEY, JSON.stringify({ ...stored, updated_at: new Date().toISOString() }));
+
+  const evaluation = await readJson(EVALUATION_KEY);
+  const r = evaluation?.status === "done" ? evaluation.result : null;
+  const row = r?.cases.find((x) => x.id === id);
+  if (row) {
+    row.expect = value;
+    r.models = r.models.map((m, j) => ({
+      ...m, ...scoreModel(r.cases.map((x) => ({ verdict: x.verdicts[j] })), r.cases), ms: m.ms,
+    }));
+    await setSetting(EVALUATION_KEY, JSON.stringify(evaluation));
+  }
+  return contradictionSettings();
+}
+
+export async function exportCases() {
+  const stored = await readJson(CASES_KEY);
+  if (!stored?.cases?.length) throw fail(404, "No case set");
+  return caseFile(stored.cases);
 }
 
 // --- measurement -----------------------------------------------------------------

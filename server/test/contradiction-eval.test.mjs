@@ -16,6 +16,12 @@ test("a case set names each side by memory id or by its text, and expect may be 
   assert.deepEqual(cases[0], { id: "ids", left: { memory: `${ID}01` }, right: { memory: `${ID}02` }, expect: "consistent" });
   assert.deepEqual(cases[1].right, { text: "The port is 9000." });
   assert.equal(cases[2].expect, null);
+  const withNote = parseCaseSet(JSON.stringify([{ id: "n", left: "a", right: "b", note: " Why. " }]));
+  assert.equal(withNote[0].note, "Why.");
+  const { caseFile } = await import("../contradiction-eval.mjs");
+  assert.deepEqual(caseFile([...cases, ...withNote]).cases.map((c) => [c.left, c.right, c.expect, c.note]), [
+    [`${ID}01`, `${ID}02`, "consistent", undefined], [`${ID}01`, "The port is 9000.", "conflict", undefined],
+    ["One text.", "Another text.", undefined, undefined], ["a", "b", undefined, "Why."]]);
   assert.throws(() => parseCaseSet("{"), /not JSON/);
   assert.throws(() => parseCaseSet(JSON.stringify({ cases: [] })), /no cases/);
   assert.throws(() => parseCaseSet(JSON.stringify([{ id: "a", left: "x" }])), /a has no right/);

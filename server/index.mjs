@@ -668,6 +668,15 @@ function makeListener(tiers, {
             note("ui.contradiction.cases", "write", { results: out.cases?.count || 0 });
             return json(res, 200, out);
           }
+          if (path === "/api/ai/contradiction/case" && req.method === "GET")
+            return json(res, 200, await contradictionEval.caseTexts(tiers, url.searchParams.get("id")));
+          if (path === "/api/ai/contradiction/label" && req.method === "POST") {
+            const out = await contradictionEval.labelCase(await body(req));
+            note("ui.contradiction.label", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          if (path === "/api/ai/contradiction/cases" && req.method === "GET")
+            return json(res, 200, await contradictionEval.exportCases());
           if (path === "/api/ai/contradiction/evaluate" && req.method === "POST") {
             const out = await contradictionEval.startEvaluation(tiers, await body(req));
             note("ui.contradiction.evaluate", "read", { results: 1 });

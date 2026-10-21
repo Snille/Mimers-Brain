@@ -1,5 +1,7 @@
 # Installing Mimers Brain
 
+*[Svenska](install.sv.md)*
+
 Mimers Brain runs as one Docker Compose stack: a Node.js application container
 (`valv-app`) and a PostgreSQL/pgvector container (`valv-db`). Compose is the only
 supported way to run it, on any host.
@@ -423,7 +425,9 @@ Every night the contradiction model reads pairs of similar memories and puts
 the ones it calls a conflict on the Review page. A model that cries wolf fills
 that page; one that misses lets an old port number live next to a new one.
 **Settings → Contradiction test** puts the nightly check's own question to one
-or two models over pairs whose right answer you know. It changes nothing.
+or two models over pairs whose right answer you know. It changes nothing. You
+need it only when you consider another contradiction model, or now and then to
+see that the one in use still holds up.
 
 **1. Write a case set.** Copy
 [eval/contradiction-cases.example.json](eval/contradiction-cases.example.json) to
@@ -449,9 +453,13 @@ and choose **Measure**. Model 1 is always the one in use.
 | False alarms | pairs you know are fine that it called a conflict | 0 |
 | Errors | calls that failed | 0 |
 
-Below the table, **Cases worth a look** lists every case a model got wrong, two
-models disagree on, or that has no answer yet. Read those two memories, put the
-answer in the file and upload it again.
+Below the table, **Cases that need you** lists only what needs a person: a case
+a model got wrong, and a case without an answer where the models disagree or
+one of them sees a conflict. Unanswered cases every model calls consistent are
+hidden. **Show** opens both memories; answer **conflict** or **consistent** and
+the scores update at once, without asking the models again. The answer is kept
+in the brain; **Download cases** saves the set, answers included, back to your
+local file.
 
 **4. Apply.** **Use for contradictions** makes that model the one the nightly
 check uses. Pairs judged by the old model are judged again.
