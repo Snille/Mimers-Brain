@@ -13,6 +13,7 @@ Steps, in order:
 5. [Backups](#5-backups)
 6. [Updating](#6-updating)
 7. [Tune the search thresholds](#7-tune-the-search-thresholds) (once you have memories)
+8. [Run the embedding model locally](#8-run-the-embedding-model-locally) (optional)
 
 [Troubleshooting](#troubleshooting) is at the end.
 
@@ -315,6 +316,81 @@ suggestion** for it. Its thresholds then take effect in the same step as
 
 The same measurement runs from the command line, with variants of the ranking
 weights; see [docs/how-it-works.md](docs/how-it-works.md#measuring-recall).
+
+## 8. Run the embedding model locally
+
+OpenRouter is the default and needs nothing on the host. An open embedding model
+such as `bge-m3` can instead run in Ollama next to the brain: no cost per call,
+and the text never leaves the network. Metadata and contradictions can stay on
+OpenRouter. It runs well on CPU, but check two things first.
+
+**Disk.** The Ollama image and `bge-m3` take about **10 GB**. The 16 GB LXC
+from Option A fills to 100 % - grow it first (on the Proxmox host:
+`pct resize <vmid> rootfs +16G`) and check with `df -h /` inside the container.
+A full disk can damage the database.
+
+**Threads.** Inside an LXC, Ollama sees every core of the host and starts far
+more threads than the container may use. On a 4-core LXC that made one short
+text take 20 seconds instead of 0.3. `/v1/embeddings` accepts no options, so put
+the thread count in a model variant. Use the number of cores the container has
+(`nproc`).
+
+Ollama as its own stack, e.g. `~/ollama/docker-compose.yml`. It publishes no
+port; the brain reaches it over the brain's own Compose network:
+
+```yaml
+name: ollama
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    security_opt:
+      - apparmor=unconfined
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    volumes:
+      - ollama-models:/root/.ollama
+    mem_limit: 2560m
+    networks:
+      - mimers-valv_default
+
+volumes:
+  ollama-models:
+
+networks:
+  mimers-valv_default:
+    external: true
+```
+
+Start it, fetch the model and make the variant (here for 4 cores):
+
+```bash
+cd ~/ollama && docker compose up -d
+docker exec ollama ollama pull bge-m3
+printf "FROM bge-m3\nPARAMETER num_thread 4\n" > Modelfile.bge-m3-cpu4
+docker cp Modelfile.bge-m3-cpu4 ollama:/tmp/Modelfile
+docker exec ollama ollama create bge-m3:cpu4 -f /tmp/Modelfile
+```
+
+Then, on port 8790, open **Connect → Models**:
+
+1. Set the Ollama address to `http://ollama:11434`.
+2. **Test** the embedding role with provider Ollama and model `bge-m3:cpu4`.
+   A good result is well under a second.
+3. Start the re-embedding. It takes a few seconds per memory.
+4. Measure the new model and save its suggestion (see
+   [section 7](#7-tune-the-search-thresholds)), then **Switch**. Switching drops
+   the old vectors, so run `./backup.sh` first.
+5. Set **Contradictions** under **Search thresholds → Change**. The questions do
+   not measure it. With `bge-m3`, 0.65 compares about as many pairs as 0.6 did
+   with text-embedding-3-small; at 0.6 it compared five times as many.
+
+Choose the variant's name before the switch. A new name counts as a new model,
+and a new model means a new re-embedding. If the container later gets more
+cores, make a new variant and re-embed to it.
 
 ## Troubleshooting
 

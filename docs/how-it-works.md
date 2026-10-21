@@ -168,8 +168,11 @@ Statistics page, forgets deleted-memory text past its 30 days, embeds current
 memories that lack a vector, and checks twenty pairs of memories for
 contradictions.
 
-- **Contradictions.** Pairs of current memories with similarity ≥ 0.6 are read by
-  the contradiction model, closest first. Conflicts appear on the Review page as
+- **Contradictions.** Pairs of current memories with similarity at or above the
+  contradiction floor are read by the contradiction model, closest first. The
+  floor belongs to the embedding model and is set with the search thresholds on
+  the Models card: 0.6 by default, measured with text-embedding-3-small; 0.65
+  for bge-m3. Conflicts appear on the Review page as
   *Possible contradictions*. A verdict holds until either memory changes.
 - **Duplicates.** Pairs with similarity ≥ 0.86 appear on the Review page.
 - **Audit.** `npm run audit` in `server/` is a read-only quality pass: metadata

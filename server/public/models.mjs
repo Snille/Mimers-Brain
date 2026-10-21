@@ -148,7 +148,7 @@ function recallPanel() {
       ${th.model !== recall.embedding ? `<p class="sub warn">${esc(th.model
         ? t("models.recall.otherModel", { model: th.model, embedding: recall.embedding })
         : t("models.recall.unknownModel", { embedding: recall.embedding }))}</p>` : ""}
-      <table class="grid">${row("search")}${row("hint")}</table>
+      <table class="grid">${row("search")}${row("hint")}${row("contradiction")}</table>
       ${th.next ? `<p class="sub">${esc(t("models.recall.nextSaved", {
         model: th.next.model, search: fixed(th.next.search ?? th.defaults.search), hint: fixed(th.next.hint ?? th.defaults.hint) }))}</p>` : ""}
       <div class="actions model-actions">
@@ -160,6 +160,8 @@ function recallPanel() {
             <input id="recall-search" type="number" step="0.01" min="0.05" max="0.95" value="${esc(th.source.search === "settings" ? th.search : "")}" placeholder="${fixed(th.defaults.search)}" /></label>
           <label>${esc(t("models.recall.hint"))}
             <input id="recall-hint" type="number" step="0.01" min="0.05" max="0.95" value="${esc(th.source.hint === "settings" ? th.hint : "")}" placeholder="${fixed(th.defaults.hint)}" /></label>
+          <label>${esc(t("models.recall.contradiction"))}
+            <input id="recall-contradiction" type="number" step="0.01" min="0.05" max="0.95" value="${esc(th.source.contradiction === "settings" ? th.contradiction : "")}" placeholder="${fixed(th.defaults.contradiction)}" /></label>
           <div class="sub">${esc(t("models.recall.emptyIsDefault"))}</div>
           <div class="actions model-actions">
             <button id="recall-save">${esc(t("models.save"))}</button>
@@ -194,6 +196,7 @@ function wireRecall() {
     try {
       recall = await post("/api/ai/recall/thresholds", {
         search: host.querySelector("#recall-search").value, hint: host.querySelector("#recall-hint").value,
+        contradiction: host.querySelector("#recall-contradiction").value,
       });
       editingThresholds = false;
       draw();

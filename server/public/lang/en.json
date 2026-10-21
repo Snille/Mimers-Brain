@@ -599,6 +599,8 @@
       "searchHint": "Lowest similarity for a hit in search_thoughts.",
       "hint": "Memory hints",
       "hintHint": "Lowest similarity for the recall hook to show a memory nobody asked for.",
+      "contradiction": "Contradictions",
+      "contradictionHint": "Lowest similarity for two memories to be checked against each other at night. Not measured by the questions; set it by hand after a change of model.",
       "source": {
         "settings": "saved here",
         "environment": "from .env",

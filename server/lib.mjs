@@ -337,15 +337,23 @@ export function rankWeights(overrides = {}) {
 // sentence scores 1.00, shared keywords ~0.79, and a loose rewording with no
 // words in common ~0.43. A 0.5 default silently drops that last case, which is
 // exactly the kind of recall the brain exists for.
-export const DEFAULT_THRESHOLDS = Object.freeze({ search: 0.3, hint: 0.5 });
+//
+// The contradiction floor is the third score of the same kind: see
+// contradictionPairs() below.
+export const DEFAULT_THRESHOLDS = Object.freeze({ search: 0.3, hint: 0.5, contradiction: 0.6 });
 const envHint = Number(process.env.RECALL_HINT_FLOOR);
-let thresholds = { search: DEFAULT_THRESHOLDS.search, hint: envHint > 0 ? envHint : DEFAULT_THRESHOLDS.hint };
+let thresholds = {
+  search: DEFAULT_THRESHOLDS.search,
+  hint: envHint > 0 ? envHint : DEFAULT_THRESHOLDS.hint,
+  contradiction: DEFAULT_THRESHOLDS.contradiction,
+};
 
 export const recallThresholds = () => ({ ...thresholds });
-export function applyRecallThresholds({ search, hint } = {}) {
+export function applyRecallThresholds({ search, hint, contradiction } = {}) {
   thresholds = {
     search: Number(search) > 0 ? Number(search) : DEFAULT_THRESHOLDS.search,
     hint: Number(hint) > 0 ? Number(hint) : envHint > 0 ? envHint : DEFAULT_THRESHOLDS.hint,
+    contradiction: Number(contradiction) > 0 ? Number(contradiction) : DEFAULT_THRESHOLDS.contradiction,
   };
   return recallThresholds();
 }
@@ -816,7 +824,12 @@ export async function resolveDuplicate(tiers, {
 // memory and 8795 in the other, scored 0.87. A model reads each pair once and
 // says whether both can be true now. A verdict is kept until either memory
 // changes, so a pair is never paid for twice.
-export const CONTRADICTION_FLOOR = 0.6;
+//
+// The floor is a similarity score, so it belongs to the embedding model like
+// the search thresholds and is stored with them. 0.6 is for
+// text-embedding-3-small. bge-m3 spreads the pairs differently: at 0.6 it let
+// 1226 pairs through where the old model let about 260, and 0.65 kept 219 of
+// those 262 checked pairs with 441 in all.
 
 // Not the metadata model by default. On the live brain gpt-4o-mini called 14 of
 // its first 20 pairs contradictions, nearly all of them wrong: two prefixes that
@@ -851,7 +864,7 @@ async function contradictionPairs(tiers, { limit = 20 } = {}) {
           SELECT 1 FROM thought_relations r
            WHERE (r.from_id = a.id AND r.to_id = b.id) OR (r.from_id = b.id AND r.to_id = a.id))
       ORDER BY similarity DESC LIMIT $3`,
-    [tiers, CONTRADICTION_FLOOR, Math.min(Number(limit) || 20, 100), contradictionModel()],
+    [tiers, thresholds.contradiction, Math.min(Number(limit) || 20, 100), contradictionModel()],
   );
   return rows;
 }

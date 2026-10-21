@@ -599,6 +599,8 @@
       "searchHint": "Lägsta likhet för en träff i search_thoughts.",
       "hint": "Minnestips",
       "hintHint": "Lägsta likhet för att recall-hooken ska visa ett minne utan att någon frågat.",
+      "contradiction": "Motsägelser",
+      "contradictionHint": "Lägsta likhet för att två minnen ska jämföras med varandra på natten. Frågorna mäter inte den här gränsen; ställ in den för hand efter ett modellbyte.",
       "source": {
         "settings": "sparad här",
         "environment": "från .env",

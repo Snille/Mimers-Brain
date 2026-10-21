@@ -81,6 +81,15 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     assert.ok(judged.every((prompt) => prompt.match(/<<<FIRST[\s\S]*SECOND>>>/)[0].includes("port 7000")));
     assert.equal((await db.contradictions(db.OPEN)).length, 0);
     assert.equal((await db.contradictions(db.ALL)).some((pair) => [pair.left_id, pair.right_id].includes(v)), true);
+
+    // The floor belongs to the embedding model and is a setting: above 0.72
+    // the vault pair is no longer a candidate.
+    await db.pool.query(`UPDATE thoughts SET content = 'The vault says port 7001' WHERE id = $1`, [v]);
+    db.applyRecallThresholds({ contradiction: 0.8 });
+    assert.equal((await db.checkContradictions(db.ALL)).checked, 0);
+    db.applyRecallThresholds({});
+    assert.equal(db.recallThresholds().contradiction, 0.6, "the default is back");
+    assert.equal((await db.checkContradictions(db.ALL)).checked, 1);
   } finally {
     globalThis.fetch = realFetch;
     await db.pool.end();

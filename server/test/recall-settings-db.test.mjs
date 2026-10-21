@@ -44,7 +44,8 @@ test("recall thresholds are stored, measured and follow a switch of embedding mo
 
     let settings = await recall.recallSettings();
     assert.deepEqual([settings.thresholds.search, settings.thresholds.hint], [0.3, 0.5]);
-    assert.deepEqual(settings.thresholds.source, { search: "default", hint: "default" });
+    assert.deepEqual(settings.thresholds.source, { search: "default", hint: "default", contradiction: "default" });
+    assert.equal(settings.thresholds.contradiction, 0.6);
     assert.equal(settings.thresholds.model, recall.DEFAULTS_MEASURED_WITH);
 
     // A stored value is in force at once, for search's own default too.
@@ -60,6 +61,17 @@ test("recall thresholds are stored, measured and follow a switch of embedding mo
     await assert.rejects(recall.saveThresholds({ search: 2 }), /between 0.05 and 0.95/);
     settings = await recall.saveThresholds({ search: "" });
     assert.equal(db.recallThresholds().search, 0.3, "an empty value brings back the default");
+
+    // The contradiction floor changes only when it is named, so saving a
+    // measured suggestion for search and hint leaves it alone.
+    settings = await recall.saveThresholds({ contradiction: 0.7 });
+    assert.equal(db.recallThresholds().contradiction, 0.7);
+    assert.equal(settings.thresholds.source.contradiction, "settings");
+    await recall.saveThresholds({ search: 0.35, hint: 0.5 });
+    assert.equal(db.recallThresholds().contradiction, 0.7);
+    await assert.rejects(recall.saveThresholds({ contradiction: 1 }), /contradiction threshold must be between/);
+    await recall.saveThresholds({ search: "", hint: "", contradiction: "" });
+    assert.deepEqual(db.recallThresholds(), { search: 0.3, hint: 0.5, contradiction: 0.6 });
 
     // The question set is checked before it is stored.
     await assert.rejects(recall.startEvaluation(db.ALL), /question set/);
@@ -94,15 +106,16 @@ test("recall thresholds are stored, measured and follow a switch of embedding mo
     assert.equal(evaluation.status, "done", evaluation.error);
     assert.equal(evaluation.model, NEXT);
     assert.equal(evaluation.result.suggestion.search.value, 0.6, "clamped");
+    await recall.saveThresholds({ target: "next", contradiction: 0.65 });
     settings = await recall.saveThresholds({ target: "next", search: 0.6, hint: 0.85 });
-    assert.deepEqual(settings.thresholds.next, { search: 0.6, hint: 0.85, model: NEXT });
+    assert.deepEqual(settings.thresholds.next, { search: 0.6, hint: 0.85, contradiction: 0.65, model: NEXT });
     assert.equal(db.recallThresholds().search, 0.3, "not before the switch");
 
     await models.switchEmbedding();
     settings = await recall.recallSettings();
     assert.deepEqual([settings.thresholds.search, settings.thresholds.hint, settings.thresholds.model], [0.6, 0.85, NEXT]);
     assert.equal(settings.thresholds.next, null);
-    assert.deepEqual(db.recallThresholds(), { search: 0.6, hint: 0.85 });
+    assert.deepEqual(db.recallThresholds(), { search: 0.6, hint: 0.85, contradiction: 0.65 });
 
     // A cancelled run takes its floors with it.
     await models.startReembed({ provider: "openrouter", model: "test/other" });
@@ -110,7 +123,7 @@ test("recall thresholds are stored, measured and follow a switch of embedding mo
     await recall.saveThresholds({ target: "next", search: 0.4 });
     await models.cancelReembed();
     assert.equal((await recall.recallSettings()).thresholds.next, null);
-    assert.deepEqual(db.recallThresholds(), { search: 0.6, hint: 0.85 });
+    assert.deepEqual(db.recallThresholds(), { search: 0.6, hint: 0.85, contradiction: 0.65 });
   } finally {
     globalThis.fetch = realFetch;
     await db.pool.end();
