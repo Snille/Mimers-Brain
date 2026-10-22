@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-22 — embeddings move to the GPU on Ollama01
+
+No code change. The Ollama provider under Settings → Models now points at
+Ollama01 (`http://10.0.0.47:11434`, CT 141 on TowerCube), a shared Ollama
+on the RTX 4000 Ada that Storage System will use too. The model name stays
+`bge-m3:cpu4`, so nothing was re-embedded. Before the switch, a read-only run
+inside `valv-app` measured both endpoints on the same 51 questions: identical
+hit rates and hook results, the same 467 pairs over the contradiction floor
+and the same 5 over the duplicate floor, and a lowest cosine of 0.99977
+between stored and new vectors. Embedding all 334 memories took 790 s on the
+CPU and 7 s on the GPU. The GPU first answered every new input length in 2–4
+seconds; that was the CUDA driver JIT-compiling kernels, fixed on the server
+with a larger JIT cache and a one-time sweep of all lengths. The CPU Ollama
+on CT 109 keeps running as the fallback: point the provider back at
+`http://ollama:11434` and clear its key.
+
 ## 2026-10-21 — 0.17.0: a local embedding model, and Settings of its own
 
 The brain now embeds locally. `bge-m3` runs in Ollama beside it on the same

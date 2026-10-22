@@ -6,6 +6,21 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-22 — inbäddningarna flyttar till GPU:n på Ollama01
+
+Ingen kodändring. Ollama-leverantören under Inställningar → Modeller pekar nu
+på Ollama01 (`http://10.0.0.47:11434`, CT 141 på TowerCube), en gemensam
+Ollama på RTX 4000 Ada som även Storage System ska använda. Modellnamnet är
+kvar som `bge-m3:cpu4`, så inget bäddades in på nytt. Före bytet mätte en
+körning i `valv-app`, som bara läste, båda servrarna på samma 51 frågor:
+identisk träffsäkerhet och hook, samma 467 par över motsägelsegränsen och
+samma 5 över dubblettgränsen, och lägsta cosinus 0,99977 mellan sparade och
+nya vektorer. Alla 334 minnen tog 790 s på CPU:n och 7 s på GPU:n. GPU:n
+svarade först på varje ny textlängd på 2–4 sekunder; det var CUDA-drivrutinen
+som JIT-kompilerade kärnor, löst på servern med en större JIT-cache och en
+engångskörning av alla längder. CPU-Ollama på CT 109 körs kvar som reserv:
+peka tillbaka leverantören på `http://ollama:11434` och ta bort nyckeln.
+
 ## 2026-10-21 — 0.17.0: en lokal inbäddningsmodell, och Inställningar på egen sida
 
 Hjärnan bäddar nu in lokalt. `bge-m3` körs i Ollama bredvid den på samma LXC,
