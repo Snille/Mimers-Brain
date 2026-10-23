@@ -81,14 +81,17 @@ export async function render(root) {
 
   // Both lists take the same four review actions. On a rarely useful memory,
   // Confirm means "keep it as it is": the review resets its receipt count, so
-  // it only comes back if it keeps being passed over.
+  // it only comes back if it keeps being passed over. A stale memory stays in
+  // the queue until it is updated or given another status, so it gets no
+  // second Mark stale button - clicking it changed nothing and the card stayed.
   const reviewCards = (target, rows, note = () => "") => {
     target.innerHTML = rows.length ? "" : `<div class="empty">${esc(tr("review.empty"))}</div>`;
     for (const row of rows) {
+      const stale = row.metadata?.review_status === "stale";
       const card = document.createElement("div");
       card.className = "card";
-      card.innerHTML = `${note(row)}${memorySummary(row)}<div class="actions review-actions">
-        ${["confirm", "evidence_only", "stale", "reject"].map((action) =>
+      card.innerHTML = `${note(row)}${stale ? `<div class="meta"><span class="tag">${esc(tr("review.staleNote"))}</span></div>` : ""}${memorySummary(row)}<div class="actions review-actions">
+        ${["confirm", "evidence_only", "stale", "reject"].filter((action) => !(stale && action === "stale")).map((action) =>
           `<button class="${action === "reject" ? "ghost danger" : "ghost"}" data-action="${action}">${esc(tr(`review.actions.${action}`))}</button>`).join("")}
       </div>`;
       for (const button of card.querySelectorAll("button")) button.onclick = async () => {

@@ -139,6 +139,7 @@
       "restore": "Återställ",
       "forget": "Glöm nu"
     },
+    "staleNote": "Markerat som gammalt. Uppdatera, bekräfta, välj Endast evidens eller avvisa för att ta bort det härifrån.",
     "capturedBy": "via {client}",
     "mergePrompt": "Redigera det sammanslagna minnet:",
     "recalls": {

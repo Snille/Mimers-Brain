@@ -139,6 +139,7 @@
       "restore": "Restore",
       "forget": "Forget now"
     },
+    "staleNote": "Marked stale. Update it, confirm it, choose Evidence only or reject it to clear it from here.",
     "capturedBy": "via {client}",
     "mergePrompt": "Edit the merged memory:",
     "recalls": {
