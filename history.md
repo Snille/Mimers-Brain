@@ -6,6 +6,19 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-23 — 0.17.1: Mark stale that seemed to do nothing
+
+A memory under Rarely useful, marked stale, moved up to Trust review. That is
+by design: a stale memory waits in the queue until it is rewritten. But its
+card still offered Mark stale, and clicking it set the status it already had,
+so the card stayed and the button looked broken.
+
+A stale card now has no Mark stale button. A note on the card says how to
+clear it: update it, confirm it, choose Evidence only or reject it. Each of
+the four review buttons also has a tooltip that says what it does to the
+memory, because the labels alone did not: Confirm means "still true", Reject
+means "no longer true", and neither one answers "is it old?".
+
 ## 2026-10-22 — embeddings move to the GPU on Ollama01
 
 No code change. The Ollama provider under Settings → Models now points at

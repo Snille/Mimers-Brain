@@ -6,6 +6,20 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-23 — 0.17.1: Markera gammalt som verkade inte göra något
+
+Ett minne under Sällan till nytta, markerat som gammalt, flyttade upp till
+Tillitsgranskning. Så är det tänkt: ett gammalt minne väntar i kön tills det
+skrivs om. Men kortet visade fortfarande Markera gammalt, och ett klick satte
+samma status som minnet redan hade. Kortet stod kvar och knappen såg trasig ut.
+
+Ett gammalt kort har nu ingen knapp Markera gammalt. En etikett på kortet
+säger hur det tas bort därifrån: uppdatera, bekräfta, välj Endast evidens
+eller avvisa. De fyra granskningsknapparna har också verktygstips som säger
+vad de gör med minnet, eftersom knapptexterna inte räckte: Bekräfta betyder
+”stämmer fortfarande”, Avvisa betyder ”stämmer inte längre”, och ingen av dem
+svarar på ”är det gammalt?”.
+
 ## 2026-10-22 — inbäddningarna flyttar till GPU:n på Ollama01
 
 Ingen kodändring. Ollama-leverantören under Inställningar → Modeller pekar nu
