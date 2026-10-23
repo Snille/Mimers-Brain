@@ -139,7 +139,13 @@
       "restore": "Restore",
       "forget": "Forget now"
     },
-    "staleNote": "Marked stale. Update it, confirm it, choose Evidence only or reject it to clear it from here.",
+    "hints": {
+      "confirm": "Still true. The memory becomes a rule the agent may follow as your own.",
+      "evidence_only": "Possibly true. The memory becomes a hint the agent must check, never an instruction.",
+      "stale": "Needs rewriting. The memory becomes evidence only and stays in the review queue until it is updated.",
+      "reject": "No longer true. The memory is archived and leaves search. It is not deleted."
+    },
+    "staleNote":"Marked stale. Update it, confirm it, choose Evidence only or reject it to clear it from here.",
     "capturedBy": "via {client}",
     "mergePrompt": "Edit the merged memory:",
     "recalls": {

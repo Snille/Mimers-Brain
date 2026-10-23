@@ -92,7 +92,7 @@ export async function render(root) {
       card.className = "card";
       card.innerHTML = `${note(row)}${stale ? `<div class="meta"><span class="tag">${esc(tr("review.staleNote"))}</span></div>` : ""}${memorySummary(row)}<div class="actions review-actions">
         ${["confirm", "evidence_only", "stale", "reject"].filter((action) => !(stale && action === "stale")).map((action) =>
-          `<button class="${action === "reject" ? "ghost danger" : "ghost"}" data-action="${action}">${esc(tr(`review.actions.${action}`))}</button>`).join("")}
+          `<button class="${action === "reject" ? "ghost danger" : "ghost"}" data-action="${action}" title="${esc(tr(`review.hints.${action}`))}">${esc(tr(`review.actions.${action}`))}</button>`).join("")}
       </div>`;
       for (const button of card.querySelectorAll("button")) button.onclick = async () => {
         button.disabled = true;

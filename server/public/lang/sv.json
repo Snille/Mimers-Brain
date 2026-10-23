@@ -139,7 +139,13 @@
       "restore": "Återställ",
       "forget": "Glöm nu"
     },
-    "staleNote": "Markerat som gammalt. Uppdatera, bekräfta, välj Endast evidens eller avvisa för att ta bort det härifrån.",
+    "hints": {
+      "confirm": "Stämmer fortfarande. Minnet blir en regel som agenten får följa som din egen.",
+      "evidence_only": "Kanske stämmer. Minnet blir en ledtråd som agenten måste kontrollera, aldrig en instruktion.",
+      "stale": "Behöver skrivas om. Minnet blir endast evidens och stannar i granskningskön tills det uppdateras.",
+      "reject": "Stämmer inte längre. Minnet arkiveras och försvinner ur sökningen. Det raderas inte."
+    },
+    "staleNote":"Markerat som gammalt. Uppdatera, bekräfta, välj Endast evidens eller avvisa för att ta bort det härifrån.",
     "capturedBy": "via {client}",
     "mergePrompt": "Redigera det sammanslagna minnet:",
     "recalls": {
