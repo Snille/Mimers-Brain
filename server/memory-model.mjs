@@ -106,16 +106,32 @@ export const CONTRADICTION_GUIDANCE =
   "not a contradiction (dismiss_contradiction), one memory wrong or outdated (supersede_thought with a corrected text; the pair then leaves the list), " +
   "or unclear (ask the user what you cannot know). Act only on the user's answer for that pair. The checker errs; its reason is a lead, not a verdict.";
 
+// The same for the Review page's possible duplicates. Merging is left to
+// supersede_thought, which writes the merged text with an agent's trust rather
+// than the user's, as the page's own Merge does.
+export const DUPLICATE_ACTIONS = ["keep_both", "related", "supersede"];
+export const DUPLICATE_GUIDANCE =
+  "List the pairs of current memories similar enough to be possible duplicates, the closest first, with both texts and the similarity. " +
+  "For each pair: read both and propose one decision to the user - not duplicates (resolve_duplicate keep_both), " +
+  "overlapping but each with its own purpose (resolve_duplicate related, which links them), one side says it all (resolve_duplicate supersede with canonical_id as the one to keep), " +
+  "or both hold something the other lacks (supersede_thought with both ids and one merged text). Act only on the user's answer for that pair. " +
+  "Similarity says two texts are alike, not that one is redundant.";
+
 // One pair as a tool returns it: both sides with what is needed to judge them.
+const pairSide = (row, prefix) => ({
+  id: row[`${prefix}_id`],
+  title: row[`${prefix}_metadata`]?.title || null,
+  tier: row[`${prefix}_tier`],
+  created_at: row[`${prefix}_created_at`],
+  text: row[`${prefix}_content`],
+});
+
 export function contradictionPair(row) {
-  const side = (prefix) => ({
-    id: row[`${prefix}_id`],
-    title: row[`${prefix}_metadata`]?.title || null,
-    tier: row[`${prefix}_tier`],
-    created_at: row[`${prefix}_created_at`],
-    text: row[`${prefix}_content`],
-  });
-  return { left: side("left"), right: side("right"), reason: row.reason, checked_at: row.checked_at };
+  return { left: pairSide(row, "left"), right: pairSide(row, "right"), reason: row.reason, checked_at: row.checked_at };
+}
+
+export function duplicatePair(row) {
+  return { left: pairSide(row, "left"), right: pairSide(row, "right"), similarity: Number(Number(row.similarity).toFixed(3)) };
 }
 
 // The full policy. memory_digest hands it over at the start of a session,

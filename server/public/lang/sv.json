@@ -519,7 +519,9 @@
       "fetch": "Hämta ett minne med id",
       "delete_thought": "Endast LAN-lyssnaren",
       "list_contradictions": "Möjliga motsägelser med båda texterna",
-      "dismiss_contradiction": "Markera ett par som ingen motsägelse"
+      "dismiss_contradiction": "Markera ett par som ingen motsägelse",
+      "list_duplicates": "Möjliga dubbletter med båda texterna",
+      "resolve_duplicate": "Behåll båda, länka eller ersätt ett dubblettpar"
     }
   },
   "models": {

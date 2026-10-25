@@ -17,7 +17,7 @@ test("open and full OpenAPI surfaces keep the tier boundary", () => {
   assert.equal(fullNames.includes("delete_thought"), true);
   assert.equal(fullNames.includes("supersede_thought"), true);
   assert.equal(fullNames.includes("review_memory"), true);
-  for (const name of ["list_contradictions", "dismiss_contradiction"]) {
+  for (const name of ["list_contradictions", "dismiss_contradiction", "list_duplicates", "resolve_duplicate"]) {
     assert.equal(openNames.includes(name), false, name);
     assert.equal(fullNames.includes(name), true, name);
   }

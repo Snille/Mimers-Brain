@@ -791,6 +791,9 @@ export async function resolveDuplicate(tiers, {
     throw new Error(`Unknown duplicate action "${action}"`);
   if (canonical_id && ![left.id, right.id].includes(canonical_id))
     throw new Error("canonical_id must be one of the duplicate pair ids");
+  // Which side survives is the whole decision; a default would make it silently.
+  if (action === "supersede" && !canonical_id)
+    throw new Error("canonical_id is required for supersede: the id of the memory to keep");
   let result = { action };
   // The review page sends no canonical_id for "related", so the default side
   // has to pick the other one too, or the link points at itself and is dropped.

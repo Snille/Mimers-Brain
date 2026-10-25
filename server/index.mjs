@@ -314,6 +314,8 @@ function connectInfo(req, { tiers, allowUrlKey }) {
         { name: "review_memory", what: "Review trust and allowed use of an agent memory" },
         { name: "list_contradictions", what: "Possible contradictions from the Review page, with both texts" },
         { name: "dismiss_contradiction", what: "Mark a pair as not a contradiction, after the user agreed" },
+        { name: "list_duplicates", what: "Possible duplicates from the Review page, with both texts" },
+        { name: "resolve_duplicate", what: "Keep both, link or supersede a duplicate pair, after the user agreed" },
         { name: "supersede_thought", what: "Replace memories and preserve navigable history" },
         { name: "delete_thought", what: "LAN listener only" },
       ] : []),

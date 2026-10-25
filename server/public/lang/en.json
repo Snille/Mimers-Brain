@@ -519,7 +519,9 @@
       "fetch": "Fetch one memory by id",
       "delete_thought": "LAN listener only",
       "list_contradictions": "Possible contradictions with both texts",
-      "dismiss_contradiction": "Mark a pair as not a contradiction"
+      "dismiss_contradiction": "Mark a pair as not a contradiction",
+      "list_duplicates": "Possible duplicates with both texts",
+      "resolve_duplicate": "Keep both, link or supersede a duplicate pair"
     }
   },
   "models": {

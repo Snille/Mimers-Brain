@@ -18,7 +18,7 @@ The tier is a property of the **listener**, never of a header. A check on
 | Port | Built with | Tools |
 | --- | --- | --- |
 | 8790 full | `tiers = ['open', 'vault']` | all |
-| 8791 open | `tiers = ['open']` | all except `review_memory`, `supersede_thought`, `delete_thought`, `list_contradictions`, `dismiss_contradiction` |
+| 8791 open | `tiers = ['open']` | all except `review_memory`, `supersede_thought`, `delete_thought`, `list_contradictions`, `dismiss_contradiction`, `list_duplicates`, `resolve_duplicate` |
 | 8792 read | `tiers = ['open']`, no write tools | search, list, fetch, digest, statistics, `report_memory_usage` |
 
 The open and read listeners are constructed without the ability to reach vault
@@ -184,6 +184,10 @@ contradictions.
   the Review page. Like the contradiction floor it is set on the Models card:
   0.86 by default, measured with text-embedding-3-small; 0.82 for bge-m3, where
   0.86 showed nothing and the pairs merged or superseded by hand scored 0.83-0.90.
+  On port 8790 a model can go through them with you: `list_duplicates` gives
+  both texts and the similarity, and `resolve_duplicate` keeps both, links them
+  as related, or supersedes one with the other. A merge is `supersede_thought`
+  with both ids, so the merged text gets an agent's trust, not yours.
 - **Audit.** `npm run audit` in `server/` is a read-only quality pass: metadata
   that would be normalised, oversized or multi-purpose memories, completed work
   filed as tasks, possible secret fragments, titles that are only the cut-off

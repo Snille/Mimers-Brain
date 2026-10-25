@@ -23,6 +23,9 @@ import {
   CAPTURE_GUIDANCE,
   CONTRADICTION_GUIDANCE,
   contradictionPair,
+  DUPLICATE_ACTIONS,
+  DUPLICATE_GUIDANCE,
+  duplicatePair,
   MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
@@ -363,6 +366,53 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
           if (error instanceof BadRequest) throw error;
           throw new BadRequest("No such contradiction pair on this tier");
         }
+      },
+    });
+
+    tools.push({
+      name: "list_duplicates",
+      action: "read",
+      summary: "List possible duplicates",
+      description: DUPLICATE_GUIDANCE,
+      schema: {
+        type: "object",
+        properties: { limit: { type: "integer", minimum: 1, maximum: 50, default: 10 } },
+      },
+      async run({ limit = 10 }) {
+        const pairs = await db.duplicateCandidates(tiers, { limit: Math.min(Math.max(Number(limit) || 10, 1), 50) });
+        return { duplicate_floor: db.recallThresholds().duplicate, pairs: pairs.map(duplicatePair) };
+      },
+    });
+
+    tools.push({
+      name: "resolve_duplicate",
+      action: "write",
+      summary: "Resolve a possible duplicate",
+      description: "Decide a pair from list_duplicates, as the Review page does: keep_both, related (link them), or supersede (canonical_id is the memory to keep). To merge, use supersede_thought with both ids instead. Only after the user has agreed. The decision holds until either memory changes.",
+      schema: {
+        type: "object",
+        required: ["left_id", "right_id", "action"],
+        properties: {
+          left_id: str("One memory's uuid"),
+          right_id: str("The other memory's uuid"),
+          action: { type: "string", enum: DUPLICATE_ACTIONS },
+          canonical_id: str("For supersede, required: the uuid of the memory to keep. For related, optional: the side the link starts from"),
+        },
+      },
+      async run({ left_id, right_id, action, canonical_id }) {
+        if (!DUPLICATE_ACTIONS.includes(action))
+          throw new BadRequest(`action must be one of ${DUPLICATE_ACTIONS.join(", ")}; to merge, use supersede_thought`);
+        try {
+          await db.resolveDuplicate(tiers, {
+            left_id: uuid(left_id), right_id: uuid(right_id), action,
+            canonical_id: canonical_id ? uuid(canonical_id) : undefined, actor: ctx.client || "agent",
+          });
+        } catch (error) {
+          if (error instanceof BadRequest) throw error;
+          throw new BadRequest(error.message);
+        }
+        publishSoon();
+        return { left_id, right_id, action };
       },
     });
 

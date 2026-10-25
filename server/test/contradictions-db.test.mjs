@@ -117,6 +117,24 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     assert.deepEqual(linked.to_ids, [v === linked.from_id ? a : v]);
     assert.equal((await db.duplicateCandidates(db.ALL)).some(isPair), false);
     db.applyRecallThresholds({});
+
+    // The tools a model uses for the duplicate list: both texts and the
+    // similarity, and the page's choices except Merge, which is supersede_thought.
+    const d1 = await insert("The label printer is reached only through label-service", 240);
+    const d2 = await insert("Only label-service talks to the label printer", 240 + degreesFor(0.95));
+    const isDup = (p) => [p.left.id, p.right.id].sort().join() === [d1, d2].sort().join();
+    const dups = await tool("list_duplicates").run({});
+    const dup = dups.pairs.find(isDup);
+    assert.ok(dup, "the close pair is listed");
+    assert.equal(dups.duplicate_floor, 0.86);
+    assert.ok(dup.similarity >= 0.94 && dup.left.text && dup.right.text);
+    await assert.rejects(tool("resolve_duplicate").run({ left_id: d1, right_id: d2, action: "merge" }), /supersede_thought/);
+    await assert.rejects(tool("resolve_duplicate").run({ left_id: d1, right_id: d2, action: "supersede" }), /canonical_id is required/);
+    await tool("resolve_duplicate").run({ left_id: d2, right_id: d1, action: "related" });
+    assert.equal((await tool("list_duplicates").run({})).pairs.some(isDup), false);
+    const links = await db.thoughtRelations(db.ALL, d1);
+    assert.ok(links.some((r) => r.relation === "related_to" && r.other_id === d2), "related made a link");
+    assert.equal(toolsFor(db.OPEN).some((t) => t.name === "resolve_duplicate"), false);
   } finally {
     globalThis.fetch = realFetch;
     await db.pool.end();

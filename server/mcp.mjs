@@ -20,6 +20,9 @@ import {
   CAPTURE_GUIDANCE,
   CONTRADICTION_GUIDANCE,
   contradictionPair,
+  DUPLICATE_ACTIONS,
+  DUPLICATE_GUIDANCE,
+  duplicatePair,
   MEMORY_POLICY,
   SESSION_POLICY,
   MEMORY_KINDS,
@@ -418,6 +421,38 @@ export function buildServer(tiers, ctx = {}) {
         const out = await db.dismissContradiction(tiers, { left_id, right_id });
         note.count = 1;
         return text(`Dismissed the pair ${out.left_id} / ${out.right_id}.`);
+      } catch (e) { return fail(e); }
+    }));
+
+    // And its "Possible duplicates", on the same terms.
+    server.registerTool("list_duplicates", {
+      title: "List possible duplicates",
+      description: DUPLICATE_GUIDANCE,
+      inputSchema: { limit: z.number().int().min(1).max(50).default(10) },
+    }, track("list_duplicates", "read", async ({ limit }, note) => {
+      try {
+        const pairs = await db.duplicateCandidates(tiers, { limit });
+        note.count = pairs.length;
+        if (!pairs.length) return text("No open duplicates.");
+        return text(JSON.stringify({ duplicate_floor: db.recallThresholds().duplicate, pairs: pairs.map(duplicatePair) }));
+      } catch (e) { return fail(e); }
+    }));
+
+    registerWrite("resolve_duplicate", {
+      title: "Resolve a possible duplicate",
+      description: "Decide a pair from list_duplicates, as the Review page does: keep_both, related (link them), or supersede (canonical_id is the memory to keep). To merge, use supersede_thought with both ids instead. Only after the user has agreed. The decision holds until either memory changes.",
+      inputSchema: {
+        left_id: z.string().uuid(),
+        right_id: z.string().uuid(),
+        action: z.enum(DUPLICATE_ACTIONS),
+        canonical_id: z.string().uuid().optional(),
+      },
+    }, track("resolve_duplicate", "write", async ({ left_id, right_id, action, canonical_id }, note) => {
+      try {
+        await db.resolveDuplicate(tiers, { left_id, right_id, action, canonical_id, actor: ctx.client || "agent" });
+        note.count = 1;
+        publishSoon();
+        return text(`Resolved the pair ${left_id} / ${right_id}: ${action}.`);
       } catch (e) { return fail(e); }
     }));
   }

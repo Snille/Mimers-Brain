@@ -11,12 +11,12 @@ import { READ_ONLY_SCOPE } from "../memory-model.mjs";
 
 const WRITERS = [
   "capture_thought", "apply_ingest", "preview_ingest",
-  "review_memory", "supersede_thought", "delete_thought", "dismiss_contradiction",
+  "review_memory", "supersede_thought", "delete_thought", "dismiss_contradiction", "resolve_duplicate",
 ];
 
-test("the contradiction tools are on the full MCP listener only", () => {
+test("the contradiction and duplicate tools are on the full MCP listener only", () => {
   const names = (tiers, ctx) => Object.keys(buildServer(tiers, ctx)._registeredTools || {});
-  for (const name of ["list_contradictions", "dismiss_contradiction"]) {
+  for (const name of ["list_contradictions", "dismiss_contradiction", "list_duplicates", "resolve_duplicate"]) {
     assert.equal(names(["open", "vault"]).includes(name), true, name);
     assert.equal(names(["open"]).includes(name), false, name);
     assert.equal(names(["open"], { writable: false }).includes(name), false, name);
