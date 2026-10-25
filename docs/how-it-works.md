@@ -113,9 +113,12 @@ and `people` remain for older clients.
   preference and profile memories, and anything pinned on the Thoughts page. It
   is capped at 15 memories or 9,000 characters and names what it left out. The
   *Session digest* filter on the Thoughts page shows its contents.
-- **Thresholds.** Search keeps hits above 0.3 similarity; the recall hook shows
-  memories above 0.5. Both were measured with `text-embedding-3-small` and belong
-  to that model. They are stored and changed on the Models card.
+- **Thresholds.** A similarity score means something only for the embedding
+  model that produced it, so the four floors (search, recall hook, contradiction,
+  duplicate) are stored per embedding model on the Models card of the Settings
+  page and carried through a switch. Defaults, measured with
+  `text-embedding-3-small`: search 0.3, hook 0.5, contradiction 0.6, duplicate
+  0.86. For `bge-m3` they were measured as 0.45, 0.55, 0.65 and 0.82.
 - **Recall hook.** [tools/hooks/](../tools/hooks/README.md) searches each Claude
   Code prompt once and adds up to three clear hits. It creates no receipt.
 

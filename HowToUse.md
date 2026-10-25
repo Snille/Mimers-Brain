@@ -151,7 +151,7 @@ curl -s -X POST https://brain.example.net/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-A tool list means it works: 10 tools on the open port, 13 on 8790, 7 on 8792.
+A tool list means it works: 10 tools on the open port, 17 on 8790, 7 on 8792.
 `401` means a wrong key. A `302` to your authenticator means the proxy sends
 `/mcp` through forward auth; it must not.
 

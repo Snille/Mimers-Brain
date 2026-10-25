@@ -6,6 +6,17 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-25 — the README says what the brain is
+
+No code change. The README listed tiers, search and the web UI, and left a
+model reading the repo to guess the rest. It now says up front that the brain
+is PostgreSQL with pgvector and semantic search, built like OB1, and how a
+write and a search work. It lists what the brain does today, the stack, and
+which file holds what. The check also found drift: HowToUse said 13 tools on
+port 8790 where there are 17, `docs/how-it-works.md` still gave the search and
+hook floors as fixed values for text-embedding-3-small, and `.env.example`
+placed the Models card on the Connect page.
+
 ## 2026-10-25 — 0.18.0: tools for the duplicate list
 
 Contradictions had MCP tools; duplicates had none. An agent asked to check the

@@ -6,6 +6,18 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-25 — README säger vad hjärnan är
+
+Ingen kodändring. README tog upp nivåer, sökning och webbgränssnittet, och lät
+en modell som läser repot gissa resten. Nu står det direkt att hjärnan är
+PostgreSQL med pgvector och semantisk sökning, byggd som OB1, och hur en
+skrivning och en sökning går till. Den listar vad hjärnan gör i dag, tekniken
+och vilken fil som innehåller vad. Genomgången hittade också gammal text:
+HowToUse sa 13 verktyg på port 8790 där det finns 17, `docs/how-it-works.md`
+angav fortfarande gränserna för sökning och hook som fasta värden för
+text-embedding-3-small, och `.env.example` placerade rutan Modeller på sidan
+Anslut.
+
 ## 2026-10-25 — 0.18.0: verktyg för dubblettlistan
 
 Motsägelser hade MCP-verktyg, men dubbletter hade inga. En agent som skulle

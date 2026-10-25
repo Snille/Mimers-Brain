@@ -152,7 +152,7 @@ curl -s -X POST https://brain.example.net/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-En verktygslista betyder att det fungerar: 10 verktyg på den öppna porten, 13 på
+En verktygslista betyder att det fungerar: 10 verktyg på den öppna porten, 17 på
 8790, 7 på 8792. `401` betyder fel nyckel. En `302` till din autentisering betyder
 att proxyn skickar `/mcp` genom forward auth; det får den inte.
 
