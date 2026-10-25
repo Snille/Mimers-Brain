@@ -6,6 +6,18 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-25 — 0.17.2: en modellväljare som visar alla modeller
+
+Metadata och motsägelser flyttade från OpenRouter till `cx/gpt-6-luna` via
+OmniRoute, som använder ChatGPT-teamet utan kostnad per token. Modellen fanns
+i listan, men väljaren visade den inte. Fältet Modell öppnas med den sparade
+modellen ifylld, och en webbläsare föreslår bara poster som matchar texten i
+fältet. Med `openrouter/openai/gpt-6-luna` där kunde ingen annan av de 1 773
+modellerna i OmniRoute synas.
+
+Fältet töms nu när det får fokus, så hela listan syns. Den sparade modellen
+står kvar som grå text och kommer tillbaka om inget väljs.
+
 ## 2026-10-23 — 0.17.1: Markera gammalt som verkade inte göra något
 
 Ett minne under Sällan till nytta, markerat som gammalt, flyttade upp till

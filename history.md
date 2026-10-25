@@ -6,6 +6,18 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-25 — 0.17.2: a model picker that shows every model
+
+Metadata and contradictions moved from OpenRouter to `cx/gpt-6-luna` through
+OmniRoute, which uses the ChatGPT team plan at no cost per token. The model
+was in the list, but the picker would not show it. The Model field opens with
+the saved model in it, and a browser only suggests entries that match what
+the field holds. With `openrouter/openai/gpt-6-luna` there, no other of the
+1,773 OmniRoute models could appear.
+
+The field now empties when it gets focus, so the whole list shows. The saved
+model stays as grey placeholder text and comes back if nothing is chosen.
+
 ## 2026-10-23 — 0.17.1: Mark stale that seemed to do nothing
 
 A memory under Rarely useful, marked stale, moved up to Trust review. That is
