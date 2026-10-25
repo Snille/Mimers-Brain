@@ -375,6 +375,19 @@ function drawEditor(name) {
   };
   providerSel.onchange = load;
   modelInput.oninput = showPrice;
+  // A datalist only suggests entries that match the field, so the saved model
+  // would hide every other one. Empty the field while it has focus, keep the
+  // saved model as the placeholder, and put it back if nothing was chosen.
+  modelInput.onfocus = () => {
+    if (!modelInput.value) return;
+    modelInput.placeholder = modelInput.value;
+    modelInput.value = "";
+  };
+  modelInput.onblur = () => {
+    if (modelInput.value.trim() || !modelInput.placeholder) return;
+    modelInput.value = modelInput.placeholder;
+    showPrice();
+  };
   load();
 
   const choice = () => ({ role: name, provider: providerSel.value, model: modelInput.value.trim() });
