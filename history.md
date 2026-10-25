@@ -6,6 +6,20 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-25 — 0.17.3: Related now links the pair
+
+A check of the duplicate list found one pair: two label-service memories, a
+decision and a reference that share a sentence. Marking them Related on the
+review page took the pair off the list, but no link was made. The page sends
+no `canonical_id` for Related, the server then linked the left memory to
+itself, and the database drops a self-link without an error. Only the
+resolution was saved.
+
+The server now links the left memory to the right one when no side is chosen.
+A test in `contradictions-db.test.mjs` covers it and fails on the old code. No
+older Related choice was affected: the label-service pair was the first, and it
+was linked by hand.
+
 ## 2026-10-25 — 0.17.2: a model picker that shows every model
 
 Metadata and contradictions moved from OpenRouter to `cx/gpt-6-luna` through

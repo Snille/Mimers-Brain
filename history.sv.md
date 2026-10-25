@@ -6,6 +6,20 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-25 — 0.17.3: Relaterade länkar nu paret
+
+En genomgång av dubblettlistan hittade ett par: två minnen om label-service, ett
+beslut och en referens som delar en mening. När de markerades som Relaterade på
+granskningssidan försvann paret från listan, men ingen länk skapades. Sidan
+skickar inget `canonical_id` för Relaterade, servern länkade då det vänstra
+minnet till sig själv, och databasen släpper en självlänk utan fel. Bara
+beslutet om paret sparades.
+
+Servern länkar nu det vänstra minnet till det högra när ingen sida är vald. Ett
+test i `contradictions-db.test.mjs` täcker det och misslyckas med den gamla
+koden. Inget äldre val av Relaterade påverkades: label-service-paret var det
+första, och det länkades för hand.
+
 ## 2026-10-25 — 0.17.2: en modellväljare som visar alla modeller
 
 Metadata och motsägelser flyttade från OpenRouter till `cx/gpt-6-luna` via
