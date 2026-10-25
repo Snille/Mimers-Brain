@@ -6,6 +6,22 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-25 — 0.18.0: verktyg för dubblettlistan
+
+Motsägelser hade MCP-verktyg, men dubbletter hade inga. En agent som skulle
+kolla dubbletterna fick leta upp frågan i koden, läsa databasen över SSH och
+anropa webb-API:et inifrån containern. Det var också så felet med Relaterade i
+0.17.3 hittades.
+
+`list_duplicates` och `resolve_duplicate` finns nu bredvid motsägelseverktygen
+på port 8790, i både MCP och OpenAPI. Verktyget för beslut erbjuder behåll
+båda, relaterade och ersätt. Sammanfoga är medvetet utelämnat: sidan sparar en
+sammanfogad text som bekräftad av användaren, och en agents text får inte den
+tilliten. En agent sammanfogar i stället med `supersede_thought` och båda id:n.
+
+Ersätt kräver nu `canonical_id`. Förut behölls det vänstra minnet om id:t
+saknades, och vilken sida som blir kvar är hela beslutet.
+
 ## 2026-10-25 — 0.17.3: Relaterade länkar nu paret
 
 En genomgång av dubblettlistan hittade ett par: två minnen om label-service, ett

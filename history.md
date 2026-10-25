@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-25 — 0.18.0: tools for the duplicate list
+
+Contradictions had MCP tools; duplicates had none. An agent asked to check the
+duplicates had to find the query in the code, read the database over SSH and
+call the web API from inside the container. That is also how the Related bug
+in 0.17.3 was found.
+
+`list_duplicates` and `resolve_duplicate` now sit beside the contradiction
+tools on port 8790, in MCP and OpenAPI. The resolve tool offers keep both,
+related and supersede. Merge is left out on purpose: the page saves a merged
+text as confirmed by the user, and an agent's text must not get that trust.
+An agent merges with `supersede_thought` and both ids instead.
+
+Supersede now requires `canonical_id`. Before, a missing id kept the left
+memory, and which side survives is the whole decision.
+
 ## 2026-10-25 — 0.17.3: Related now links the pair
 
 A check of the duplicate list found one pair: two label-service memories, a
