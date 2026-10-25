@@ -111,6 +111,11 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     db.applyRecallThresholds({ duplicate: 0.7 });
     assert.equal((await db.duplicateCandidates(db.ALL)).some(isPair), true);
     assert.equal((await db.duplicateCandidates(db.ALL, { threshold: 0.9 })).some(isPair), false);
+
+    // "Related" from the review page sends no canonical_id and must still link the pair.
+    const linked = await db.resolveDuplicate(db.ALL, { left_id: a, right_id: v, action: "related" });
+    assert.deepEqual(linked.to_ids, [v === linked.from_id ? a : v]);
+    assert.equal((await db.duplicateCandidates(db.ALL)).some(isPair), false);
     db.applyRecallThresholds({});
   } finally {
     globalThis.fetch = realFetch;

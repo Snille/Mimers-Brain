@@ -792,8 +792,12 @@ export async function resolveDuplicate(tiers, {
   if (canonical_id && ![left.id, right.id].includes(canonical_id))
     throw new Error("canonical_id must be one of the duplicate pair ids");
   let result = { action };
-  if (action === "related") result = await linkRelations(tiers, canonical_id || left.id,
-    [canonical_id === left.id ? right.id : left.id], "related_to");
+  // The review page sends no canonical_id for "related", so the default side
+  // has to pick the other one too, or the link points at itself and is dropped.
+  if (action === "related") {
+    const from = canonical_id || left.id;
+    result = await linkRelations(tiers, from, [from === left.id ? right.id : left.id], "related_to");
+  }
   if (action === "supersede") {
     const keep = canonical_id === right.id ? right.id : left.id;
     result = await linkSupersession(tiers, keep, [keep === left.id ? right.id : left.id]);
