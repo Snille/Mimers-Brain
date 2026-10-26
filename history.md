@@ -6,6 +6,24 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-26 — 0.20.0: tidier editing, and the tier can change
+
+Three Tokentracker memories were split from a vault memory and stayed in the
+vault, though nothing in them is sensitive. Moving them out meant a PATCH
+call by hand: the edit form had no tier field, and `supersede_thought`
+refuses on purpose to replace a vault memory with an open one.
+
+The edit form now has a *Tier* field, but only on port 8790, where both tiers
+can be read; the open listener would refuse the move anyway. Moving a memory
+out of the vault asks first, since it becomes readable from outside the LAN.
+The move is in the change log and can be undone like any edit.
+
+The form itself was tidied. Title and summary are edited at the top of the
+card, where they are read, instead of as a second copy among the fields. The
+other fields fill a grid from the left, and every box has the same style as
+the memory text: the inputs had no `type`, so the shared input style never
+reached them.
+
 ## 2026-10-26 — 0.19.0: new memories are reviewed on Thoughts
 
 The Review page showed a new agent memory as a title and a summary only. To

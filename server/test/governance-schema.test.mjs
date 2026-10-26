@@ -44,3 +44,14 @@ test("the Thoughts filter, the counter and the Review queue share one review rul
   assert.match(page, /data-review="\$\{action\}"/);
   assert.match(page, /\/api\/thoughts\/\$\{t\.id\}\/review/);
 });
+
+test("the edit form moves a memory between tiers only where the vault is readable", async () => {
+  const page = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(page, /\$\{state\.vault \? `<label>\$\{esc\(tr\("editor\.tier"\)\)\}<select class="e-tier">/);
+  assert.match(page, /state\.vault = !!cfg\.vault;/);
+  assert.match(page, /tier === "open" && !confirm\(tr\("editor\.tierToOpenConfirm"\)\)/);
+  for (const language of ["en", "sv"]) {
+    const messages = JSON.parse(await readFile(new URL(`../public/lang/${language}.json`, import.meta.url), "utf8"));
+    assert.ok(messages.editor.tierToOpenConfirm, language);
+  }
+});

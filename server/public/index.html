@@ -140,6 +140,8 @@
   .model-compare ol { margin: 4px 0 0; padding-left: 20px; }
   .editfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 12px; }
   .editfields input, .editfields select { width: 100%; }
+  .card .edit-title { width: 100%; margin-bottom: 8px; font-size: 16px; font-weight: 600; }
+  .card .edit-summary { margin-bottom: 8px; color: var(--muted); }
   .card .actions { margin-top: 10px; display: none; gap: 8px; }
   .card:hover .actions, .card.editing .actions { display: flex; }
   .card.awaiting { border-left: 3px solid var(--accent); }
@@ -579,25 +581,43 @@ function card(t) {
     ta.value = t.content;
     body.replaceWith(ta);
 
+    // Title and summary are edited where they are read, in the same kind of
+    // box as the text, instead of a second copy further down.
+    el.querySelector(".memory-title")?.remove();
+    el.querySelector(".summary")?.remove();
+    const titleBox = document.createElement("input");
+    titleBox.type = "text";
+    titleBox.className = "e-title edit-title";
+    titleBox.value = m.title || "";
+    titleBox.placeholder = tr("editor.title");
+    const summaryBox = document.createElement("textarea");
+    summaryBox.className = "e-summary edit-summary";
+    summaryBox.rows = 2;
+    summaryBox.value = m.summary || "";
+    summaryBox.placeholder = tr("editor.summary");
+    ta.before(titleBox, summaryBox);
+
     // Tags are edited as plain comma-separated text. It round-trips exactly what
     // the sidebar shows, which is what makes merging two spellings of the same
     // topic - or of the same person - a ten-second job.
     const kinds = !m.kind || KINDS.includes(m.kind) ? KINDS : [m.kind, ...KINDS];
     const fields = document.createElement("div");
     fields.className = "editfields";
+    // The tier can only change where both tiers can be read: the open
+    // listener would refuse the move anyway.
     fields.innerHTML = `
-      <label>${esc(tr("editor.title"))}<input class="e-title" value="${esc(m.title || "")}" /></label>
-      <label>${esc(tr("editor.summary"))}<input class="e-summary" value="${esc(m.summary || "")}" /></label>
       <label>${esc(tr("editor.kind"))}<select class="e-kind">${kinds
         .map((x) => `<option${x === m.kind ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
       <label>${esc(tr("editor.lifecycle"))}<select class="e-lifecycle">${LIFECYCLES
         .map((x) => `<option${x === (m.lifecycle || "current") ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
       <label>${esc(tr("editor.taskStatus"))}<select class="e-task-status"><option value=""></option><option${m.task_status === "pending" ? " selected" : ""}>pending</option><option${m.task_status === "done" ? " selected" : ""}>done</option></select></label>
-      <label>${esc(tr("editor.project"))}<input class="e-project" value="${esc(m.project || "")}" /></label>
-      <label>${esc(tr("editor.topics"))}<input class="e-topics" value="${esc((m.topics || []).join(", "))}" /></label>
-      <label>${esc(tr("editor.people"))}<input class="e-people" value="${esc((m.people || []).join(", "))}" /></label>
-      <label>${esc(tr("editor.systems"))}<input class="e-systems" value="${esc((m.systems || []).join(", "))}" /></label>
-      <label>${esc(tr("editor.verifiedAt"))}<input class="e-verified" value="${esc(m.verified_at || "")}" placeholder="YYYY-MM-DD" /></label>
+      <label>${esc(tr("editor.project"))}<input type="text" class="e-project" value="${esc(m.project || "")}" /></label>
+      <label>${esc(tr("editor.topics"))}<input type="text" class="e-topics" value="${esc((m.topics || []).join(", "))}" /></label>
+      <label>${esc(tr("editor.people"))}<input type="text" class="e-people" value="${esc((m.people || []).join(", "))}" /></label>
+      <label>${esc(tr("editor.systems"))}<input type="text" class="e-systems" value="${esc((m.systems || []).join(", "))}" /></label>
+      <label>${esc(tr("editor.verifiedAt"))}<input type="text" class="e-verified" value="${esc(m.verified_at || "")}" placeholder="YYYY-MM-DD" /></label>
+      ${state.vault ? `<label>${esc(tr("editor.tier"))}<select class="e-tier">${["open", "vault"]
+        .map((x) => `<option value="${x}"${x === t.tier ? " selected" : ""}>${esc(tr(`tiers.${x}`))}</option>`).join("")}</select></label>` : ""}
       <label class="e-pin-row"><input type="checkbox" class="e-pinned"${inDigest(m) ? " checked" : ""} /> ${esc(tr("editor.pinned"))}
         <span class="sub">${esc(tr("editor.pinnedHint"))}</span></label>`;
     ta.after(fields);
@@ -612,6 +632,9 @@ function card(t) {
     acts.append(save, cancel);
     cancel.onclick = refresh;
     save.onclick = async () => {
+      // Out of the vault means readable through the open listener, from outside.
+      const tier = fields.querySelector(".e-tier")?.value;
+      if (tier && tier !== t.tier && tier === "open" && !confirm(tr("editor.tierToOpenConfirm"))) return;
       save.disabled = true;
       save.textContent = tr("editor.saving");
       try {
@@ -622,8 +645,8 @@ function card(t) {
         const payload = {
           metadata: {
             ...m,
-            title: fields.querySelector(".e-title").value,
-            summary: fields.querySelector(".e-summary").value,
+            title: titleBox.value,
+            summary: summaryBox.value,
             kind: fields.querySelector(".e-kind").value,
             lifecycle: fields.querySelector(".e-lifecycle").value,
             task_status: fields.querySelector(".e-task-status").value || undefined,
@@ -644,6 +667,7 @@ function card(t) {
         // Only send content when it actually changed - the server re-embeds
         // whenever it sees the field, and that is a paid API call.
         if (ta.value !== t.content) payload.content = ta.value;
+        if (tier && tier !== t.tier) payload.tier = tier;
         await api(`/api/thoughts/${t.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -922,6 +946,7 @@ if (cfg.appearance) applyAppearance(cfg.appearance);
 $("#hostinfo").textContent =
   tr(cfg.vault ? "header.fullAccess" : "header.openOnly") + (cfg.version ? ` · ${cfg.version}` : "");
 if (!cfg.vault) $("#dlg-tier").querySelector('[value=vault]').disabled = true;
+state.vault = !!cfg.vault;
 // Settings can only be changed on the full listener.
 $('nav [data-view="settings"]').hidden = !cfg.vault;
 

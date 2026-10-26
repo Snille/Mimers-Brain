@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-26 — 0.20.0: snyggare redigering, och nivån kan bytas
+
+Tre Tokentracker-minnen delades ut från ett valvminne och hamnade i valvet,
+fast inget i dem är känsligt. För att flytta ut dem krävdes ett PATCH-anrop
+för hand: redigeringen saknade nivåfält, och `supersede_thought` vägrar med
+flit att ersätta ett valvminne med ett öppet.
+
+Redigeringen har nu ett fält *Nivå*, men bara på port 8790, där båda nivåerna
+går att läsa; den öppna porten skulle ändå vägra flytten. Att flytta ett minne
+ur valvet frågar först, eftersom det då blir läsbart utanför LAN. Flytten
+syns i ändringsloggen och kan ångras som vilken ändring som helst.
+
+Formuläret är också städat. Titel och sammanfattning redigeras överst på
+kortet, där de läses, i stället för som en kopia bland fälten. Övriga fält
+fyller ett rutnät från vänster, och alla rutor har samma stil som minnestexten:
+fälten saknade `type`, så den gemensamma stilen nådde dem aldrig.
+
 ## 2026-10-26 — 0.19.0: nya minnen granskas under Tankar
 
 Sidan Granska visade ett nytt agentminne bara som titel och sammanfattning. För

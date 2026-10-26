@@ -166,7 +166,7 @@ för OpenAPI-klienter: `GET /openapi.json` och `POST /tools/<namn>` (med
 
 | Sida | Till för |
 | --- | --- |
-| **Tankar** | Lista, hybridsökning, filter, granskning av nya agentminnen med hela texten, redigering, ändringshistorik med återställning, *Kopiera referens* till en chatt, fästa minnen i startpaketet (`memory_digest`) |
+| **Tankar** | Lista, hybridsökning, filter, granskning av nya agentminnen med hela texten, redigering (på 8790 även flytt av ett minne mellan öppen nivå och valvet), ändringshistorik med återställning, *Kopiera referens* till en chatt, fästa minnen i startpaketet (`memory_digest`) |
 | **Granska** | Hur många minnen som väntar på granskning (med länk till dem under Tankar), dubbletter, möjliga motsägelser, sällan till nytta, nyligen raderade |
 | **Statistik** | En 3D-karta över minnet (kan stängas av), hälsa, hur användbara hämtade minnen är, klientaktivitet, MQTT-status, hur länge kvitton sparas |
 | **Anslut** | Inställningar för varje klient |

@@ -74,7 +74,8 @@
     "save": "Spara",
     "saving": "Sparar …",
     "pinned": "Med i startpaketet",
-    "pinnedHint": "Alla anslutna modeller läser startpaketet först, en gång per session. Preferenser och profilminnen är med om du inte bockar ur dem. Bara bekräftade minnen visas. Fäst bara det som en modell skulle göra fel utan, i många olika uppgifter; allt annat hittas med sökning."
+    "pinnedHint": "Alla anslutna modeller läser startpaketet först, en gång per session. Preferenser och profilminnen är med om du inte bockar ur dem. Bara bekräftade minnen visas. Fäst bara det som en modell skulle göra fel utan, i många olika uppgifter; allt annat hittas med sökning.",
+    "tierToOpenConfirm": "Minnet lämnar valvet. Det blir läsbart via den öppna porten, även utanför LAN. Fortsätta?"
   },
   "thought": {
     "edit": "Redigera",

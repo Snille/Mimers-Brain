@@ -74,7 +74,8 @@
     "save": "Save",
     "saving": "Saving …",
     "pinned": "In the session digest",
-    "pinnedHint": "Every connected model reads the digest first, once per session. Preferences and profile memories are included unless unticked. Only confirmed memories are shown. Pin only what a model would get wrong without it, across many different tasks; search finds everything else."
+    "pinnedHint": "Every connected model reads the digest first, once per session. Preferences and profile memories are included unless unticked. Only confirmed memories are shown. Pin only what a model would get wrong without it, across many different tasks; search finds everything else.",
+    "tierToOpenConfirm": "This memory leaves the vault. It becomes readable through the open listener, also from outside the LAN. Continue?"
   },
   "thought": {
     "edit": "Edit",
