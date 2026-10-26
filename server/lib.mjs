@@ -231,9 +231,15 @@ const DIGEST_SQL = `coalesce(metadata->>'lifecycle', 'current') = 'current'
         AND (metadata->>'pinned' = 'true'
              OR (metadata->>'kind' IN ('preference', 'profile') AND coalesce(metadata->>'pinned', '') <> 'false'))`;
 
+// Waiting for a reader's verdict: new agent memories, stale ones, and evidence
+// nobody has looked at yet. The Review queue, the Thoughts filter and the
+// counter beside it all use this one rule.
+const AWAITING_REVIEW_SQL = `(coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
+             OR (metadata->>'review_status' = 'evidence_only' AND NOT metadata ? 'reviewed_at'))`;
+
 export async function listThoughts(tiers, {
   limit = 10, type, kind, lifecycle = "current", taskStatus, task_status, project,
-  topic, person, system, days, digest,
+  topic, person, system, days, digest, review,
 } = {}) {
   taskStatus ||= task_status;
   const args = [tiers];
@@ -249,6 +255,7 @@ export async function listThoughts(tiers, {
   if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
   if (days) sql += ` AND created_at > now() - ($${args.push(String(days))} || ' days')::interval`;
   if (digest) sql += ` AND ${DIGEST_SQL}`;
+  if (review) sql += ` AND ${AWAITING_REVIEW_SQL}`;
   sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 200))}`;
   return (await pool.query(sql, args)).rows;
 }
@@ -469,7 +476,7 @@ export async function recallHint(tiers, prompt, { exclude = [], floor = threshol
 }
 
 export async function textSearch(tiers, q, {
-  limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system, digest,
+  limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system, digest, review,
 } = {}) {
   const args = [tiers, `%${q}%`];
   let sql = `SELECT ${COLS} FROM thoughts
@@ -484,6 +491,7 @@ export async function textSearch(tiers, q, {
   if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
   if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
   if (digest) sql += ` AND ${DIGEST_SQL}`;
+  if (review) sql += ` AND ${AWAITING_REVIEW_SQL}`;
   sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 500))}`;
   const { rows } = await pool.query(sql, args);
   return rows;
@@ -679,8 +687,7 @@ export async function reviewQueue(tiers, { limit = 100 } = {}) {
   const { rows } = await pool.query(
     `SELECT ${COLS} FROM thoughts
       WHERE tier = ANY($1)
-        AND (coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
-             OR (metadata->>'review_status' = 'evidence_only' AND NOT metadata ? 'reviewed_at'))
+        AND ${AWAITING_REVIEW_SQL}
         AND coalesce(metadata->>'lifecycle', 'current') = 'current'
       ORDER BY CASE metadata->>'review_status' WHEN 'pending' THEN 0 WHEN 'stale' THEN 1 ELSE 2 END,
                created_at DESC LIMIT $2`,
@@ -1936,6 +1943,8 @@ export async function stats(tiers) {
        (SELECT min(created_at) FROM base) AS first,
        (SELECT max(created_at) FROM base) AS last,
        (SELECT count(*) FROM base WHERE ${DIGEST_SQL}) AS digest,
+       (SELECT count(*) FROM base WHERE ${AWAITING_REVIEW_SQL}
+          AND coalesce(metadata->>'lifecycle', 'current') = 'current') AS awaiting_review,
        (SELECT jsonb_object_agg(tier, c)
           FROM (SELECT tier, count(*) AS c FROM base GROUP BY tier) x) AS by_tier,
        (SELECT jsonb_object_agg(type, c)
@@ -1979,6 +1988,7 @@ export async function stats(tiers) {
   return {
     total: Number(r.total),
     digest: Number(r.digest || 0),
+    awaitingReview: Number(r.awaiting_review || 0),
     digestOmitted: digest.omitted,
     digestLimit: DIGEST_LIMIT,
     byTier: r.by_tier || {},

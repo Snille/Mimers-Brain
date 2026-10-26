@@ -45,7 +45,9 @@ export async function render(root) {
     <section class="review-section">
       <h2>${esc(tr("review.pending.title"))} <span class="tag">${data.pending.length}</span></h2>
       <p class="sub">${esc(tr("review.pending.description"))}</p>
-      <div id="review-pending"></div>
+      ${data.pending.length ? `<p>${esc(tr("review.pending.moved", { count: data.pending.length }))}
+        <button class="ghost small" id="review-pending-open">${esc(tr("review.pending.open"))}</button></p>`
+        : `<div class="empty">${esc(tr("review.empty"))}</div>`}
     </section>
     <section class="review-section">
       <h2>${esc(tr("review.rarelyUseful.title"))} <span class="tag">${(data.rarelyUseful || []).length}</span></h2>
@@ -79,7 +81,12 @@ export async function render(root) {
       <div id="review-recalls"></div>
     </section>`;
 
-  // Both lists take the same four review actions. On a rarely useful memory,
+  // New memories are reviewed on the Thoughts page, where their whole text
+  // shows; here they are only counted.
+  const openPending = root.querySelector("#review-pending-open");
+  if (openPending) openPending.onclick = () => window.dispatchEvent(new CustomEvent("mimer:awaiting-review"));
+
+  // Rarely useful memories take the same four review actions as on Thoughts. On a rarely useful memory,
   // Confirm means "keep it as it is": the review resets its receipt count, so
   // it only comes back if it keeps being passed over. A stale memory stays in
   // the queue until it is updated or given another status, so it gets no
@@ -104,7 +111,6 @@ export async function render(root) {
       target.appendChild(card);
     }
   };
-  reviewCards(root.querySelector("#review-pending"), data.pending);
   reviewCards(root.querySelector("#review-rarely"), data.rarelyUseful || [], (row) =>
     `<div class="meta"><span class="tag">${esc(tr("review.rarelyUseful.count", { count: row.ignored }))}</span></div>`);
 

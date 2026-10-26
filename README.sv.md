@@ -166,8 +166,8 @@ för OpenAPI-klienter: `GET /openapi.json` och `POST /tools/<namn>` (med
 
 | Sida | Till för |
 | --- | --- |
-| **Tankar** | Lista, hybridsökning, filter, redigering, ändringshistorik med återställning, *Kopiera referens* till en chatt, fästa minnen i startpaketet (`memory_digest`) |
-| **Granska** | Agentminnen som väntar på granskning, dubbletter, möjliga motsägelser, sällan till nytta, nyligen raderade |
+| **Tankar** | Lista, hybridsökning, filter, granskning av nya agentminnen med hela texten, redigering, ändringshistorik med återställning, *Kopiera referens* till en chatt, fästa minnen i startpaketet (`memory_digest`) |
+| **Granska** | Hur många minnen som väntar på granskning (med länk till dem under Tankar), dubbletter, möjliga motsägelser, sällan till nytta, nyligen raderade |
 | **Statistik** | En 3D-karta över minnet (kan stängas av), hälsa, hur användbara hämtade minnen är, klientaktivitet, MQTT-status, hur länge kvitton sparas |
 | **Anslut** | Inställningar för varje klient |
 | **Inställningar** | Bara port 8790: tema och accentfärg, leverantörer och nycklar, modeller, omindexering, de fyra likhetsgränserna och mätningarna av recall och motsägelser |

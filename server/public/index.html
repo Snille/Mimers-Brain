@@ -142,6 +142,10 @@
   .editfields input, .editfields select { width: 100%; }
   .card .actions { margin-top: 10px; display: none; gap: 8px; }
   .card:hover .actions, .card.editing .actions { display: flex; }
+  .card.awaiting { border-left: 3px solid var(--accent); }
+  .review-bar { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+  .review-bar .sub { margin-bottom: 8px; }
+  .review-bar .review-actions { display: flex; gap: 8px; }
   .empty { color: var(--muted); text-align: center; padding: 50px 0; }
   .err { background: var(--err-bg); border: 1px solid var(--danger); color: var(--err-ink); padding: 10px 14px; border-radius: var(--radius); margin-bottom: 14px; }
   .stat { font-size: 12.5px; color: var(--muted); }
@@ -314,6 +318,7 @@
 
 <main class="on" id="view-thoughts">
   <aside>
+    <h2 data-i18n="filters.review">Review</h2><div id="f-review"></div>
     <h2 data-i18n="filters.digest">Session digest</h2><div id="f-digest"></div>
     <p id="f-digest-note" class="digest-note" hidden></p>
     <h2 data-i18n="filters.kind">Kind</h2><div id="f-kinds"></div>
@@ -471,10 +476,17 @@ const digestReady = (m) => inDigest(m)
   && (m.review_status || "confirmed") === "confirmed"
   && m.can_use_as_instruction !== false;
 
+// Waiting for a reader's verdict. Mirrors AWAITING_REVIEW_SQL in lib.mjs.
+const awaitingReview = (m) => (m.lifecycle || "current") === "current"
+  && (["pending", "stale"].includes(m.review_status)
+    || (m.review_status === "evidence_only" && !m.reviewed_at));
+
 function card(t) {
   const m = t.metadata || {};
   const el = document.createElement("div");
   el.className = "card";
+  const awaiting = awaitingReview(m);
+  if (awaiting) el.classList.add("awaiting");
   if (t.tier === "vault") el.classList.add("vault");
   if (m.lifecycle === "superseded") el.classList.add("superseded");
   const verified = m.verified_at ? new Date(`${m.verified_at}T00:00:00`) : null;
@@ -508,6 +520,12 @@ function card(t) {
     <div class="body">${esc(t.content)}</div>
     ${relationIds.length ? `<div class="history-links">${relationIds.map((id) =>
       `<button class="ghost small history" data-id="${esc(id)}">${esc(tr("thought.history"))} ${esc(String(id).slice(0, 8))}</button>`).join("")}</div>` : ""}
+    ${awaiting ? `<div class="review-bar">
+      <div class="sub">${esc(tr(m.review_status === "stale" ? "review.staleNote" : "thought.reviewPrompt"))}</div>
+      <div class="review-actions">${["confirm", "evidence_only", "stale", "reject"]
+        .filter((action) => !(m.review_status === "stale" && action === "stale")).map((action) =>
+          `<button class="${action === "reject" ? "ghost danger" : "ghost"}" data-review="${action}" title="${esc(tr(`review.hints.${action}`))}">${esc(tr(`review.actions.${action}`))}</button>`).join("")}</div>
+    </div>` : ""}
     <div class="actions">
       <button class="ghost edit">${esc(tr("thought.edit"))}</button>
       <button class="ghost changes">${esc(tr("thought.changes"))}</button>
@@ -523,6 +541,22 @@ function card(t) {
         $("#list").replaceChildren(card(row));
         $("#headstat").textContent = tr("header.shown", { shown: 1 });
       } catch (e) { showError(e.message); }
+    };
+  }
+
+  // The verdict for a memory waiting for review, given where its whole text
+  // can be read. Same call as the buttons on the Review page.
+  for (const button of el.querySelectorAll("[data-review]")) {
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        await api(`/api/thoughts/${t.id}/review`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: button.dataset.review }),
+        });
+        refresh();
+      } catch (e) { button.disabled = false; showError(e.message); }
     };
   }
 
@@ -687,6 +721,7 @@ async function refresh() {
       // Semantic search has no digest filter of its own; the rule is the
       // same one the tag uses, so filtering here gives the same answer.
       if (state.filters.digest) rows = rows.filter((t) => digestReady(t.metadata || {}));
+      if (state.filters.review) rows = rows.filter((t) => awaitingReview(t.metadata || {}));
     } else {
       const p = new URLSearchParams();
       if (state.q) p.set("q", state.q);
@@ -704,6 +739,7 @@ async function refresh() {
 
     const s = await api("/api/stats");
     const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+    chips("#f-review", [["1", s.awaitingReview || 0]], "review", () => tr("filters.awaitingReview"));
     chips("#f-digest", [["1", s.digest || 0]], "digest", () => tr("filters.inDigest"));
     // What does not fit is still pinned, but no model reads it at session start.
     const digestNote = $("#f-digest-note");
@@ -872,6 +908,14 @@ async function show(name) {
 
 for (const b of document.querySelectorAll("nav button"))
   b.onclick = () => show(b.dataset.view);
+
+// The Review page sends new memories here, where their whole text can be read.
+window.addEventListener("mimer:awaiting-review", () => {
+  state.filters = { review: "1" };
+  state.q = "";
+  $("#q").value = "";
+  show("thoughts");
+});
 
 const cfg = await api("/api/config").catch(() => ({}));
 if (cfg.appearance) applyAppearance(cfg.appearance);

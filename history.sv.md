@@ -6,6 +6,24 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-10-26 — 0.19.0: nya minnen granskas under Tankar
+
+Sidan Granska visade ett nytt agentminne bara som titel och sammanfattning. För
+att bedöma det läste Erik först hela minnet under Tankar och bytte sedan till
+Granska för att klicka.
+
+Ett minne som väntar på granskning har nu de fyra granskningsknapparna på sitt
+eget kort under Tankar, under hela texten, och en grön kant. Knapparna syns hela
+tiden, inte bara när musen är över kortet. Ett nytt filter, *väntar på
+granskning*, visar bara de minnena. Granska behåller allt annat; för nya minnen
+visar sidan antalet och en knapp som öppnar Tankar med filtret på.
+
+Regeln för "väntar på granskning" (pending, stale, eller endast evidens som
+ingen har granskat) finns nu på ett ställe, `AWAITING_REVIEW_SQL` i `lib.mjs`.
+Kön, filtret, textsökningen och räknaren använder den, och ett test kontrollerar
+att de fortsätter göra det. Sidan har en kopia av regeln för semantisk sökning,
+som saknar eget filter.
+
 ## 2026-10-25 — README säger vad hjärnan är
 
 Ingen kodändring. README tog upp nivåer, sökning och webbgränssnittet, och lät

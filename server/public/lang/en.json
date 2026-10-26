@@ -37,7 +37,9 @@
     "systems": "Systems",
     "digest": "Session digest",
     "inDigest": "in the digest",
-    "digestFull": "{omitted} do not fit (at most {limit} memories or 9,000 characters) and are not read at session start. Untick what every session does not need."
+    "digestFull": "{omitted} do not fit (at most {limit} memories or 9,000 characters) and are not read at session start. Untick what every session does not need.",
+    "review": "Review",
+    "awaitingReview": "awaiting review"
   },
   "search": {
     "placeholder": "Search …",
@@ -102,7 +104,8 @@
       "content": "text",
       "metadata": "metadata",
       "tier": "tier"
-    }
+    },
+    "reviewPrompt": "Waiting for your review. Choose how this memory may be used."
   },
   "ingest": {
     "title": "Review proposed memories",
@@ -114,7 +117,9 @@
     "empty": "Nothing to review.",
     "pending": {
       "title": "Trust review",
-      "description": "Agent-generated memories remain evidence until you confirm how they may be used."
+      "description": "Agent-generated memories remain evidence until you confirm how they may be used.",
+      "moved": "Awaiting review: {count}. Review them under Thoughts, where the whole text shows.",
+      "open": "Open in Thoughts"
     },
     "rarelyUseful": {
       "title": "Rarely useful",
@@ -145,7 +150,7 @@
       "stale": "Needs rewriting. The memory becomes evidence only and stays in the review queue until it is updated.",
       "reject": "No longer true. The memory is archived and leaves search. It is not deleted."
     },
-    "staleNote":"Marked stale. Update it, confirm it, choose Evidence only or reject it to clear it from here.",
+    "staleNote": "Marked stale. Update it, confirm it, choose Evidence only or reject it to clear it from here.",
     "capturedBy": "via {client}",
     "mergePrompt": "Edit the merged memory:",
     "recalls": {

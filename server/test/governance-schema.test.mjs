@@ -31,3 +31,16 @@ test("review queues and counters only treat current memories as actionable", asy
   assert.match(pendingCte, /WHERE lifecycle = 'current'/i);
   assert.match(source, /lifecycle',[^\n]*\) = 'current'[\s\S]*?AS mem_pending_review/i);
 });
+
+test("the Thoughts filter, the counter and the Review queue share one review rule", async () => {
+  const source = await readFile(new URL("../lib.mjs", import.meta.url), "utf8");
+  for (const name of ["reviewQueue", "listThoughts", "textSearch"]) {
+    const start = source.indexOf(`export async function ${name}(`);
+    const body = start < 0 ? "" : source.slice(start, source.indexOf("\n}\n", start));
+    assert.match(body, /AWAITING_REVIEW_SQL/, name);
+  }
+  assert.match(source, /AWAITING_REVIEW_SQL\}[\s\S]*?AS awaiting_review/);
+  const page = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(page, /data-review="\$\{action\}"/);
+  assert.match(page, /\/api\/thoughts\/\$\{t\.id\}\/review/);
+});

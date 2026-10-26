@@ -6,6 +6,24 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-10-26 — 0.19.0: new memories are reviewed on Thoughts
+
+The Review page showed a new agent memory as a title and a summary only. To
+judge it, Erik first read the whole memory on Thoughts, then switched to Review
+to click a verdict.
+
+A memory that awaits review now carries the four review buttons on its own card
+on Thoughts, below the whole text, and a green edge. The buttons are always
+visible, not only on hover. A new facet, *awaiting review*, lists only these
+memories. The Review page keeps everything else; for new memories it shows the
+count and a button that opens Thoughts with the facet on.
+
+The rule for "awaits review" (pending, stale, or evidence only that nobody has
+reviewed) now lives in one place, `AWAITING_REVIEW_SQL` in `lib.mjs`. The
+queue, the facet, the text search and the counter all use it, and a test checks
+that they still do. The page has a copy of the rule for semantic search, which
+has no filter of its own.
+
 ## 2026-10-25 — the README says what the brain is
 
 No code change. The README listed tiers, search and the web UI, and left a

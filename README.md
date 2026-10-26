@@ -165,8 +165,8 @@ available as REST for OpenAPI clients: `GET /openapi.json` and
 
 | Page | What it is for |
 | --- | --- |
-| **Thoughts** | List, hybrid search, facets, editing, change history with restore, *Copy reference* for a chat, pinning memories into the session digest |
-| **Review** | Agent memories awaiting review, duplicates, possible contradictions, rarely useful memories, recently deleted |
+| **Thoughts** | List, hybrid search, facets, reviewing new agent memories with their whole text, editing, change history with restore, *Copy reference* for a chat, pinning memories into the session digest |
+| **Review** | How many memories await review (with a link to them on Thoughts), duplicates, possible contradictions, rarely useful memories, recently deleted |
 | **Statistics** | A 3D map of the memory (can be switched off), health, recall usefulness, client activity, MQTT status, receipt retention |
 | **Connect** | Setup for every client |
 | **Settings** | Port 8790 only: theme and accent colour, providers and keys, models, re-embedding, the four similarity thresholds, and the recall and contradiction measurements |
