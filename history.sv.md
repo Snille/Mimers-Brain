@@ -6,6 +6,33 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-03 — 0.22.0: ett minne kontrolleras när det skrivs
+
+En genomgång av alla 420 minnen hittade samma glidning gång på gång: datum för
+när något verifierades, hittades eller beslutades, "sedan 0.15.2",
+SECRET_REF-pekare i öppen nivå, och ett projekt som metadatamodellen gissade
+fel varje gång ett minne skrevs om. Kvalitetskontrollen i `memory-quality.mjs`
+fanns redan, men den kördes bara i `renormalise.mjs --all --dry-run`, som ingen
+läste, så den som skrev fick aldrig veta något.
+
+Nu körs kontrollen där minnet skrivs:
+
+- `capture_thought` och `supersede_thought` svarar med kvalitetsvarningarna och
+  vad som ska göras åt var och en, så att agenten rättar texten medan den
+  fortfarande vet vad den menade. OpenAPI-verktygen returnerar dem som
+  `quality_warnings`.
+- Nya regler: `dated-history` (ett datum efter verifierat, upptäckt, beslut,
+  lades till och liknande ord), `version-history` ("sedan <version eller
+  datum>") och `secret-ref-in-open-tier`. En tidsgräns utan ett sådant ord
+  flaggas inte.
+- En SECRET_REF-pekare i öppen nivå nekas, både när ett minne sparas och när
+  det flyttas ut ur valvet. Mallen som reglerna citerar räknas inte som en pekare.
+- Ett omskrivet minne behåller projektet som de gamla minnena är överens om,
+  även inget projekt, på samma sätt som det redan behåller sin plats i
+  startpaketet. Ett projekt som väljs i redigeringsformuläret gäller ändå.
+- Regel 5 i policyn säger att texten ska vara i presens och att bara det som
+  måste dateras ska dateras.
+
 ## 2026-11-03 — 0.21.1: ett omskrivet minne behåller sin plats i startpaketet
 
 Efter en genomgång av alla minnen hade startpaketet vuxit från 9 stående minnen

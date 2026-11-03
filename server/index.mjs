@@ -808,8 +808,10 @@ function makeListener(tiers, {
           const saved = await db.captureThought(tiers, content.trim(), {
             tier, metadata, origin: "user", userConfirmed: true, client: whoIs().name,
           });
-          // A kind the reader chose is not a guess, so it decides the digest itself.
-          const linked = await db.linkSupersession(tiers, saved.id, old_ids, { fresh: !metadata?.kind });
+          // A kind or project the reader chose is not a guess, so it stands.
+          const linked = await db.linkSupersession(tiers, saved.id, old_ids, {
+            fresh: !metadata?.kind, inheritProject: !metadata?.project,
+          });
           note("ui.supersede", "write", { tier: saved.tier, results: old_ids.length + 1 });
           publishSoon();
           return json(res, 200, { ...saved, ...linked });

@@ -6,6 +6,31 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-03 — 0.22.0: a memory is checked when it is written
+
+A review of all 420 memories found the same drift over and over: dates of
+when something was verified, found or decided, "since 0.15.2", SECRET_REF
+pointers on the open tier, and a project the metadata model guessed wrong
+every time a memory was rewritten. The quality audit in `memory-quality.mjs`
+already existed, but it ran only in `renormalise.mjs --all --dry-run`, which
+nobody read, so the writer never heard about it.
+
+Now the check runs where the memory is written:
+
+- `capture_thought` and `supersede_thought` answer with the quality warnings
+  and what to do about each, so the agent corrects the text while it still
+  knows what it meant. The OpenAPI tools return them as `quality_warnings`.
+- New rules: `dated-history` (a date after verified, found, decided, added and
+  similar words), `version-history` ("since <version or date>") and
+  `secret-ref-in-open-tier`. A deadline without such a word is not flagged.
+- A SECRET_REF pointer on the open tier is refused, on capture and on a move
+  out of the vault. The template the rules quote is not a pointer.
+- A rewrite keeps the project its old memories agree on, none included, the way
+  it already keeps its place in the digest. A project chosen in the edit form
+  still stands.
+- Rule 5 of the policy says to write in the present tense and date only what
+  must be dated.
+
 ## 2026-11-03 — 0.21.1: a rewrite keeps its place in the digest
 
 After a review of every memory the digest had grown from 9 standing memories

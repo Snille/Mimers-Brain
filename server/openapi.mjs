@@ -186,9 +186,11 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
           title: String(title || "").slice(0, 100),
         });
         publishSoon();
+        const quality = await db.writeQuality(tiers, r.id);
         return {
           id: r.id,
           tier: r.tier,
+          quality_warnings: quality.warnings,
           title: r.metadata?.title || null,
           type: r.metadata?.type || null,
           topics: r.metadata?.topics || [],
@@ -198,7 +200,8 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
           review_status: r.metadata.review_status,
           can_use_as_instruction: r.metadata.can_use_as_instruction,
           note: `${r.metadata.can_use_as_instruction ? "Saved as confirmed memory." : "Saved as evidence only; awaiting review."}` +
-            `${r.embedded ? "" : " No embedding - it will not be found by semantic search."}`,
+            `${r.embedded ? "" : " No embedding - it will not be found by semantic search."}` +
+            `${quality.advice ? ` ${quality.advice}` : ""}`,
         };
       },
     },
@@ -457,12 +460,15 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
         });
         const linked = await db.linkSupersession(tiers, saved.id, ids, { fresh: true });
         publishSoon();
+        const quality = await db.writeQuality(tiers, saved.id);
         return {
           id: saved.id,
           tier: saved.tier,
           title: saved.metadata.title,
           review_status: saved.metadata.review_status,
           superseded_ids: linked.superseded_ids,
+          quality_warnings: quality.warnings,
+          ...(quality.advice ? { note: quality.advice } : {}),
         };
       },
     });

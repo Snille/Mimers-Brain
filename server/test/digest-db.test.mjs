@@ -48,6 +48,53 @@ test("what does not fit in the digest is counted and named, not dropped in silen
   }
 });
 
+test("a write is checked as it happens: open SECRET_REF refused, warnings returned, project inherited", {
+  skip: skipWithoutDatabase,
+}, async () => {
+  process.env.DATABASE_URL = await freshDatabase("test_write_quality");
+  const db = await import(new URL(`../lib.mjs?writeQuality=${Date.now()}`, import.meta.url));
+  const { toolsFor } = await import("../openapi.mjs");
+  const tool = (name) => toolsFor(db.ALL).find((t) => t.name === name);
+  const insert = async (title, extra = {}) => (await db.pool.query(
+    `INSERT INTO thoughts (content, metadata) VALUES ($1, $2::jsonb) RETURNING id`,
+    [`${title}, in full.`, JSON.stringify({ title, kind: "fact", review_status: "confirmed", ...extra })])).rows[0].id;
+  const project = async (id) => (await db.pool.query(`SELECT metadata->>'project' AS p FROM thoughts WHERE id = $1`, [id])).rows[0].p;
+
+  try {
+    await db.ensureSchema();
+
+    const pointer = "The key is SECRET_REF: C:\\Users\\eripet\\Coding\\_secrets_\\omniroute\\secrets.env :: OMNIROUTE_API_KEY";
+    await assert.rejects(db.captureThought(db.ALL, pointer, { tier: "open" }), /belongs in the vault/);
+    const inVault = await db.captureThought(db.ALL, pointer, { tier: "vault" });
+    await assert.rejects(db.updateThought(db.ALL, inVault.id, { tier: "open" }), /belongs in the vault/);
+
+    const saved = await tool("capture_thought").run({ content: "The relay trap was verified 2026-08-04 on the laptop." });
+    assert.ok(saved.quality_warnings.includes("dated-history"));
+    assert.match(saved.note, /present tense.*supersede_thought/);
+    const clean = await tool("capture_thought").run({ content: "The relay needs a pull-up resistor on GPIO4." });
+    assert.deepEqual(clean.quality_warnings, []);
+
+    // The replacement takes the project the old memories agree on, none included.
+    const inProject = await insert("Frame fact", { project: "photoframe" });
+    const guessed = await insert("Frame fact, rewritten", { project: "mimers-brain" });
+    await db.linkSupersession(db.ALL, guessed, [inProject], { fresh: true });
+    assert.equal(await project(guessed), "photoframe");
+    const general = await insert("General rule");
+    const guessedGeneral = await insert("General rule, rewritten", { project: "mimers-brain" });
+    await db.linkSupersession(db.ALL, guessedGeneral, [general], { fresh: true });
+    assert.equal(await project(guessedGeneral), null);
+    // Old memories that disagree leave the new guess alone, and so does a kept duplicate.
+    const merged = await insert("Merged", { project: "frigate" });
+    await db.linkSupersession(db.ALL, merged, [await insert("A", { project: "frigate" }), await insert("B", { project: "node-red" })], { fresh: true });
+    assert.equal(await project(merged), "frigate");
+    const kept = await insert("Kept", { project: "label-service" });
+    await db.linkSupersession(db.ALL, kept, [await insert("Other", { project: "storagesystem" })]);
+    assert.equal(await project(kept), "label-service");
+  } finally {
+    await db.pool.end();
+  }
+});
+
 test("a rewritten memory keeps its place in the digest, whatever kind the new text is guessed as", {
   skip: skipWithoutDatabase,
 }, async () => {

@@ -20,6 +20,7 @@ import {
 import { fallbackAtoms, normalisePreviewCandidates } from "./smart-ingest.mjs";
 import { semanticAxes } from "./semantic.mjs";
 import { refuseSecrets } from "./secret-gate.mjs";
+import { SECRET_REF_PATH, memoryQualityWarnings, qualityAdvice } from "./memory-quality.mjs";
 import * as ai from "./ai.mjs";
 
 export { normaliseMeta } from "./memory-model.mjs";
@@ -556,7 +557,7 @@ const IN_DIGEST_BY_PIN_OR_KIND = (m) => `(${m}->>'pinned' = 'true'
 // `fresh` is for a replacement written just now, whose kind the metadata model
 // guessed again from the new text. Only such a replacement inherits the old
 // memory's place in the digest; a memory kept from a duplicate pair keeps its own.
-export async function linkSupersession(tiers, replacementId, oldIds, { fresh = false } = {}) {
+export async function linkSupersession(tiers, replacementId, oldIds, { fresh = false, inheritProject = fresh } = {}) {
   const replacement = await getThought(tiers, replacementId);
   if (!replacement) throw new Error("Replacement memory not found");
   const ids = await validateSupersession(tiers, oldIds, replacement.tier);
@@ -608,6 +609,21 @@ export async function linkSupersession(tiers, replacementId, oldIds, { fresh = f
         [replacementId, ids],
       );
     }
+    if (inheritProject) {
+      // The project is the model's guess as well, and a rewrite rarely changes
+      // what a memory belongs to. When the old memories agree, including on
+      // having no project, the replacement takes theirs. A move to another
+      // project is said explicitly (renormalise.mjs --set, or the edit form).
+      await client.query(
+        `UPDATE thoughts t SET metadata = CASE WHEN p.project IS NULL THEN t.metadata - 'project'
+                                              ELSE jsonb_set(t.metadata, '{project}', to_jsonb(p.project)) END
+           FROM (SELECT min(old.metadata->>'project') AS project,
+                        count(DISTINCT coalesce(old.metadata->>'project', '')) AS variants
+                   FROM thoughts old WHERE old.id = ANY($2::uuid[])) p
+          WHERE t.id = $1 AND p.variants = 1 AND (t.metadata->>'project') IS DISTINCT FROM p.project`,
+        [replacementId, ids],
+      );
+    }
   });
   return { replacement_id: replacementId, superseded_ids: ids };
 }
@@ -630,6 +646,23 @@ export async function linkRelations(tiers, fromId, toIds, relation = "related_to
   return { from_id: fromId, to_ids: ids, relation };
 }
 
+// The quality audit, run on a memory just written so the writer can correct it
+// while it still knows what it meant. Read back after linking, so an inherited
+// project is judged rather than the model's first guess.
+export async function writeQuality(tiers, id) {
+  const row = await getThought(tiers, id);
+  const warnings = row ? memoryQualityWarnings(row) : [];
+  return { warnings: warnings.map((w) => w.code), advice: qualityAdvice(warnings) };
+}
+
+// A SECRET_REF names where a key lives, which is sensitive context: the
+// policy puts it in the LAN-only vault. Said as a refusal, because a warning
+// after the write would already have published the pointer on the open tier.
+function refuseOpenSecretRef(content, tier) {
+  if (tier === "open" && SECRET_REF_PATH.test(String(content || "")))
+    throw new Error('A memory with a SECRET_REF pointer belongs in the vault: save it with tier "vault"');
+}
+
 export async function captureThought(tiers, content, {
   tier = "open", metadata, origin = "agent", userConfirmed = false,
   sourceRefs = [], artifactRefs = [], client = "", title = "",
@@ -639,6 +672,7 @@ export async function captureThought(tiers, content, {
   // Before the metadata model and the embedder: a refused secret must not
   // leave the house either.
   refuseSecrets(content, metadata, sourceRefs, artifactRefs);
+  refuseOpenSecretRef(content, tier);
 
   const auto = metadata ? null : await extractMetadata(content);
   // A caller-chosen title replaces only the extracted one. It is not a trust
@@ -1075,6 +1109,7 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
   const sets = [];
   const args = [id];
   const nextContent = typeof content === "string" ? content : existing.content;
+  refuseOpenSecretRef(nextContent, tier || existing.tier);
   const nextMeta = metadata
     ? normaliseMeta(metadata, nextContent)
     : normaliseMeta(existing.metadata, nextContent);

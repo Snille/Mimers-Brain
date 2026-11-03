@@ -193,11 +193,13 @@ export function buildServer(tiers, ctx = {}) {
       note.tier = r.tier;
       note.count = 1;
       const m = r.metadata;
+      const quality = await db.writeQuality(tiers, r.id);
       return text(
         `Saved "${m.title}" as ${m.type || "observation"}${r.tier === "vault" ? " in the VAULT" : ""}` +
         `${m.topics?.length ? ` - ${m.topics.join(", ")}` : ""}` +
         `${m.can_use_as_instruction ? " (confirmed)" : " (evidence only; awaiting review)"}` +
-        `${r.embedded ? "" : " (no embedding - will not be findable by semantic search)"}`);
+        `${r.embedded ? "" : " (no embedding - will not be findable by semantic search)"}` +
+        `${quality.advice ? ` (id ${r.id}). ${quality.advice}` : ""}`);
     } catch (e) { return fail(e); }
   }));
 
@@ -298,8 +300,10 @@ export function buildServer(tiers, ctx = {}) {
         note.tier = saved.tier;
         note.count = old_ids.length + 1;
         publishSoon();
+        const quality = await db.writeQuality(tiers, saved.id);
         return text(`Saved replacement ${saved.id} titled "${saved.metadata.title}"; preserved ${linked.superseded_ids.length} superseded memories.` +
-          (saved.metadata.review_status === "confirmed" ? "" : " The replacement is pending review, because what it replaces was."));
+          (saved.metadata.review_status === "confirmed" ? "" : " The replacement is pending review, because what it replaces was.") +
+          (quality.advice ? ` ${quality.advice}` : ""));
       } catch (e) { return fail(e); }
     }));
   }

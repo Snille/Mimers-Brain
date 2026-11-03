@@ -50,6 +50,32 @@ test("quality audit catches secret fragments and ungrounded metadata", () => {
     warning.code === "metadata-not-grounded-in-content" && warning.field === "title"));
 });
 
+test("quality audit flags dated history, version history and an open SECRET_REF, but not a deadline", () => {
+  const current = { lifecycle: "current", kind: "fact" };
+  assert.ok(codes({ content: "The trap was verified 2026-08-04 on the laptop.", metadata: current }).includes("dated-history"));
+  assert.ok(codes({ content: "Beslut 2026-10-31: PBS körs som CT.", metadata: current }).includes("dated-history"));
+  assert.ok(codes({ content: "Sedan 0.15.2 skrivs formaten på en egen sida.", metadata: current }).includes("version-history"));
+  assert.ok(codes({ content: "The proxy points at Base since 2026-10-25.", metadata: current }).includes("version-history"));
+  assert.deepEqual(codes({ content: "Change nothing on the hall mirror before the hunt on 2026-11-07.", metadata: current }), []);
+  assert.deepEqual(codes({ content: "In Frigate 0.18 detect.enabled is false by default.", metadata: current }), []);
+
+  const pointer = "Key: SECRET_REF: C:\\Users\\eripet\\Coding\\_secrets_\\omniroute\\secrets.env :: OMNIROUTE_API_KEY";
+  assert.ok(codes({ content: pointer, metadata: current, tier: "open" }).includes("secret-ref-in-open-tier"));
+  assert.equal(codes({ content: pointer, metadata: current, tier: "vault" }).includes("secret-ref-in-open-tier"), false);
+  // The rule quoting the pointer format is not a pointer.
+  const template = "Skriv exakt: SECRET_REF: C:\\Users\\eripet\\Coding\\_secrets_\\<projekt>\\<fil> :: <KEY_NAME>.";
+  assert.equal(codes({ content: template, metadata: current, tier: "open" }).includes("secret-ref-in-open-tier"), false);
+});
+
+test("the writer is told what to do about each warning", async () => {
+  const { qualityAdvice } = await import("../memory-quality.mjs");
+  assert.equal(qualityAdvice([]), "");
+  const advice = qualityAdvice([{ code: "dated-history" }, { code: "version-history" }]);
+  assert.match(advice, /present tense/);
+  assert.match(advice, /since <version or date>/);
+  assert.match(advice, /supersede_thought/);
+});
+
 test("quality audit compares project ownership with a Windows workspace path", () => {
   const warnings = codes({
     content: "The source lives at C:\\Users\\eripet\\Coding\\Mimers-Brain\\server.",
