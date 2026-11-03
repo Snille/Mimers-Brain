@@ -6,6 +6,20 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-03 — 0.20.1: städskriptet bäddar in med rätt modell
+
+Att flytta ett minne till ett annat projekt med `renormalise.mjs --apply`
+misslyckades med "expected 1024 dimensions, not 1536". Skriptet körs utanför
+servern och läste därför aldrig in modellerna som valts i rutan Modeller. Det
+bäddade in med modellen i `.env`, OpenRouters text-embedding-3-small, vars
+vektorer inte passar bge-m3-kolumnen. Databasen vägrade skrivningen, så inget
+skadades, men varje `--apply` misslyckades och gjorde ett betalt anrop i
+onödan.
+
+Skriptet anropar nu `loadModelSettings()` innan det skriver, som
+`eval-recall.mjs` redan gjorde. Ett nytt test, `scripts.test.mjs`,
+kontrollerar att alla skript som bäddar in gör likadant.
+
 ## 2026-10-26 — 0.20.0: snyggare redigering, och nivån kan bytas
 
 Tre Tokentracker-minnen delades ut från ett valvminne och hamnade i valvet,

@@ -6,6 +6,20 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-03 — 0.20.1: the cleanup script embeds with the right model
+
+Moving one memory to another project with `renormalise.mjs --apply` failed
+with "expected 1024 dimensions, not 1536". The script runs outside the
+server, so it never loaded the models chosen on the Models card. It embedded
+with the model in `.env`, OpenRouter's text-embedding-3-small, whose vectors
+do not fit the bge-m3 column. The database refused the write, so nothing was
+damaged, but every `--apply` failed, and each one made a paid call for
+nothing.
+
+The script now calls `loadModelSettings()` before it writes, as
+`eval-recall.mjs` already did. A new test, `scripts.test.mjs`, checks that
+every script that embeds does the same.
+
 ## 2026-10-26 — 0.20.0: tidier editing, and the tier can change
 
 Three Tokentracker memories were split from a vault memory and stayed in the

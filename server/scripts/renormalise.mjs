@@ -30,6 +30,7 @@
 import { embeddingText, normaliseMeta } from "../memory-model.mjs";
 import { memoryQualityWarnings } from "../memory-quality.mjs";
 import { embed, pool, runAs, transaction } from "../lib.mjs";
+import { loadModelSettings } from "../model-settings.mjs";
 
 const argv = process.argv.slice(2);
 const args = new Set(argv);
@@ -107,6 +108,10 @@ if (!apply) {
 if (changed.length !== expectedCount) {
   throw new Error(`Refusing to write: ${changed.length} rows would change, expected ${expectedCount}`);
 }
+
+// The embedding model chosen on the Models card, not the one in .env: a vector
+// from another model has the wrong size for the column and fails the write.
+await loadModelSettings();
 
 for (const { row, next } of changed) {
   const vector = await embed(embeddingText(row.content, next)).catch(() => null);
