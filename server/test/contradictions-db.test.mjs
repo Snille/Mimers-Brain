@@ -135,6 +135,28 @@ test("contradiction checks judge each similar pair once and keep the verdict", {
     const links = await db.thoughtRelations(db.ALL, d1);
     assert.ok(links.some((r) => r.relation === "related_to" && r.other_id === d2), "related made a link");
     assert.equal(toolsFor(db.OPEN).some((t) => t.name === "resolve_duplicate"), false);
+
+    // A decision is about the two texts. A new tier, project or review status
+    // moves updated_at but says nothing new, so the pair stays settled; a new
+    // text reopens it.
+    await db.pool.query(`UPDATE thoughts SET tier = 'vault' WHERE id = $1`, [d1]);
+    await db.pool.query(
+      `UPDATE thoughts SET metadata = metadata || '{"project":"label-service","review_status":"pending"}'::jsonb WHERE id = $1`,
+      [d2]);
+    assert.equal((await tool("list_duplicates").run({})).pairs.some(isDup), false, "metadata and tier do not reopen a decided pair");
+    await db.pool.query(`UPDATE thoughts SET content = content || ' (via CUPS)' WHERE id = $1`, [d2]);
+    assert.equal((await tool("list_duplicates").run({})).pairs.some(isDup), true, "a changed text reopens it");
+
+    // The same holds for a dismissed contradiction.
+    await db.pool.query(`UPDATE contradiction_checks SET verdict = 'conflict', model = $1 WHERE verdict = 'dismissed'`,
+      [db.contradictionModel()]);
+    const before = (await db.contradictions(db.ALL)).length;
+    const [first] = await db.contradictions(db.ALL);
+    await db.dismissContradiction(db.ALL, { left_id: first.left_id, right_id: first.right_id });
+    await db.pool.query(`UPDATE thoughts SET metadata = metadata || '{"project":"mimers-brain"}'::jsonb WHERE id = $1`,
+      [first.left_id]);
+    assert.equal((await db.checkContradictions(db.ALL)).checked, 0, "a dismissed pair is not judged again for new metadata");
+    assert.equal((await db.contradictions(db.ALL)).length, before - 1);
   } finally {
     globalThis.fetch = realFetch;
     await db.pool.end();

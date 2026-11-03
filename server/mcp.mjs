@@ -414,7 +414,7 @@ export function buildServer(tiers, ctx = {}) {
 
     registerWrite("dismiss_contradiction", {
       title: "Dismiss a possible contradiction",
-      description: "Mark a pair from list_contradictions as not a contradiction, as the Review page does. The verdict holds until either memory changes. Only after the user has agreed; when one memory is wrong, use supersede_thought instead and the pair leaves the list by itself.",
+      description: "Mark a pair from list_contradictions as not a contradiction, as the Review page does. The verdict holds until the text of either memory changes. Only after the user has agreed; when one memory is wrong, use supersede_thought instead and the pair leaves the list by itself.",
       inputSchema: { left_id: z.string().uuid(), right_id: z.string().uuid() },
     }, track("dismiss_contradiction", "write", async ({ left_id, right_id }, note) => {
       try {
@@ -440,7 +440,7 @@ export function buildServer(tiers, ctx = {}) {
 
     registerWrite("resolve_duplicate", {
       title: "Resolve a possible duplicate",
-      description: "Decide a pair from list_duplicates, as the Review page does: keep_both, related (link them), or supersede (canonical_id is the memory to keep). To merge, use supersede_thought with both ids instead. Only after the user has agreed. The decision holds until either memory changes.",
+      description: "Decide a pair from list_duplicates, as the Review page does: keep_both, related (link them), or supersede (canonical_id is the memory to keep). To merge, use supersede_thought with both ids instead. Only after the user has agreed. The decision holds until the text of either memory changes.",
       inputSchema: {
         left_id: z.string().uuid(),
         right_id: z.string().uuid(),

@@ -353,7 +353,7 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       name: "dismiss_contradiction",
       action: "write",
       summary: "Dismiss a possible contradiction",
-      description: "Mark a pair from list_contradictions as not a contradiction, as the Review page does. The verdict holds until either memory changes. Only after the user has agreed; when one memory is wrong, use supersede_thought instead and the pair leaves the list by itself.",
+      description: "Mark a pair from list_contradictions as not a contradiction, as the Review page does. The verdict holds until the text of either memory changes. Only after the user has agreed; when one memory is wrong, use supersede_thought instead and the pair leaves the list by itself.",
       schema: {
         type: "object",
         required: ["left_id", "right_id"],
@@ -388,7 +388,7 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       name: "resolve_duplicate",
       action: "write",
       summary: "Resolve a possible duplicate",
-      description: "Decide a pair from list_duplicates, as the Review page does: keep_both, related (link them), or supersede (canonical_id is the memory to keep). To merge, use supersede_thought with both ids instead. Only after the user has agreed. The decision holds until either memory changes.",
+      description: "Decide a pair from list_duplicates, as the Review page does: keep_both, related (link them), or supersede (canonical_id is the memory to keep). To merge, use supersede_thought with both ids instead. Only after the user has agreed. The decision holds until the text of either memory changes.",
       schema: {
         type: "object",
         required: ["left_id", "right_id", "action"],

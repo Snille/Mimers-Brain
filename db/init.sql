@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS duplicate_resolutions (
     actor       text NOT NULL DEFAULT 'user',
     result      jsonb NOT NULL DEFAULT '{}'::jsonb,
     resolved_at timestamptz NOT NULL DEFAULT now(),
+    left_md5    text,
+    right_md5   text,
     PRIMARY KEY (left_id, right_id),
     CHECK (left_id::text < right_id::text)
 );
@@ -262,7 +264,7 @@ CREATE TRIGGER thoughts_delete_log BEFORE DELETE ON thoughts
     FOR EACH ROW EXECUTE FUNCTION log_thought_change();
 
 -- Contradiction verdicts from the metadata model, one per memory pair, kept
--- until either memory changes. Kept identical to CONTRADICTION_SQL in lib.mjs.
+-- until either memory's text changes. Kept identical to CONTRADICTION_SQL in lib.mjs.
 CREATE TABLE IF NOT EXISTS contradiction_checks (
     left_id    uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
     right_id   uuid NOT NULL REFERENCES thoughts(id) ON DELETE CASCADE,
@@ -273,3 +275,5 @@ CREATE TABLE IF NOT EXISTS contradiction_checks (
     PRIMARY KEY (left_id, right_id),
     CHECK (left_id::text < right_id::text)
 );
+ALTER TABLE contradiction_checks ADD COLUMN IF NOT EXISTS left_md5 text;
+ALTER TABLE contradiction_checks ADD COLUMN IF NOT EXISTS right_md5 text;

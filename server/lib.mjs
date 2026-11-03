@@ -757,6 +757,15 @@ export async function applyIngest(tiers, {
   return { source_id: sourceId, count: saved.length, memories: saved };
 }
 
+// A pair decision or verdict holds while both texts are the ones it was made
+// on. updated_at also moves for a new project, title, review status or tier,
+// none of which changes what the two memories say, so it would reopen a pair
+// the reader had already settled. Rows from before the fingerprints fall back
+// to the time check.
+const unchangedPair = (d, at) => `(CASE WHEN ${d}.left_md5 IS NULL
+    THEN ${d}.${at} >= greatest(a.updated_at, b.updated_at)
+    ELSE ${d}.left_md5 = md5(a.content) AND ${d}.right_md5 = md5(b.content) END)`;
+
 // The floor is a similarity score and belongs to the embedding model; see
 // DEFAULT_THRESHOLDS. 0.86 is for text-embedding-3-small. With bge-m3 it showed
 // nothing: the pairs Erik had merged or superseded scored 0.83-0.90 there.
@@ -779,7 +788,7 @@ export async function duplicateCandidates(tiers, { threshold, limit = 50 } = {})
         AND NOT EXISTS (
           SELECT 1 FROM duplicate_resolutions d
            WHERE d.left_id = a.id AND d.right_id = b.id
-             AND d.resolved_at >= greatest(a.updated_at, b.updated_at))
+             AND ${unchangedPair("d", "resolved_at")})
       ORDER BY similarity DESC LIMIT $3`,
     [tiers, Number(threshold) || thresholds.duplicate, Math.min(Number(limit) || 50, 200)],
   );
@@ -824,11 +833,14 @@ export async function resolveDuplicate(tiers, {
       : merged;
   }
   await pool.query(
-    `INSERT INTO duplicate_resolutions (left_id, right_id, resolution, actor, result)
-     VALUES ($1,$2,$3,$4,$5::jsonb)
+    `INSERT INTO duplicate_resolutions (left_id, right_id, resolution, actor, result, left_md5, right_md5)
+     VALUES ($1,$2,$3,$4,$5::jsonb,
+             (SELECT md5(content) FROM thoughts WHERE id = $1),
+             (SELECT md5(content) FROM thoughts WHERE id = $2))
      ON CONFLICT (left_id, right_id) DO UPDATE
        SET resolution = EXCLUDED.resolution, actor = EXCLUDED.actor,
-           result = EXCLUDED.result, resolved_at = now()`,
+           result = EXCLUDED.result, resolved_at = now(),
+           left_md5 = EXCLUDED.left_md5, right_md5 = EXCLUDED.right_md5`,
     [pair[0], pair[1], action, actor, JSON.stringify(result)],
   );
   return result;
@@ -878,7 +890,7 @@ async function contradictionPairs(tiers, { limit = 20 } = {}) {
         AND NOT EXISTS (
           SELECT 1 FROM contradiction_checks c
            WHERE c.left_id = a.id AND c.right_id = b.id
-             AND c.checked_at >= greatest(a.updated_at, b.updated_at)
+             AND ${unchangedPair("c", "checked_at")}
              -- a verdict from an earlier model is checked again; the reader's is not
              AND c.model IN ($4, 'user'))
         AND NOT EXISTS (
@@ -932,12 +944,14 @@ export async function checkContradictions(tiers, { limit = 20 } = {}) {
   for (const pair of pairs) {
     const { verdict, reason } = await judgeContradiction(pair.left_content, pair.right_content);
     await pool.query(
-      `INSERT INTO contradiction_checks (left_id, right_id, verdict, reason, model)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO contradiction_checks (left_id, right_id, verdict, reason, model, left_md5, right_md5)
+       VALUES ($1, $2, $3, $4, $5, md5($6), md5($7))
        ON CONFLICT (left_id, right_id) DO UPDATE
          SET verdict = EXCLUDED.verdict, reason = EXCLUDED.reason,
-             model = EXCLUDED.model, checked_at = now()`,
-      [pair.left_id, pair.right_id, verdict, reason || null, contradictionModel()],
+             model = EXCLUDED.model, checked_at = now(),
+             left_md5 = EXCLUDED.left_md5, right_md5 = EXCLUDED.right_md5`,
+      [pair.left_id, pair.right_id, verdict, reason || null, contradictionModel(),
+        pair.left_content, pair.right_content],
     );
     checked += 1;
     if (verdict === "conflict") conflicts += 1;
@@ -960,7 +974,7 @@ export async function contradictions(tiers, { limit = 50 } = {}) {
       WHERE c.verdict = 'conflict' AND a.tier = ANY($1) AND b.tier = ANY($1)
         AND coalesce(a.metadata->>'lifecycle', 'current') = 'current'
         AND coalesce(b.metadata->>'lifecycle', 'current') = 'current'
-        AND c.checked_at >= greatest(a.updated_at, b.updated_at)
+        AND ${unchangedPair("c", "checked_at")}
         AND c.model = $3
       ORDER BY c.checked_at DESC LIMIT $2`,
     [tiers, Math.min(Number(limit) || 50, 200), contradictionModel()],
@@ -968,8 +982,8 @@ export async function contradictions(tiers, { limit = 50 } = {}) {
   return rows;
 }
 
-// "Not a contradiction" from the reader. Kept until either memory changes, at
-// which point the pair is checked again - the text it was judged on is gone.
+// "Not a contradiction" from the reader. Kept until either memory's text
+// changes, at which point the pair is checked again - the text it was judged on is gone.
 // Filed under the model "user", so a later change of model does not overrule it.
 export async function dismissContradiction(tiers, { left_id, right_id } = {}) {
   const left = await getThought(tiers, left_id);
@@ -977,7 +991,9 @@ export async function dismissContradiction(tiers, { left_id, right_id } = {}) {
   if (!left || !right) throw new Error("Contradiction pair not found");
   const [a, b] = [left.id, right.id].sort();
   const { rowCount } = await pool.query(
-    `UPDATE contradiction_checks SET verdict = 'dismissed', model = 'user', checked_at = now()
+    `UPDATE contradiction_checks SET verdict = 'dismissed', model = 'user', checked_at = now(),
+            left_md5 = (SELECT md5(content) FROM thoughts WHERE id = $1),
+            right_md5 = (SELECT md5(content) FROM thoughts WHERE id = $2)
       WHERE left_id = $1 AND right_id = $2`,
     [a, b],
   );
@@ -1233,6 +1249,8 @@ export async function ensureSchema() {
         PRIMARY KEY (left_id, right_id),
         CHECK (left_id::text < right_id::text)
     );
+    ALTER TABLE duplicate_resolutions ADD COLUMN IF NOT EXISTS left_md5 text;
+    ALTER TABLE duplicate_resolutions ADD COLUMN IF NOT EXISTS right_md5 text;
 
     CREATE TABLE IF NOT EXISTS recall_traces (
         id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1276,8 +1294,9 @@ export async function ensureSchema() {
 }
 
 // A new embedding is not a new version of the memory. Duplicate decisions and
-// contradiction verdicts hold until updated_at moves, so bumping it for a
-// vector would void every one of them the day the embedding model changes.
+// contradiction verdicts made before their text fingerprints existed hold until
+// updated_at moves, so bumping it for a vector would void every one of them the
+// day the embedding model changes.
 // An UPDATE that sets updated_at itself still gets its own value.
 export const UPDATED_AT_SQL = `
     CREATE OR REPLACE FUNCTION update_updated_at() RETURNS trigger AS $$
@@ -1376,6 +1395,8 @@ export const CONTRADICTION_SQL = `
         PRIMARY KEY (left_id, right_id),
         CHECK (left_id::text < right_id::text)
     );
+    ALTER TABLE contradiction_checks ADD COLUMN IF NOT EXISTS left_md5 text;
+    ALTER TABLE contradiction_checks ADD COLUMN IF NOT EXISTS right_md5 text;
 `;
 
 export async function getSetting(key) {

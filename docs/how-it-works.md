@@ -176,7 +176,7 @@ contradictions.
   floor belongs to the embedding model and is set with the search thresholds on
   the Models card: 0.6 by default, measured with text-embedding-3-small; 0.65
   for bge-m3. Conflicts appear on the Review page as
-  *Possible contradictions*. A verdict holds until either memory changes.
+  *Possible contradictions*. A verdict holds until the text of either memory changes; a new project, title, review status or tier does not reopen it.
   **Settings → Contradiction test** measures a model against pairs with known
   answers before it is put to work; see install.md, section 9. On port 8790 a
   model can go through the list with you: `list_contradictions` gives both

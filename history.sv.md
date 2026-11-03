@@ -6,6 +6,26 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-03 — 0.21.0: ett avgjort par förblir avgjort tills texten ändras
+
+Under en genomgång av alla minnen hade Erik markerat två Ollama-minnen som
+relaterade. När det ena flyttades till valvet kom paret tillbaka till listan
+över dubbletter, med samma två id:n. Ett beslut gällde bara så länge
+`resolved_at` var nyare än båda minnenas `updated_at`, och `updated_at` flyttas
+vid varje ändring av metadata eller nivå. Ett nytt projekt, en ny titel, en
+granskning på sidan Granska eller en flytt till valvet öppnade alltså par som
+sa exakt samma sak som när Erik avgjorde dem. Motsägelserna hade samma regel,
+så en avfärdad motsägelse kom också tillbaka, och ett par som modellen redan
+bedömt betalades en gång till.
+
+Ett beslut gäller nu de två texterna. `duplicate_resolutions` och
+`contradiction_checks` sparar en md5 av båda texterna när beslutet fattas, och
+paret öppnas igen bara när någon av dem har ändrats. Äldre rader behåller den
+gamla tidskontrollen. Verktygsbeskrivningarna säger "until the text of either
+memory changes". `contradictions-db.test.mjs` kontrollerar att en ny nivå, ett
+nytt projekt och en ny granskningsstatus låter paret vara avgjort, och att en
+ändrad text öppnar det igen.
+
 ## 2026-11-03 — 0.20.1: städskriptet bäddar in med rätt modell
 
 Att flytta ett minne till ett annat projekt med `renormalise.mjs --apply`

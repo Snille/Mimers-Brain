@@ -6,6 +6,25 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-03 — 0.21.0: a settled pair stays settled until its text changes
+
+During a review of every memory, Erik had marked two Ollama memories as
+related. Moving one of them to the vault brought the pair back to the
+duplicate list, with the same two ids. A decision was kept only while
+`resolved_at` was newer than both memories' `updated_at`, and `updated_at`
+moves for any change to the metadata or the tier. A new project, a new title,
+a review on the Review page or a move to the vault reopened pairs that said
+exactly what they said when Erik decided them. Contradiction verdicts had the
+same rule, so a dismissed contradiction came back too, and a pair the model had
+already judged was paid for again.
+
+A decision is now about the two texts. `duplicate_resolutions` and
+`contradiction_checks` store an md5 of both texts when the decision is made,
+and the pair reopens only when one of them differs. Rows from before keep the
+old time check. The tool descriptions say "until the text of either memory
+changes". `contradictions-db.test.mjs` checks that a new tier, project and
+review status leave a pair settled and that a changed text reopens it.
+
 ## 2026-11-03 — 0.20.1: the cleanup script embeds with the right model
 
 Moving one memory to another project with `renormalise.mjs --apply` failed
