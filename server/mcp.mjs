@@ -294,7 +294,7 @@ export function buildServer(tiers, ctx = {}) {
           tier, origin: "agent", userConfirmed: user_confirmed || inherited,
           client: ctx.client, title,
         });
-        const linked = await db.linkSupersession(tiers, saved.id, old_ids);
+        const linked = await db.linkSupersession(tiers, saved.id, old_ids, { fresh: true });
         note.tier = saved.tier;
         note.count = old_ids.length + 1;
         publishSoon();

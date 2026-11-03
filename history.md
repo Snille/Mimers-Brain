@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-03 — 0.21.1: a rewrite keeps its place in the digest
+
+After a review of every memory the digest had grown from 9 standing memories
+to 20. Two things in `linkSupersession()` caused it. The metadata model guesses
+the kind again from the replacement's text, so seven procedures, lessons, ideas,
+decisions and facts came back as preferences and joined every session on their
+own. And only `pinned: true` was carried over, so two preferences Erik had
+taken out of the digest with `pinned: false` came back.
+
+A replacement written now (supersede_thought, the edit form without a chosen
+kind, and Merge) keeps the old memory's place: when the guessed kind would move
+it into or out of the digest, the replacement gets the pin that keeps it where
+it was. An explicit pin on the replacement still wins, and a memory kept from a
+duplicate pair keeps its own. `digest-db.test.mjs` covers each case. The nine
+memories were put back by hand: five got their old kind, four `pinned: false`.
+
 ## 2026-11-03 — 0.21.0: a settled pair stays settled until its text changes
 
 During a review of every memory, Erik had marked two Ollama memories as

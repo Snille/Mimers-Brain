@@ -547,7 +547,16 @@ export async function supersessionTrust(tiers, oldIds) {
   return inheritsConfirmedTrust(rows.map((row) => row.metadata));
 }
 
-export async function linkSupersession(tiers, replacementId, oldIds) {
+// In the digest by its own pin, or by kind without an opt-out. The review
+// status is left out on purpose: it is inherited separately, and the digest
+// filter still applies it.
+const IN_DIGEST_BY_PIN_OR_KIND = (m) => `(${m}->>'pinned' = 'true'
+    OR (${m}->>'kind' IN ('preference', 'profile') AND coalesce(${m}->>'pinned', '') <> 'false'))`;
+
+// `fresh` is for a replacement written just now, whose kind the metadata model
+// guessed again from the new text. Only such a replacement inherits the old
+// memory's place in the digest; a memory kept from a duplicate pair keeps its own.
+export async function linkSupersession(tiers, replacementId, oldIds, { fresh = false } = {}) {
   const replacement = await getThought(tiers, replacementId);
   if (!replacement) throw new Error("Replacement memory not found");
   const ids = await validateSupersession(tiers, oldIds, replacement.tier);
@@ -582,6 +591,23 @@ export async function linkSupersession(tiers, replacementId, oldIds) {
           SELECT 1 FROM thoughts old WHERE old.id = ANY($2::uuid[]) AND old.metadata->>'pinned' = 'true')`,
       [replacementId, ids],
     );
+    if (fresh) {
+      // A rewrite keeps the old memory's place in the digest. The model may
+      // guess a new kind from the new text: a procedure that reads like a
+      // preference would otherwise join every session, a preference that reads
+      // like a fact would leave it, and a reader's opt-out (pinned: false)
+      // would be forgotten. An explicit pin on the replacement still wins.
+      await client.query(
+        `UPDATE thoughts SET metadata = jsonb_set(metadata, '{pinned}',
+                to_jsonb(EXISTS (SELECT 1 FROM thoughts old
+                                  WHERE old.id = ANY($2::uuid[]) AND ${IN_DIGEST_BY_PIN_OR_KIND("old.metadata")})), true)
+          WHERE id = $1 AND NOT metadata ? 'pinned'
+            AND ${IN_DIGEST_BY_PIN_OR_KIND("metadata")} IS DISTINCT FROM EXISTS (
+                SELECT 1 FROM thoughts old
+                 WHERE old.id = ANY($2::uuid[]) AND ${IN_DIGEST_BY_PIN_OR_KIND("old.metadata")})`,
+        [replacementId, ids],
+      );
+    }
   });
   return { replacement_id: replacementId, superseded_ids: ids };
 }
@@ -829,7 +855,7 @@ export async function resolveDuplicate(tiers, {
     });
     const oldIds = [left.id, right.id].filter((id) => id !== merged.id);
     result = oldIds.length
-      ? { ...merged, ...(await linkSupersession(tiers, merged.id, oldIds)) }
+      ? { ...merged, ...(await linkSupersession(tiers, merged.id, oldIds, { fresh: true })) }
       : merged;
   }
   await pool.query(

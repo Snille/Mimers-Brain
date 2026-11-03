@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-03 — 0.21.1: ett omskrivet minne behåller sin plats i startpaketet
+
+Efter en genomgång av alla minnen hade startpaketet vuxit från 9 stående minnen
+till 20. Två saker i `linkSupersession()` låg bakom. Metadatamodellen gissar
+typen på nytt från ersättningens text, så sju procedurer, lärdomar, idéer,
+beslut och fakta kom tillbaka som preferenser och hamnade själva i varje
+session. Och bara `pinned: true` fördes vidare, så två preferenser som Erik
+hade tagit ur startpaketet med `pinned: false` kom tillbaka.
+
+En ersättning som skrivs nu (supersede_thought, redigeringsformuläret utan vald
+typ, och Slå ihop) behåller det gamla minnets plats: om den gissade typen
+skulle flytta den in i eller ut ur startpaketet får ersättningen den pin som
+håller den kvar där den var. En uttrycklig pin på ersättningen gäller ändå, och
+ett minne som behålls ur ett dubblettpar behåller sin egen plats.
+`digest-db.test.mjs` täcker varje fall. De nio minnena rättades för hand: fem
+fick sin gamla typ, fyra `pinned: false`.
+
 ## 2026-11-03 — 0.21.0: ett avgjort par förblir avgjort tills texten ändras
 
 Under en genomgång av alla minnen hade Erik markerat två Ollama-minnen som

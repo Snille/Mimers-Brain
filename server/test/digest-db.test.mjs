@@ -47,3 +47,54 @@ test("what does not fit in the digest is counted and named, not dropped in silen
     await db.pool.end();
   }
 });
+
+test("a rewritten memory keeps its place in the digest, whatever kind the new text is guessed as", {
+  skip: skipWithoutDatabase,
+}, async () => {
+  process.env.DATABASE_URL = await freshDatabase("test_digest_supersede");
+  const db = await import(new URL(`../lib.mjs?digestSupersede=${Date.now()}`, import.meta.url));
+  const insert = async (title, extra = {}) => (await db.pool.query(
+    `INSERT INTO thoughts (content, metadata) VALUES ($1, $2::jsonb) RETURNING id`,
+    [`${title}, in full.`, JSON.stringify({ title, kind: "procedure", review_status: "confirmed", ...extra })])).rows[0].id;
+  const meta = async (id) => (await db.pool.query(`SELECT metadata FROM thoughts WHERE id = $1`, [id])).rows[0].metadata;
+  const inDigest = async (id) => (await db.memoryDigest(db.ALL, { limit: 50 })).items.some((item) => item.id === id);
+
+  try {
+    await db.ensureSchema();
+
+    // A procedure rewritten into text the model files as a preference stays out.
+    const procedure = await insert("Old procedure");
+    const asPreference = await insert("New text", { kind: "preference" });
+    await db.linkSupersession(db.ALL, asPreference, [procedure], { fresh: true });
+    assert.equal((await meta(asPreference)).pinned, false);
+    assert.equal(await inDigest(asPreference), false, "a guessed preference does not join the digest");
+
+    // The reader's opt-out survives a rewrite.
+    const optedOut = await insert("Opted-out preference", { kind: "preference", pinned: false });
+    const rewrite = await insert("Rewritten preference", { kind: "preference" });
+    await db.linkSupersession(db.ALL, rewrite, [optedOut], { fresh: true });
+    assert.equal(await inDigest(rewrite), false, "pinned: false is inherited");
+
+    // A preference that the model now calls a fact keeps its place.
+    const preference = await insert("Standing preference", { kind: "preference" });
+    const asFact = await insert("Same rule as a fact", { kind: "fact" });
+    await db.linkSupersession(db.ALL, asFact, [preference], { fresh: true });
+    assert.equal(await inDigest(asFact), true, "a rule in the digest stays in it");
+
+    // A pinned rule stays pinned, and an explicit pin on the replacement wins.
+    const pinnedRule = await insert("Pinned rule", { pinned: true });
+    const pinnedRewrite = await insert("Pinned rewrite");
+    await db.linkSupersession(db.ALL, pinnedRewrite, [pinnedRule], { fresh: true });
+    assert.equal((await meta(pinnedRewrite)).pinned, true);
+    const chosen = await insert("Chosen for the digest", { kind: "preference", pinned: true });
+    await db.linkSupersession(db.ALL, chosen, [await insert("Plain procedure")], { fresh: true });
+    assert.equal(await inDigest(chosen), true);
+
+    // A memory kept from a duplicate pair is not a rewrite: it keeps its own place.
+    const kept = await insert("Kept preference", { kind: "preference" });
+    await db.linkSupersession(db.ALL, kept, [await insert("Other procedure")]);
+    assert.equal(await inDigest(kept), true);
+  } finally {
+    await db.pool.end();
+  }
+});

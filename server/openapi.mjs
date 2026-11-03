@@ -455,7 +455,7 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
           tier, origin: "agent", userConfirmed: Boolean(user_confirmed) || inherited,
           client: ctx.client, title: String(title || "").slice(0, 100),
         });
-        const linked = await db.linkSupersession(tiers, saved.id, ids);
+        const linked = await db.linkSupersession(tiers, saved.id, ids, { fresh: true });
         publishSoon();
         return {
           id: saved.id,
