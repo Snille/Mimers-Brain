@@ -82,6 +82,16 @@ test("quality audit compares project ownership with a Windows workspace path", (
     metadata: { lifecycle: "current", kind: "reference", project: "desktop-commander" },
   });
   assert.ok(warnings.includes("project-differs-from-workspace-path"));
+
+  // Not for the secret store, a related folder, or a folder name that runs on
+  // into the rest of the sentence.
+  const fine = (project, content) => assert.equal(
+    codes({ content, metadata: { lifecycle: "current", kind: "reference", project } }).includes("project-differs-from-workspace-path"),
+    false, `${project}: ${content}`);
+  fine("arr-suite", "Key: SECRET_REF: C:\\Users\\eripet\\Coding\\_secrets_\\arr-suite\\secrets.env :: KEY");
+  fine("storagesystem", "Deploy notes in C:\\Users\\eripet\\Coding\\Storagesystem-base\\docs\\DEPLOYMENT.md.");
+  fine("comfyui-lora-manager", "Scripts in C:\\Users\\eripet\\Coding\\ComfyUI - Sync\\tools\\hf-match.py.");
+  fine("esphome", "The repo C:\\Users\\eripet\\Coding\\ESPHome is private and edited on Windows.");
 });
 
 test("quality audit ignores historical rows and accepts a focused current procedure", () => {

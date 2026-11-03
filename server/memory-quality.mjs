@@ -5,7 +5,8 @@ const COMPLETED_LANGUAGE = /^\s*(?:klart|färdig(?:t)?|genomfört|implementerat|
 const OPEN_TASK_LANGUAGE = /\b(?:väntande|återstår|nästa steg|kvar att göra|öppen uppgift|pending|remaining|next step|todo)\b/iu;
 const SECRET_FRAGMENT_LANGUAGE = /(?:api[- ]?key|token|nyckel).{0,50}(?:slutar|börjar|ends? with|starts? with|prefix|suffix)\s*(?:är|is|på|:|=)?\s*["'`]?([a-z0-9_-]{3,})/iu;
 const SECRET_VALUE_SHAPE = /\b(?:BSA|ghp|sk)[-_][A-Za-z0-9_-]{8,}\b/u;
-const GENERIC_WORKSPACE_FOLDERS = new Set(["_secrets_", "images", "apps"]);
+// Compared as slugs, so "_secrets_" is "secrets" here.
+const GENERIC_WORKSPACE_FOLDERS = new Set(["secrets", "images", "apps"]);
 // A date after one of these words records when something happened, not what is
 // true: "verified 2026-08-04", "Beslut 2026-10-31", "upptäckt 2026-09-08". A
 // date that must be there, such as a deadline, has no such word in front of it.
@@ -29,9 +30,21 @@ function workspaceOwners(content) {
   const pattern = /C:\\Users\\[^\\\r\n]+\\(?:Coding(?: - DeepSeek)?|Apps)\\([^\\\r\n]+)/giu;
   for (const match of String(content ?? "").matchAll(pattern)) {
     const owner = slug(match[1]);
-    if (owner && !GENERIC_WORKSPACE_FOLDERS.has(owner)) owners.push(owner);
+    // A path that ends a sentence takes the rest of the line with it
+    // ("…\ESPHome är privat och …"), so a generic folder is also known by its start.
+    const generic = [...GENERIC_WORKSPACE_FOLDERS].some((name) => owner === name || owner.startsWith(`${name}-`));
+    if (owner && !generic) owners.push(owner);
   }
   return [...new Set(owners)];
+}
+
+// A folder belongs to a project when one name starts the other or both start
+// with the same word: storagesystem and Storagesystem-base, magicmirror and
+// MagicMirror Modules, comfyui-lora-manager and ComfyUI - Sync. The prefix test
+// also covers a folder name that ran on into the rest of the sentence.
+function relatedFolder(project, owner) {
+  if (owner === project || owner.startsWith(`${project}-`) || project.startsWith(`${owner}-`)) return true;
+  return owner.split("-")[0] === project.split("-")[0];
 }
 
 function sectionCount(content) {
@@ -82,7 +95,7 @@ export function memoryQualityWarnings(row = {}) {
 
   const project = slug(metadata.project);
   const owners = workspaceOwners(content);
-  if (project && owners.length && !owners.includes(project))
+  if (project && owners.length && !owners.some((owner) => relatedFolder(project, owner)))
     add("project-differs-from-workspace-path", "project");
 
   return warnings;

@@ -6,6 +6,20 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-03 — 0.22.1: projektkontrollen slutar larma i onödan
+
+När kvalitetsvarningarna nu visas vid varje skrivning slog
+`project-differs-from-workspace-path` till på 85 aktuella minnen, och nästan
+alla var rätt. Tre saker låg bakom. `_secrets_` jämfördes innan det gjordes om
+till en slug, så varje SECRET_REF-pekare räknades som ett annat projekt. En
+sökväg i slutet av en mening tog med resten av raden i mappnamnet. Och en
+närliggande mapp, som Storagesystem-base för storagesystem eller ComfyUI - Sync
+för comfyui-lora-manager, räknades som ett annat projekt.
+
+Kontrollen jämför nu slugs, känner igen en allmän mapp på hur den börjar, och
+godtar en mapp vars namn börjar som projektets eller tvärtom, eller som har
+samma första ord. En varning som ingen litar på är en varning som ingen läser.
+
 ## 2026-11-03 — 0.22.0: ett minne kontrolleras när det skrivs
 
 En genomgång av alla 420 minnen hittade samma glidning gång på gång: datum för

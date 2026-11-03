@@ -6,6 +6,20 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-03 — 0.22.1: the project check stops crying wolf
+
+With the quality warnings now shown on every write, `project-differs-from-workspace-path`
+fired on 85 current memories, nearly all of them right. Three things caused
+it. `_secrets_` was compared before it was turned into a slug, so every
+SECRET_REF pointer counted as another project. A path at the end of a sentence
+took the rest of the line into the folder name. And a related folder, such as
+Storagesystem-base for storagesystem or ComfyUI - Sync for comfyui-lora-manager,
+counted as a different project.
+
+The check now compares slugs, knows a generic folder by its start, and accepts a
+folder whose name starts the project's or the other way round, or that shares its
+first word. A warning nobody trusts is a warning nobody reads.
+
 ## 2026-11-03 — 0.22.0: a memory is checked when it is written
 
 A review of all 420 memories found the same drift over and over: dates of
