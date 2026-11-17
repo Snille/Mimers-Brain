@@ -366,3 +366,8 @@ test("two spellings of one system in a memory become one entry", () => {
   const { systems } = resolvePeople([], ["Docker", "docker", "ESPhome"], "");
   assert.deepEqual(systems, ["Docker", "ESPHome"]);
 });
+test("metadata paths preserve significant underscores in directory names", () => {
+  const content = String.raw`Use the reference file C:\Users\tester\Coding\_secrets_\<project>\<file> for access; no values belong in memory.`;
+  assert.equal(describesContent(String.raw`Read C:\Users\tester\Coding\_secrets_\<project>\<file>.`, content), true);
+  assert.equal(describesContent(String.raw`Read C:\Users\tester\Coding\_secrets\<project>\<file>.`, content), false);
+});

@@ -6,6 +6,26 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-17 — 0.23.0: a more precise memory audit
+
+The audit now distinguishes numbered procedures, cross-project references and
+credential terminology from actual quality problems. Encryption cutoff dates
+remain part of the restore contract. A read-only comparison across 1,403 stored
+records (513 current) removes all 25 previous false alarms and finds one dated
+model-test report that the old checks missed.
+
+Completion reports are detected even when filed as facts. New checks flag
+malformed SECRET_REF pointers and raw credentials in content or metadata,
+including historical records. The audit examines stored metadata before
+normalisation so proposed corrections cannot hide a problem. Significant
+underscores and directory boundaries are preserved when checking summary paths.
+Warnings ask for review rather than unconditional rewriting.
+
+Regression tests cover both false alarms and real violations. A database test
+checks the actual audit command for correct findings, read-only operation and
+reports containing ids and codes without memory text or credential values.
+All 133 tests pass with a disposable pgvector database.
+
 ## 2026-11-03 — 0.22.1: the project check stops crying wolf
 
 With the quality warnings now shown on every write, `project-differs-from-workspace-path`

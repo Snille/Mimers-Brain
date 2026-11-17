@@ -86,8 +86,11 @@ const proposed = rows.map((row) => {
 });
 
 const changed = proposed.filter((item) => item.fields.length);
-const qualityWarnings = proposed.flatMap(({ row, next }) =>
-  memoryQualityWarnings({ ...row, metadata: next })
+// Inspect the stored snapshot. Normalising first can discard a contaminated
+// summary and hide a raw credential or an incorrect path from the audit.
+// Proposed changes and warnings both describe the input, even in apply mode.
+const qualityWarnings = proposed.flatMap(({ row }) =>
+  memoryQualityWarnings(row)
     .map((warning) => ({ id: row.id, ...warning })));
 const report = {
   mode: apply ? "apply" : "dry-run",

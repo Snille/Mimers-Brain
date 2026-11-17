@@ -192,9 +192,20 @@ contradictions.
   as related, or supersedes one with the other. A merge is `supersede_thought`
   with both ids, so the merged text gets an agent's trust, not yours.
 - **Audit.** `npm run audit` in `server/` is a read-only quality pass: metadata
-  that would be normalised, oversized or multi-purpose memories, completed work
-  filed as tasks, possible secret fragments, titles that are only the cut-off
-  opening of the text. The report holds ids, fields and warning codes only.
+  that would be normalised, oversized memories, completion reports (including
+  those filed as facts), dated change/test reports, malformed `SECRET_REF`
+  pointers, possible secret fragments, and titles that are only the cut-off
+  opening of the text. Raw credentials are checked in metadata and historical
+  records too. The report holds ids, fields and warning codes only.
+  Warnings inspect the stored snapshot before normalisation, so a proposed
+  metadata correction cannot hide a credential or a wrong path from the report.
+  Numbered steps are not evidence of multiple purposes; substantive Markdown
+  headings are. Project/path comparisons require an explicit source location,
+  so references to another project's instructions do not imply wrong ownership.
+  Encryption cutoff dates that determine which backups need a key are retained.
+  These deterministic checks use no model and do not rewrite data. Review a
+  warning before correcting it: the audit cannot establish whether a task is
+  actually finished or reconcile live configuration with an external project plan.
 
 Nothing in maintenance changes a memory on its own.
 

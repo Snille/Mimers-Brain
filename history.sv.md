@@ -6,6 +6,26 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-17 — 0.23.0: en mer träffsäker minnesgranskning
+
+Granskningen skiljer nu numrerade rutiner, referenser till andra projekt och
+ord om hemligheter från verkliga kvalitetsproblem. Krypteringens datumgräns
+behålls som en del av återställningsvillkoren. En skrivskyddad jämförelse på
+1 403 lagrade poster (513 aktuella) tar bort alla 25 tidigare falsklarm och
+hittar ett daterat modelltest som den gamla kontrollen missade.
+
+Avslutsrapporter upptäcks även när de sparats som fakta. Nya kontroller fångar
+felaktiga SECRET_REF-format och råa hemligheter i text och metadata, även i
+historiska poster. Lagrad metadata granskas före normalisering så att en
+föreslagen rättelse inte döljer felet. Understreck och kataloggränser bevaras
+när sökvägar i sammanfattningar kontrolleras. Varningarna kräver bedömning i
+stället för att automatiskt uppmana till omskrivning.
+
+Regressionstester täcker både falsklarm och riktiga avvikelser. Ett databastest
+kör det riktiga granskningskommandot och kontrollerar träffarna, att inga data
+ändras och att rapporten bara visar id:n och koder utan minnestext eller
+hemliga värden. Alla 133 tester passerar med en tillfällig pgvector-databas.
+
 ## 2026-11-03 — 0.22.1: projektkontrollen slutar larma i onödan
 
 När kvalitetsvarningarna nu visas vid varje skrivning slog

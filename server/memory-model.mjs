@@ -420,8 +420,14 @@ function technicalAnchors(value) {
   // The path characters include . : and -, so that trailing punctuation used to
   // become part of the path, the path was then missing from the content, and a
   // correct summary was silently replaced by the first 500 characters.
-  const paths = (text.match(/[\p{L}\p{N}.:-]+(?:[/\\][\p{L}\p{N}._:-]+){2,}/gu) || [])
-    .map((path) => path.replace(/[.:-]+$/u, ""));
+  const paths = [...text.matchAll(/[\p{L}\p{N}._:-]+(?:[/\\][\p{L}\p{N}._:-]+){2,}/gu)]
+    .map((match) => {
+      const path = match[0].replace(/[.:-]+$/u, "");
+      // Templates such as root/<project>/<file> stop this match at root.
+      // Keep the directory separator: otherwise "_secrets" would appear to
+      // match "_secrets_" just because the former is a substring of the latter.
+      return path + (/[\/\\]/u.test(text[match.index + match[0].length] || "") ? "/" : "");
+    });
   return [...new Set([...identifiers, ...paths]
     .map((part) => part.toLowerCase().replaceAll("\\", "/")))];
 }
