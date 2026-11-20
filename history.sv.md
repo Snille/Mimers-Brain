@@ -6,6 +6,28 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-20 — 0.24.0: varje instans skriver sin egen minnespolicy
+
+Användarpolicyn var fast text i koden, och den nämnde en ägare: varje
+installation sa åt sina agenter att söka innan de svarade "om Erik". Nu har
+policyn en allmän standardtext som talar om "användaren", och varje instans
+redigerar sin egen under Inställningar → Minnespolicy på den fullständiga
+lyssnaren. Båda texterna går att ändra: hela policyn från memory_digest,
+OpenAPI-specen och sidan Anslut, och den korta som varje MCP-klient får när den
+ansluter. En tom text, eller en som är lika med standardtexten, tar tillbaka
+standarden, så att en bättre standardtext i en senare version ändå når de
+instanser som aldrig ändrat sin.
+
+Den korta policyn får vara högst 1600 tecken. Claude Code klipper
+serverinstruktioner vid 2048, och raden om anslutningens räckvidd kommer efter
+policyn; en tidigare, längre policy tappade sina sista regler där.
+Platshållaren `{smart_ingest_threshold}` håller gränsen för preview_ingest rätt
+i en redigerad text. Verktygsbeskrivningarna nämner inte heller någon ägare.
+
+Testerna kontrollerar att inget som levereras nämner en person, att för lång
+text vägras, och att en sparad policy finns kvar efter omstart och når nya
+MCP-anslutningar. Alla 137 tester går igenom mot en tillfällig pgvector-databas.
+
 ## 2026-11-17 — 0.23.0: en mer träffsäker minnesgranskning
 
 Granskningen skiljer nu numrerade rutiner, referenser till andra projekt och

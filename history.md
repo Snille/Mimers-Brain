@@ -6,6 +6,27 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-20 — 0.24.0: each instance writes its own memory policy
+
+The usage policy was fixed text in the code, and it named one owner: every
+installation told its agents to search before answering "about Erik". The
+policy now has general defaults that speak of "the user", and each instance
+edits its own under Settings → Memory policy on the full listener. Both texts
+are editable: the full policy from memory_digest, the OpenAPI spec and the
+Connect page, and the short one every MCP client receives on connecting. An
+empty text, or one equal to the default, brings the default back, so a better
+default in a later version still reaches instances that never changed theirs.
+
+The short policy is capped at 1600 characters. Claude Code cuts server
+instructions at 2048, and the connection scope line comes after the policy; an
+earlier, longer policy lost its last rules there. The placeholder
+`{smart_ingest_threshold}` keeps the preview_ingest limit right in an edited
+text. Tool descriptions no longer name an owner either.
+
+Tests check that nothing shipped names a person, that oversized text is refused,
+and that a stored policy survives a restart and reaches new MCP connections.
+All 137 tests pass with a disposable pgvector database.
+
 ## 2026-11-17 — 0.23.0: a more precise memory audit
 
 The audit now distinguishes numbered procedures, cross-project references and
