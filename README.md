@@ -83,7 +83,8 @@ web UI is plain HTML and ES modules with no build step.
 | `server/index.mjs` | HTTP listeners on three ports, authentication, web API, nightly maintenance |
 | `server/mcp.mjs`, `server/openapi.mjs` | The MCP tools and the same tools as REST |
 | `server/lib.mjs` | Database access, search and ranking, relations, contradictions, duplicates |
-| `server/memory-model.mjs` | Metadata rules, the usage policy and tool guidance |
+| `server/memory-model.mjs` | Metadata rules and tool guidance |
+| `server/memory-policy.mjs` | The usage policy: general defaults, and each instance's own text from Settings |
 | `server/ai.mjs`, `server/model-settings.mjs` | Providers, models, embeddings and re-embedding |
 | `server/secret-gate.mjs` | The check that refuses secrets |
 | `server/public/` | The web UI |

@@ -15,6 +15,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
+import { memoryPolicy, sessionPolicy } from "./memory-policy.mjs";
 import { recallReference } from "./recall.mjs";
 import {
   CAPTURE_GUIDANCE,
@@ -23,8 +24,6 @@ import {
   DUPLICATE_ACTIONS,
   DUPLICATE_GUIDANCE,
   duplicatePair,
-  MEMORY_POLICY,
-  SESSION_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
   ageNote,
@@ -72,7 +71,7 @@ export function buildServer(tiers, ctx = {}) {
     name: !writable ? "mimers-brain-read" : full ? "mimers-brain" : "mimers-brain-open",
     version: ctx.version || "development",
   }, {
-    instructions: `${SESSION_POLICY}\n\nConnection scope: ${scope}`,
+    instructions: `${sessionPolicy()}\n\nConnection scope: ${scope}`,
   });
 
   // Every tool is wrapped so the usage log gets a row without each handler
@@ -114,7 +113,7 @@ export function buildServer(tiers, ctx = {}) {
 
   server.registerTool("search_thoughts", {
     title: "Search the memory",
-    description: `Search the memory by meaning. Use this before answering about Erik, his systems, access, configuration, workflows, preferences, prior decisions, or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately, even when all results were ignored. ${scope}`,
+    description: `Search the memory by meaning. Use this before answering about the user, their systems, access, configuration, workflows, preferences, prior decisions, or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately, even when all results were ignored. ${scope}`,
     inputSchema: {
       query: z.string().describe("What you are looking for"),
       // 5, not 10: a search returns whole memories, so every extra hit costs a
@@ -312,16 +311,16 @@ export function buildServer(tiers, ctx = {}) {
   // on the open ones. No recall trace: nothing was searched for.
   server.registerTool("memory_digest", {
     title: "Session digest",
-    description: `Call once at the start of a session. Returns the standing rules and preferences Erik has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
+    description: `Call once at the start of a session. Returns the standing rules and preferences the user has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
     inputSchema: {},
   }, track("memory_digest", "read", async (_args, note) => {
     try {
       const digest = await db.memoryDigest(tiers);
       note.count = digest.count;
-      const policy = `${MEMORY_POLICY}\n\nConnection scope: ${scope}\n\n---\n\n`;
+      const policy = `${memoryPolicy()}\n\nConnection scope: ${scope}\n\n---\n\n`;
       if (!digest.count) return text(`${policy}No standing memories yet: nothing is pinned and no preference or profile memory is confirmed.`);
       return text(
-        `${policy}Standing memories - ${digest.count} confirmed by Erik. Treat them as known for this session.\n\n` +
+        `${policy}Standing memories - ${digest.count} confirmed by the user. Treat them as known for this session.\n\n` +
         digest.items.map((item, index) =>
           `${index + 1}. ${item.title ? `${item.title}\n` : ""}${item.text}\n  [${[
             item.kind ? `Kind: ${item.kind}` : "", item.pinned ? "Pinned" : "",
@@ -358,7 +357,7 @@ export function buildServer(tiers, ctx = {}) {
   // ChatGPT / deep-research compatibility pair, same contract as OB1.
   server.registerTool("search", {
     title: "Search",
-    description: `Read-only discovery over the memory, for clients expecting search/fetch. Use it before answering about Erik, his systems, prior decisions, preferences or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately. ${scope}`,
+    description: `Read-only discovery over the memory, for clients expecting search/fetch. Use it before answering about the user, their systems, prior decisions, preferences or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately. ${scope}`,
     inputSchema: { query: z.string() },
   }, track("search", "read", async ({ query }, note) => {
     try {

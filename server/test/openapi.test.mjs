@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { spec, toolsFor } from "../openapi.mjs";
-import { MEMORY_POLICY, SMART_INGEST_THRESHOLD, normaliseMeta } from "../memory-model.mjs";
+import { SMART_INGEST_THRESHOLD, normaliseMeta } from "../memory-model.mjs";
+import { memoryPolicy } from "../memory-policy.mjs";
 import { recallReference } from "../recall.mjs";
 
 test("open and full OpenAPI surfaces keep the tier boundary", () => {
@@ -45,7 +46,7 @@ test("the OpenAPI document exposes v2 filters", () => {
   for (const name of ["kind", "lifecycle", "task_status", "project"]) {
     assert.ok(properties[name], `${name} is missing`);
   }
-  assert.equal(document["x-memory-policy"], MEMORY_POLICY);
+  assert.equal(document["x-memory-policy"], memoryPolicy());
 });
 
 test("recall searches expose trace_id with a backwards-compatible request_id alias", () => {

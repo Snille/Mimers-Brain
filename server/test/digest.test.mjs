@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { MEMORY_POLICY, SESSION_POLICY } from "../memory-model.mjs";
+import { memoryPolicy, sessionPolicy } from "../memory-policy.mjs";
 import { buildServer } from "../mcp.mjs";
 import { toolsFor } from "../openapi.mjs";
 
 const source = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("every model is told to read the digest, on every listener", () => {
-  assert.match(MEMORY_POLICY, /call memory_digest once/);
+  assert.match(memoryPolicy(), /call memory_digest once/);
   for (const [tiers, writable] of [[["open", "vault"], true], [["open"], true], [["open"], false]]) {
     const names = Object.keys(buildServer(tiers, { writable })._registeredTools || {});
     assert.ok(names.includes("memory_digest"), `${tiers} writable=${writable}`);
@@ -24,12 +24,12 @@ test("every client sees the whole short policy, and the digest carries the full 
     assert.match(instructions, /^Mimers Brain usage policy/);
     assert.match(instructions, /call memory_digest once/);
   }
-  assert.match(SESSION_POLICY, /report_memory_usage/);
-  assert.match(SESSION_POLICY, /never raw secrets/);
+  assert.match(sessionPolicy(), /report_memory_usage/);
+  assert.match(sessionPolicy(), /never raw secrets/);
   const mcp = await source("../mcp.mjs");
-  assert.match(mcp, /const policy = `\$\{MEMORY_POLICY\}/);
+  assert.match(mcp, /const policy = `\$\{memoryPolicy\(\)\}/);
   const digest = toolsFor(["open"]).find((tool) => tool.name === "memory_digest");
-  assert.match(digest.run.toString(), /policy: MEMORY_POLICY/);
+  assert.match(digest.run.toString(), /policy: memoryPolicy\(\)/);
 });
 
 test("only the reader can put a memory in the digest", async () => {

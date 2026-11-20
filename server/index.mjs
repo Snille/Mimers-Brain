@@ -25,7 +25,8 @@ import { timingSafeEqual, createHash } from "node:crypto";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildServer } from "./mcp.mjs";
-import { MEMORY_POLICY, SMART_INGEST_THRESHOLD } from "./memory-model.mjs";
+import { SMART_INGEST_THRESHOLD } from "./memory-model.mjs";
+import * as policy from "./memory-policy.mjs";
 import { spec, callTool } from "./openapi.mjs";
 import * as db from "./lib.mjs";
 import * as ai from "./ai.mjs";
@@ -298,7 +299,7 @@ function connectInfo(req, { tiers, allowUrlKey }) {
     // named exactly. Its public address cannot be: that is a hostname in the
     // proxy, which this server has no way to know about.
     readUrl: lanUrl ? `${lanUrl.replace(/:\d+$/, "")}:${PORT_READ}` : null,
-    memoryPolicy: MEMORY_POLICY,
+    memoryPolicy: policy.memoryPolicy(),
     smartIngestThreshold: SMART_INGEST_THRESHOLD,
     tools: [
       { name: "search_thoughts", what: "Search by meaning. The important one." },
@@ -603,6 +604,20 @@ function makeListener(tiers, {
           return json(res, 200, out);
         }
 
+        // The memory policy every client is told to follow. Each instance
+        // writes its own; see memory-policy.mjs. Read and changed on the full
+        // listener only, like the rest of Settings.
+        if (path === "/api/memory-policy") {
+          if (!tiers.includes("vault"))
+            return json(res, 403, { error: "Settings are changed on the full listener" });
+          if (req.method === "GET") return json(res, 200, policy.policySettings());
+          if (req.method === "POST") {
+            const out = await policy.saveMemoryPolicy(await body(req));
+            note("ui.memory_policy", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+        }
+
         // --- models ---------------------------------------------------------
         //
         // Which provider and model each job uses. A vault-listener decision,
@@ -885,6 +900,7 @@ await db.ensureSchema();
 await models.loadModelSettings();
 await models.resumeReembed();
 await recall.loadRecallSettings();
+await policy.loadMemoryPolicy();
 await contradictionEval.loadContradictionSettings();
 await loadLearnedLan();
 

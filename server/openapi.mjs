@@ -18,6 +18,7 @@
 
 import * as db from "./lib.mjs";
 import { publishSoon } from "./mqtt.mjs";
+import { memoryPolicy } from "./memory-policy.mjs";
 import { recallReference } from "./recall.mjs";
 import {
   CAPTURE_GUIDANCE,
@@ -26,7 +27,6 @@ import {
   DUPLICATE_ACTIONS,
   DUPLICATE_GUIDANCE,
   duplicatePair,
-  MEMORY_POLICY,
   MEMORY_KINDS,
   MEMORY_LIFECYCLES,
   ageNote,
@@ -101,7 +101,7 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       action: "read",
       summary: "Search the memory",
       description:
-        `Search the memory by meaning. Use this before answering about Erik, his systems, ` +
+        `Search the memory by meaning. Use this before answering about the user, their systems, ` +
         `access, configuration, workflows, preferences, prior decisions, or pending work. ` +
         `Every non-empty search must be reported exactly once with report_memory_usage before ` +
         `the final answer; report multiple searches separately, even when all results were ignored. ` +
@@ -272,10 +272,10 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       name: "memory_digest",
       action: "read",
       summary: "Session digest",
-      description: `Call once at the start of a session. Returns the standing rules and preferences Erik has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
+      description: `Call once at the start of a session. Returns the standing rules and preferences the user has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
       schema: { type: "object", properties: {} },
       async run() {
-        return { policy: MEMORY_POLICY, scope, ...(await db.memoryDigest(tiers)) };
+        return { policy: memoryPolicy(), scope, ...(await db.memoryDigest(tiers)) };
       },
     },
     {
@@ -548,9 +548,9 @@ export function spec(tiers, { baseUrl, version, listener, writable = true }) {
         ? "Memory, open tier, read only. Nothing here can save, replace or delete a memory."
         : listener === "full"
         ? "Memory, open and vault tiers. Local network only."
-        : "Memory, open tier. The vault is not reachable through this server."}\n\n${MEMORY_POLICY}`,
+        : "Memory, open tier. The vault is not reachable through this server."}\n\n${memoryPolicy()}`,
     },
-    "x-memory-policy": MEMORY_POLICY,
+    "x-memory-policy": memoryPolicy(),
     servers: [{ url: baseUrl }],
     components: {
       securitySchemes: {

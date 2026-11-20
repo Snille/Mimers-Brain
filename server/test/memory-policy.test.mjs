@@ -2,11 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { CAPTURE_GUIDANCE, MEMORY_POLICY } from "../memory-model.mjs";
+import { CAPTURE_GUIDANCE, SMART_INGEST_THRESHOLD } from "../memory-model.mjs";
+import {
+  DEFAULT_MEMORY_POLICY, DEFAULT_SESSION_POLICY, THRESHOLD_PLACEHOLDER, memoryPolicy, saveMemoryPolicy, sessionPolicy,
+} from "../memory-policy.mjs";
 import { buildServer } from "../mcp.mjs";
 import { spec, toolsFor } from "../openapi.mjs";
 
-test("the central policy covers retrieval, durable capture, supersession and secrets", () => {
+test("the default policy covers retrieval, durable capture, supersession and secrets", () => {
+  const MEMORY_POLICY = DEFAULT_MEMORY_POLICY;
   assert.match(MEMORY_POLICY, /search Mimers Brain first/i);
   assert.match(MEMORY_POLICY, /fetch\/fetch_thought/i);
   assert.match(MEMORY_POLICY, /durable decision/i);
@@ -24,6 +28,9 @@ test("the central policy covers retrieval, durable capture, supersession and sec
   assert.match(MEMORY_POLICY, /exact memory text/i);
   assert.match(MEMORY_POLICY, /wrap-up/i);
   assert.match(MEMORY_POLICY, /same limit applies to replacements/i);
+  assert.match(memoryPolicy(), new RegExp(`longer than ${SMART_INGEST_THRESHOLD} characters`));
+  assert.ok(DEFAULT_MEMORY_POLICY.includes(THRESHOLD_PLACEHOLDER));
+  assert.doesNotMatch(memoryPolicy(), /\{smart_ingest_threshold\}/);
   assert.match(CAPTURE_GUIDANCE, /README or history\/changelog/i);
 });
 
@@ -43,11 +50,11 @@ test("OpenAPI publishes the same policy globally and targeted guidance locally",
     version: "test",
     listener: "open",
   });
-  assert.equal(document["x-memory-policy"], MEMORY_POLICY);
+  assert.equal(document["x-memory-policy"], memoryPolicy());
   assert.match(document.info.description, /search Mimers Brain first/i);
 
   const tools = toolsFor(["open", "vault"]);
-  assert.match(tools.find((tool) => tool.name === "search_thoughts").description, /before answering about Erik/i);
+  assert.match(tools.find((tool) => tool.name === "search_thoughts").description, /before answering about the user/i);
   assert.match(tools.find((tool) => tool.name === "capture_thought").description, /ordinary conversation/i);
   assert.match(tools.find((tool) => tool.name === "capture_thought").description, /propose creating it/i);
   assert.match(tools.find((tool) => tool.name === "fetch_thought").description, /compact result is not enough/i);
@@ -60,4 +67,32 @@ test("the connection UI copies the central policy and uses native OpenAPI for Op
   assert.match(source, /cfg\.memoryPolicy/);
   assert.match(source, /openapi\.json/);
   assert.doesNotMatch(source, /mcpo/i);
+});
+
+// The defaults ship to everyone who installs, so they speak of "the user".
+test("the shipped policy and tool texts name nobody", () => {
+  for (const text of [DEFAULT_MEMORY_POLICY, DEFAULT_SESSION_POLICY, sessionPolicy(), memoryPolicy()])
+    assert.doesNotMatch(text, /Erik/);
+  for (const tiers of [["open"], ["open", "vault"]]) {
+    for (const tool of toolsFor(tiers)) assert.doesNotMatch(tool.description, /Erik/, tool.name);
+    const server = buildServer(tiers);
+    assert.doesNotMatch(server.server._instructions, /Erik/);
+    for (const [name, tool] of Object.entries(server._registeredTools)) assert.doesNotMatch(tool.description || "", /Erik/, name);
+  }
+});
+
+test("a policy that is too long or not text is refused before anything is stored", async () => {
+  await assert.rejects(saveMemoryPolicy({ short: "x".repeat(1601) }), { status: 400 });
+  await assert.rejects(saveMemoryPolicy({ full: 42 }), { status: 400 });
+});
+
+test("the Settings page has a Memory policy card in both languages", async () => {
+  const settings = await readFile(new URL("../public/settings.mjs", import.meta.url), "utf8");
+  assert.match(settings, /renderMemoryPolicy/);
+  for (const language of ["en", "sv"]) {
+    const messages = JSON.parse(await readFile(new URL(`../public/lang/${language}.json`, import.meta.url), "utf8"));
+    for (const key of ["title", "description", "placeholder", "fullTitle", "shortTitle", "save", "reset", "resetConfirm"])
+      assert.ok(messages.memoryPolicy[key], `${language}: memoryPolicy.${key}`);
+    assert.match(messages.memoryPolicy.placeholder, /\{placeholder\}/);
+  }
 });

@@ -415,10 +415,10 @@
     "loading": "Loading …",
     "fetchError": "Could not load the connection details.",
     "policy": {
-      "title": "One policy for every model",
-      "description": "MCP clients get a short version as server instructions when they connect, and the full policy from memory_digest at the start of each session. Paste the full text into the client's global or system instructions if it does not support MCP server instructions.",
+      "title": "The memory policy",
+      "description": "MCP clients get the short policy as server instructions when they connect, and the full policy from memory_digest at the start of each session. Paste the full text into the client's global or system instructions if it does not support MCP server instructions.",
       "copyTitle": "Memory policy",
-      "note": "Keep this text unchanged so every client follows the same retrieval, capture, supersession and secret-handling rules."
+      "note": "This is the policy of this instance. Change it under Settings → Memory policy."
     },
     "addresses": {
       "title": "The three addresses",
@@ -722,5 +722,22 @@
     "custom": "Other:",
     "reset": "Back to the defaults",
     "saved": "Saved."
+  },
+  "memoryPolicy": {
+    "title": "Memory policy",
+    "description": "The rules this brain gives every client: when to search, what to save and how. The defaults are general. Write your own to name yourself, add rules or remove rules you do not want. Clients that are already connected get the new text in their next session.",
+    "placeholder": "{placeholder} is replaced with the length at which long text must go through preview_ingest.",
+    "fullTitle": "Full policy",
+    "fullDescription": "Comes with memory_digest at the start of a session, in the OpenAPI spec, and on the Connect page.",
+    "shortTitle": "Short policy",
+    "shortDescription": "Sent to every MCP client when it connects. Keep it short: some clients cut server instructions at 2048 characters. Tell the client to call memory_digest, or it never sees the full policy.",
+    "default": "default",
+    "custom": "your own",
+    "save": "Save",
+    "reset": "Back to the defaults",
+    "resetConfirm": "Replace both texts with the general defaults?",
+    "saved": "Saved.",
+    "restored": "The defaults are back.",
+    "fetchError": "Could not load the memory policy."
   }
 }

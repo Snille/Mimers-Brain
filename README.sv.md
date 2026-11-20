@@ -84,7 +84,8 @@ pgvector i imagen `pgvector/pgvector:pg17`, och Docker Compose. Webbgränssnitte
 | `server/index.mjs` | HTTP-lyssnare på tre portar, autentisering, webb-API, nattligt underhåll |
 | `server/mcp.mjs`, `server/openapi.mjs` | MCP-verktygen och samma verktyg som REST |
 | `server/lib.mjs` | Databasåtkomst, sökning och rangordning, relationer, motsägelser, dubbletter |
-| `server/memory-model.mjs` | Regler för metadata, användarpolicyn och vägledning för verktygen |
+| `server/memory-model.mjs` | Regler för metadata och vägledning för verktygen |
+| `server/memory-policy.mjs` | Användarpolicyn: allmän standardtext och varje instans egen text från Inställningar |
 | `server/ai.mjs`, `server/model-settings.mjs` | Leverantörer, modeller, inbäddningar och omindexering |
 | `server/secret-gate.mjs` | Kontrollen som vägrar hemligheter |
 | `server/public/` | Webbgränssnittet |

@@ -415,10 +415,10 @@
     "loading": "Hämtar …",
     "fetchError": "Kunde inte hämta anslutningsuppgifterna.",
     "policy": {
-      "title": "En policy för alla modeller",
-      "description": "MCP-klienter får en kort version som serverinstruktioner när de ansluter, och hela policyn från memory_digest när sessionen startar. Klistra in hela texten i klientens globala instruktioner eller systeminstruktioner om den inte stöder MCP-serverinstruktioner.",
+      "title": "Minnespolicyn",
+      "description": "MCP-klienter får den korta policyn som serverinstruktioner när de ansluter, och hela policyn från memory_digest när sessionen startar. Klistra in hela texten i klientens globala instruktioner eller systeminstruktioner om den inte stöder MCP-serverinstruktioner.",
       "copyTitle": "Minnespolicy",
-      "note": "Behåll texten oförändrad så att alla klienter följer samma regler för sökning, lagring, ersättning och hemligheter."
+      "note": "Det här är policyn för den här instansen. Ändra den under Inställningar → Minnespolicy."
     },
     "addresses": {
       "title": "De tre adresserna",
@@ -722,5 +722,22 @@
     "custom": "Annan:",
     "reset": "Tillbaka till standard",
     "saved": "Sparat."
+  },
+  "memoryPolicy": {
+    "title": "Minnespolicy",
+    "description": "Reglerna som den här hjärnan ger varje klient: när den ska söka, vad den ska spara och hur. Standardtexten är allmän. Skriv en egen för att nämna dig själv vid namn, lägga till regler eller ta bort regler du inte vill ha. Klienter som redan är anslutna får den nya texten i nästa session.",
+    "placeholder": "{placeholder} byts mot längden där lång text måste gå via preview_ingest.",
+    "fullTitle": "Hela policyn",
+    "fullDescription": "Kommer med memory_digest när sessionen startar, i OpenAPI-specen och på sidan Anslut.",
+    "shortTitle": "Kort policy",
+    "shortDescription": "Skickas till varje MCP-klient när den ansluter. Håll den kort: vissa klienter klipper serverinstruktioner vid 2048 tecken. Säg åt klienten att anropa memory_digest, annars ser den aldrig hela policyn.",
+    "default": "standard",
+    "custom": "egen",
+    "save": "Spara",
+    "reset": "Tillbaka till standard",
+    "resetConfirm": "Byta båda texterna mot den allmänna standardtexten?",
+    "saved": "Sparat.",
+    "restored": "Standardtexten är tillbaka.",
+    "fetchError": "Kunde inte hämta minnespolicyn."
   }
 }

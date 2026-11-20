@@ -162,6 +162,12 @@ Varje klient får en kort användningspolicy när den ansluter, och hela policyn
 `memory_digest`. Sidan Anslut visar policyn för klienter som ignorerar
 serverinstruktioner; klistra in den i deras system- eller globala instruktioner.
 
+Policyn tillhör din instans. Redigera båda texterna under **Inställningar →
+Minnespolicy** på LAN-adressen: nämn dig själv vid namn, lägg till regler eller
+ta bort de du inte vill ha. Standardtexten är allmän och talar om "användaren".
+En tom text tar tillbaka standardtexten. Anslutna klienter får den nya texten i
+nästa session.
+
 Det viktigaste:
 
 - **Börja** sessionen med `memory_digest`.

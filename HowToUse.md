@@ -161,6 +161,11 @@ Each client receives a short usage policy when it connects, and the full policy
 from `memory_digest`. The Connect page shows the policy for clients that ignore
 server instructions; paste it into their system or global instructions.
 
+The policy belongs to your instance. Edit both texts under **Settings → Memory
+policy** on the LAN address: name yourself, add rules or remove the ones you do
+not want. The default is general and speaks of "the user". An empty text brings
+the default back. Connected clients get the new text in their next session.
+
 The essentials:
 
 - **Start** a session with `memory_digest`.
