@@ -6,6 +6,24 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-22 — 0.25.0: one length limit, and labelled edit boxes
+
+Since 0.9.18 the documentation said the 1200-character limit applied everywhere,
+but only the MCP and OpenAPI tools enforced it. The web UI's own endpoints had no
+check on the server: a new thought was stopped only by the browser, and a
+replacement, an edit of an existing memory and a merged duplicate were not
+stopped at all. One function, `refuseLong`, now guards all of them, so a long
+text gets the same 400 wherever it is written. Long text still goes through
+`preview_ingest`. An existing memory over the limit keeps its text; only a
+changed text is checked, so its title and tags can still be edited.
+
+In the editor, the title, summary and content boxes now have headings. The
+placeholder that named them disappeared as soon as a box held text. An edit
+that is too long is refused in the browser, with the length and the limit,
+before anything is sent.
+
+All 138 tests pass with a disposable pgvector database.
+
 ## 2026-11-20 — 0.24.0: each instance writes its own memory policy
 
 The usage policy was fixed text in the code, and it named one owner: every

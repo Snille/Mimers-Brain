@@ -211,7 +211,8 @@ Håll muspekaren över ett minne under **Tankar** och välj **Redigera** för at
 startpaketet (`memory_digest`). När du sparar bäddas minnet in igen, eftersom titel och
 sammanfattning ingår i det sökningen jämför. **Kopiera referens** kopierar id och
 titel på en rad, att klistra in i en chatt med en ansluten modell följt av vad som
-ska ändras.
+ska ändras. Texten måste vara kortare än 1 200 tecken, som överallt annars;
+längre text sparar du som ny tanke, så delas den upp i flera minnen.
 
 ## Ansluta igen efter en ominstallation
 

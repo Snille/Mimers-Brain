@@ -207,7 +207,8 @@ summary, kind, lifecycle, task status, project, topics, people, systems, tier or
 verification date, or to pin it into the session digest. Saving re-embeds the memory, since the title and
 summary are part of what search compares. **Copy reference** copies the id and
 title as one line to paste into a chat with a connected model, followed by what
-should change.
+should change. The text must be shorter than 1,200 characters, as everywhere
+else; save longer text as a new thought, and it is split into several memories.
 
 ## Reconnecting after a reinstall
 

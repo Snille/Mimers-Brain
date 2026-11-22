@@ -6,6 +6,24 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-22 — 0.25.0: en längdgräns, och rubriker i redigeraren
+
+Sedan 0.9.18 har dokumentationen sagt att gränsen på 1200 tecken gäller
+överallt, men bara MCP- och OpenAPI-verktygen höll den. Webbgränssnittets egna
+endpoints saknade kontroll på servern: en ny tanke stoppades bara av
+webbläsaren, och en ersättning, en redigering av ett befintligt minne och en
+sammanslagen dubblett stoppades inte alls. En funktion, `refuseLong`, vaktar nu
+alla, så en lång text får samma 400 var den än skrivs. Lång text går fortfarande
+genom `preview_ingest`. Ett befintligt minne över gränsen behåller sin text;
+bara en ändrad text kontrolleras, så titel och taggar går fortfarande att
+redigera.
+
+I redigeraren har rutorna för titel, sammanfattning och innehåll nu rubriker.
+Platshållaren som namngav dem försvann så fort rutan innehöll text. En för lång
+redigering vägras i webbläsaren, med längd och gräns, innan något skickas.
+
+Alla 138 tester går igenom mot en tillfällig pgvector-databas.
+
 ## 2026-11-20 — 0.24.0: varje instans skriver sin egen minnespolicy
 
 Användarpolicyn var fast text i koden, och den nämnde en ägare: varje

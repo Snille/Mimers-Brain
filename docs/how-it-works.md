@@ -79,7 +79,8 @@ and `people` remain for older clients.
   `server/memory-model.mjs`. `topics` has a closed vocabulary; `project` is free
   text and names the repository or service that owns the knowledge, never the
   client that wrote it.
-- **Long text.** Direct writes of 1,200 characters or more are refused; long
+- **Long text.** Direct writes of 1,200 characters or more are refused on every
+  path (capture, supersede, an edit in the web UI and a duplicate merge); long
   source text goes through `preview_ingest`, which proposes atomic memories, and
   `apply_ingest`, which saves the approved ones.
 - **Trust.** Memories written by an agent start as pending evidence and are not
