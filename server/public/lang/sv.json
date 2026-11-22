@@ -91,6 +91,8 @@
     "pinnedWaitingHint": "Fäst, men bara bekräftade minnen kommer med i startpaketet. Bekräfta det på sidan Granska.",
     "changes": "Ändringar",
     "copyRef": "Kopiera referens",
+    "copyId": "Kopiera GUID",
+    "copyIdHint": "Kopierar bara minnets id.",
     "copyRefHint": "Kopierar minnets id och titel. Klistra in i chatten med vilken modell som helst och skriv vad som ska ändras.",
     "refText": "Mimers Brain-minne {id} (\"{title}\"): ",
     "changesEmpty": "Inga ändringar sparade än.",

@@ -91,6 +91,8 @@
     "pinnedWaitingHint": "Pinned, but only confirmed memories go into the session digest. Confirm it on the Review page.",
     "changes": "Changes",
     "copyRef": "Copy reference",
+    "copyId": "Copy GUID",
+    "copyIdHint": "Copies only the memory's id.",
     "copyRefHint": "Copies the memory's id and title. Paste it into a chat with any model and say what to change.",
     "refText": "Mimers Brain memory {id} (\"{title}\"): ",
     "changesEmpty": "No changes recorded yet.",

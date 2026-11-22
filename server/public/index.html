@@ -538,6 +538,7 @@ function card(t) {
       <button class="ghost edit">${esc(tr("thought.edit"))}</button>
       <button class="ghost changes">${esc(tr("thought.changes"))}</button>
       <button class="ghost ref" title="${esc(tr("thought.copyRefHint"))}">${esc(tr("thought.copyRef"))}</button>
+      <button class="ghost copy-id" title="${esc(tr("thought.copyIdHint"))}">${esc(tr("thought.copyId"))}</button>
       <button class="ghost danger del">${esc(tr("thought.delete"))}</button>
     </div>
     <div class="change-log"></div>`;
@@ -577,6 +578,16 @@ function card(t) {
     b.textContent = (await copy(ref)) ? tr("common.copied") : tr("common.copyManual");
     setTimeout(() => { b.textContent = was; }, 1400);
   };
+
+  // Just the id, for a tool call or a search box. The same button stays in
+  // the edit view, where the other actions are replaced by Save and Cancel.
+  const copyId = async (e) => {
+    const b = e.currentTarget;
+    const was = b.textContent;
+    b.textContent = (await copy(t.id)) ? tr("common.copied") : tr("common.copyManual");
+    setTimeout(() => { b.textContent = was; }, 1400);
+  };
+  el.querySelector(".copy-id").onclick = copyId;
 
   el.querySelector(".edit").onclick = () => {
     if (el.classList.contains("editing")) return;
@@ -647,7 +658,12 @@ function card(t) {
     const cancel = document.createElement("button");
     cancel.className = "ghost";
     cancel.textContent = tr("editor.cancel");
-    acts.append(save, cancel);
+    const idButton = document.createElement("button");
+    idButton.className = "ghost";
+    idButton.title = tr("thought.copyIdHint");
+    idButton.textContent = tr("thought.copyId");
+    idButton.onclick = copyId;
+    acts.append(save, cancel, idButton);
     cancel.onclick = refresh;
     save.onclick = async () => {
       // Out of the vault means readable through the open listener, from outside.
