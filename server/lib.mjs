@@ -12,6 +12,7 @@ import {
   MEMORY_KINDS,
   SMART_INGEST_THRESHOLD,
   ageNote,
+  refuseLong,
   applyReview,
   embeddingText,
   inheritsConfirmedTrust,
@@ -859,6 +860,7 @@ export async function resolveDuplicate(tiers, {
   left_id, right_id, action, canonical_id, merged_content, actor = "user",
 } = {}) {
   if (merged_content) refuseSecrets(merged_content);
+  if (merged_content) refuseLong(merged_content);
   const left = await getThought(tiers, left_id);
   const right = await getThought(tiers, right_id);
   if (!left || !right || left.id === right.id) throw new Error("Duplicate pair not found");
@@ -1105,6 +1107,7 @@ export async function updateThought(tiers, id, { content, metadata, tier }) {
   if (tier && !tiers.includes(tier))
     throw new Error(`This endpoint may not move rows to tier "${tier}"`);
   refuseSecrets(typeof content === "string" ? content : "", metadata || {});
+  if (typeof content === "string") refuseLong(content);
 
   const sets = [];
   const args = [id];

@@ -25,7 +25,7 @@ import { timingSafeEqual, createHash } from "node:crypto";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildServer } from "./mcp.mjs";
-import { SMART_INGEST_THRESHOLD } from "./memory-model.mjs";
+import { SMART_INGEST_THRESHOLD, refuseLong } from "./memory-model.mjs";
 import * as policy from "./memory-policy.mjs";
 import { spec, callTool } from "./openapi.mjs";
 import * as db from "./lib.mjs";
@@ -796,6 +796,7 @@ function makeListener(tiers, {
         if (path === "/api/thoughts" && req.method === "POST") {
           const { content, tier, metadata } = await body(req);
           if (!content?.trim()) return json(res, 400, { error: "Empty memory" });
+          refuseLong(content);
           const saved = await db.captureThought(tiers, content.trim(), {
             tier, metadata, origin: "user", userConfirmed: true, client: whoIs().name,
           });
@@ -819,6 +820,7 @@ function makeListener(tiers, {
           if (!Array.isArray(old_ids) || !old_ids.length)
             return json(res, 400, { error: "old_ids is required" });
           if (!content?.trim()) return json(res, 400, { error: "Empty replacement memory" });
+          refuseLong(content);
           await db.validateSupersession(tiers, old_ids, tier);
           const saved = await db.captureThought(tiers, content.trim(), {
             tier, metadata, origin: "user", userConfirmed: true, client: whoIs().name,

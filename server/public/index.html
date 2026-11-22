@@ -650,6 +650,10 @@ function card(t) {
       // Out of the vault means readable through the open listener, from outside.
       const tier = fields.querySelector(".e-tier")?.value;
       if (tier && tier !== t.tier && tier === "open" && !confirm(tr("editor.tierToOpenConfirm"))) return;
+      // The same limit as a new thought; the server refuses it too.
+      const max = cfg.smartIngestThreshold || 1200;
+      const length = ta.value.trim().length;
+      if (ta.value !== t.content && length >= max) return showError(tr("editor.tooLong", { length, max }));
       save.disabled = true;
       save.textContent = tr("editor.saving");
       try {

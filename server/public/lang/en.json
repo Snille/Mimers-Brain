@@ -75,7 +75,8 @@
     "saving": "Saving …",
     "pinned": "In the session digest",
     "pinnedHint": "Every connected model reads the digest first, once per session. Preferences and profile memories are included unless unticked. Only confirmed memories are shown. Pin only what a model would get wrong without it, across many different tasks; search finds everything else.",
-    "tierToOpenConfirm": "This memory leaves the vault. It becomes readable through the open listener, also from outside the LAN. Continue?"
+    "tierToOpenConfirm": "This memory leaves the vault. It becomes readable through the open listener, also from outside the LAN. Continue?",
+    "tooLong": "The text has {length} characters. A memory must be shorter than {max} characters. Shorten the text, or save it as a new thought so it is split into several memories."
   },
   "thought": {
     "edit": "Edit",

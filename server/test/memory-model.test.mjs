@@ -16,10 +16,18 @@ import {
   normaliseMeta,
   canonicalSystem,
   resolvePeople,
+  refuseLong,
 } from "../memory-model.mjs";
 
 test("the direct-write limit leaves long source material to atomic ingest", () => {
   assert.equal(SMART_INGEST_THRESHOLD, 1200);
+});
+
+test("refuseLong lets text under the limit through and refuses the rest with a 400", () => {
+  refuseLong("x".repeat(SMART_INGEST_THRESHOLD - 1));
+  refuseLong(`  ${"x".repeat(SMART_INGEST_THRESHOLD - 1)}  `);
+  assert.throws(() => refuseLong("x".repeat(SMART_INGEST_THRESHOLD)),
+    (err) => err.status === 400 && /below 1200 characters/.test(err.message));
 });
 
 test("derives a compact title and summary without losing the content", () => {

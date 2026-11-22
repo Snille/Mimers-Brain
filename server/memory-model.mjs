@@ -22,6 +22,16 @@ export const REVIEW_STATUSES = ["confirmed", "pending", "evidence_only", "reject
 export const REVIEW_ACTIONS = ["confirm", "evidence_only", "stale", "reject"];
 export const SMART_INGEST_THRESHOLD = 1200;
 
+// One limit for every write path that takes whole text from a person: a new
+// memory, a replacement, an edit and a merge. Longer text goes through
+// preview_ingest, which splits it into atomic memories.
+export function refuseLong(content) {
+  if (String(content ?? "").trim().length < SMART_INGEST_THRESHOLD) return;
+  const err = new Error(`Long text must be split into atomic memories below ${SMART_INGEST_THRESHOLD} characters`);
+  err.status = 400;
+  throw err;
+}
+
 export const CANONICAL_TOPICS = [
   "ai", "backup", "database", "deployment", "docker", "esphome", "git",
   "github", "home-assistant", "immich", "mimers-brain", "music", "network",
