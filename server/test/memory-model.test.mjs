@@ -94,10 +94,16 @@ test("normalises topic aliases and keeps the legacy type", () => {
   assert.deepEqual(meta.topics, ["tokentracker", "network"]);
 });
 
-test("keeps non-canonical detail without polluting the topic facet", () => {
-  const meta = normaliseMeta({ topics: ["very specific device quirk"] }, "A useful detail.");
-  assert.deepEqual(meta.topics, ["other"]);
-  assert.deepEqual(meta.legacy_topics, ["very specific device quirk"]);
+test("topics and projects keep any text a reader writes, spaces included", () => {
+  const meta = normaliseMeta({
+    topics: ["Very specific device quirk", "very specific device quirk", "Nätverk"],
+    project: "  My Home  Lab ",
+  }, "A useful detail.");
+  assert.deepEqual(meta.topics, ["Very specific device quirk", "network"]);
+  assert.equal(meta.project, "My Home Lab");
+  assert.equal(meta.legacy_topics, undefined);
+  // What was filed away while the list was closed is kept as it was.
+  assert.deepEqual(normaliseMeta({ legacy_topics: ["old"] }, "Text.").legacy_topics, ["old"]);
 });
 
 test("classifies Luba and Sleipner as systems, never people", () => {

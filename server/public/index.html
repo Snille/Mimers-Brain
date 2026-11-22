@@ -802,20 +802,21 @@ async function refresh() {
     $("#headstat").textContent = tr("header.shown", { shown: rows.length });
 
     const s = await api("/api/stats");
-    const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+    // Every value, not the most common few: a tag that is not listed cannot be filtered on.
+    const top = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]);
     chips("#f-review", [["1", s.awaitingReview || 0]], "review", () => tr("filters.awaitingReview"));
     chips("#f-digest", [["1", s.digest || 0]], "digest", () => tr("filters.inDigest"));
     // What does not fit is still pinned, but no model reads it at session start.
     const digestNote = $("#f-digest-note");
     digestNote.hidden = !s.digestOmitted;
     digestNote.textContent = s.digestOmitted ? tr("filters.digestFull", { omitted: s.digestOmitted, limit: s.digestLimit }) : "";
-    chips("#f-kinds", top(s.kinds || s.types, 15), "kind");
-    chips("#f-lifecycles", top(s.lifecycles || { current: s.total }, 5), "lifecycle");
-    chips("#f-task-statuses", top(s.taskStatuses || {}, 5), "task_status");
-    chips("#f-projects", top(s.projects || {}, 15), "project");
-    chips("#f-topics", top(s.topics, 25), "topic");
-    chips("#f-people", top(s.people, 15), "person");
-    chips("#f-systems", top(s.systems || {}, 20), "system");
+    chips("#f-kinds", top(s.kinds || s.types), "kind");
+    chips("#f-lifecycles", top(s.lifecycles || { current: s.total }), "lifecycle");
+    chips("#f-task-statuses", top(s.taskStatuses || {}), "task_status");
+    chips("#f-projects", top(s.projects || {}), "project");
+    chips("#f-topics", top(s.topics || {}), "topic");
+    chips("#f-people", top(s.people || {}), "person");
+    chips("#f-systems", top(s.systems || {}), "system");
     const tierBits = Object.entries(s.byTier || {}).map(([k, v]) => `${tr(`tiers.${k}`)} ${v}`).join(" · ");
     $("#headstat").textContent = `${tr("header.shownOf", { shown: rows.length, total: s.total })}${tierBits ? ` (${tierBits})` : ""}`;
   } catch (e) {

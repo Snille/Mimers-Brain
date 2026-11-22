@@ -225,10 +225,15 @@ export function canonicalSystem(value) {
   return SYSTEM_SPELLINGS.get(name.toLowerCase()) || name;
 }
 
+// Topics are free text, like systems: a reader may file a memory under any
+// subject, spaces and all. The list above is the settled vocabulary: a known
+// subject or one of its aliases lands on its settled spelling, so "Nätverk"
+// and "network" stay one topic. Anything else is kept as written.
 export function canonicalTopic(value) {
-  const topic = clean(value).toLowerCase();
-  const canonical = TOPIC_ALIASES.get(topic) || topic;
-  return CANONICAL_TOPICS.includes(canonical) ? canonical : null;
+  const topic = clean(value);
+  const key = topic.toLowerCase();
+  const canonical = TOPIC_ALIASES.get(key) || key;
+  return CANONICAL_TOPICS.includes(canonical) ? canonical : topic || null;
 }
 
 export function cleanTitle(value) {
@@ -529,15 +534,15 @@ export function normaliseMeta(meta = {}, content = "", defaults = {}) {
 
   // Keep the old facet alive for clients released before the v2 model.
   out.type = clean(out.type) || KIND_TO_TYPE[out.kind] || "observation";
-  out.project = clean(out.project).toLowerCase().replace(/\s+/g, "-") || undefined;
+  // Any text: only the comma separates values in the editor, and a project
+  // is one value. Kept as written, spaces and capitals included.
+  out.project = clean(out.project) || undefined;
   if (!out.project) delete out.project;
 
-  const rawTopics = dedupe(out.topics || [], { lower: true });
-  out.topics = dedupe(rawTopics.map(canonicalTopic).filter(Boolean), { lower: true });
-  const legacyTopics = dedupe([
-    ...(out.legacy_topics || []),
-    ...rawTopics.filter((topic) => !canonicalTopic(topic)),
-  ], { lower: true });
+  out.topics = dedupe(dedupe(out.topics || []).map(canonicalTopic).filter(Boolean));
+  // legacy_topics is where unknown topics went while the list was closed; what
+  // is there stays, and nothing new is added.
+  const legacyTopics = dedupe(out.legacy_topics || [], { lower: true });
   if (legacyTopics.length) out.legacy_topics = legacyTopics;
   else delete out.legacy_topics;
   if (!out.topics.length) out.topics = ["other"];

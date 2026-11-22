@@ -76,9 +76,11 @@ allowed-use flags, `source_refs` and `artifact_refs`. The older `type`, `topics`
 and `people` remain for older clients.
 
 - **Metadata** is proposed by the metadata model and validated by
-  `server/memory-model.mjs`. `topics` has a closed vocabulary; `project` is free
-  text and names the repository or service that owns the knowledge, never the
-  client that wrote it.
+  `server/memory-model.mjs`. Every facet takes any text; in the editor only the
+  comma separates values. `topics` has a settled vocabulary that the metadata
+  model is asked to choose from, and known subjects and their aliases land on
+  its spelling, but a topic outside it is kept as written. `project` names the
+  repository or service that owns the knowledge, never the client that wrote it.
 - **Long text.** Direct writes of 1,200 characters or more are refused on every
   path (capture, supersede, an edit in the web UI and a duplicate merge); long
   source text goes through `preview_ingest`, which proposes atomic memories, and
