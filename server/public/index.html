@@ -768,7 +768,9 @@ async function refresh() {
   const list = $("#list");
   try {
     let rows;
-    if (state.mode === "semantic" && state.q) {
+    // A GUID, or a piece of one, means nothing to an embedding: look it up as text.
+    const idLike = /^[0-9a-f-]{8,36}$/i.test(state.q) && /\d/.test(state.q);
+    if (state.mode === "semantic" && state.q && !idLike) {
       rows = await api("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

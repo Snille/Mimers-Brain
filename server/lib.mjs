@@ -477,14 +477,20 @@ export async function recallHint(tiers, prompt, { exclude = [], floor = threshol
   return { hits };
 }
 
+const FULL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function textSearch(tiers, q, {
   limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system, digest, review,
 } = {}) {
   const args = [tiers, `%${q}%`];
+  // The GUID shown on every card is searchable too, whole or in part. A full
+  // GUID names one memory, so it is found whatever its lifecycle: a superseded
+  // memory is exactly what someone pastes an old id to look at.
   let sql = `SELECT ${COLS} FROM thoughts
     WHERE tier = ANY($1)
-      AND (content ILIKE $2 OR metadata->>'title' ILIKE $2 OR metadata->>'summary' ILIKE $2)`;
-  if (lifecycle && lifecycle !== "all")
+      AND (content ILIKE $2 OR metadata->>'title' ILIKE $2 OR metadata->>'summary' ILIKE $2
+           OR id::text ILIKE $2)`;
+  if (lifecycle && lifecycle !== "all" && !FULL_ID.test(String(q).trim()))
     sql += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
   if (kind) sql += ` AND metadata->>'kind' = $${args.push(kind)}`;
   if (taskStatus) sql += ` AND metadata->>'task_status' = $${args.push(taskStatus)}`;
