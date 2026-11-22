@@ -810,7 +810,17 @@ $("#q").oninput = (e) => {
   clearTimeout(timer);
   timer = setTimeout(refresh, state.mode === "semantic" ? 550 : 220);
 };
-$("#mode").onchange = (e) => { state.mode = e.target.value; if (state.q) refresh(); };
+// The search mode is a habit, not a one-off: each browser keeps the last one.
+const MODE_KEY = "mimers-search-mode";
+try {
+  const saved = localStorage.getItem(MODE_KEY);
+  if (saved === "text" || saved === "semantic") { state.mode = saved; $("#mode").value = saved; }
+} catch { /* storage unavailable: text search stands */ }
+$("#mode").onchange = (e) => {
+  state.mode = e.target.value;
+  try { localStorage.setItem(MODE_KEY, state.mode); } catch { /* storage unavailable */ }
+  if (state.q) refresh();
+};
 $("#clear").onclick = () => { state.q = ""; state.filters = {}; $("#q").value = ""; refresh(); };
 
 $("#new").onclick = () => {
