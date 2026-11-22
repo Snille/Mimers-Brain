@@ -41,6 +41,8 @@
     "review": "Review",
     "awaitingReview": "awaiting review",
     "sortLabel": "Order of this list",
+    "collapse": "Hide this list",
+    "expand": "Show this list",
     "sort": { "countDesc": "Most first", "countAsc": "Fewest first", "alphaAsc": "A–Z", "alphaDesc": "Z–A" }
   },
   "search": {

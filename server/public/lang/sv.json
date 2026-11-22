@@ -41,6 +41,8 @@
     "review": "Granskning",
     "awaitingReview": "väntar på granskning",
     "sortLabel": "Ordning i listan",
+    "collapse": "Dölj listan",
+    "expand": "Visa listan",
     "sort": { "countDesc": "Flest först", "countAsc": "Minst först", "alphaAsc": "A–Ö", "alphaDesc": "Ö–A" }
   },
   "search": {

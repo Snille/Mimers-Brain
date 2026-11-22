@@ -79,7 +79,15 @@
   aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0; }
   .facet-head { display: flex; align-items: center; gap: 6px; margin: 20px 0 8px; }
   .facet:first-child .facet-head { margin-top: 0; }
-  .facet-head h2 { flex: 1; }
+  .facet-toggle {
+    flex: 1; display: flex; align-items: center; gap: 6px; text-align: left;
+    background: none; border: none; padding: 0; color: var(--muted);
+  }
+  .facet-toggle:hover { filter: none; color: var(--ink); }
+  .facet-toggle:hover h2 { color: var(--ink); }
+  .facet-toggle::before { content: "▾"; font-size: 11px; width: 10px; }
+  .facet.folded .facet-toggle::before { content: "▸"; }
+  .facet.folded .facet-body, .facet.folded .facet-sort { display: none; }
   .facet-sort { padding: 1px 4px; font-size: 11px; border-radius: 6px; color: var(--muted); max-width: 110px; }
   .digest-note { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--warn); }
   .chip {
@@ -500,6 +508,33 @@ for (const facet of document.querySelectorAll(".facet[data-sortable]")) {
     refresh();
   };
   facet.querySelector(".facet-head").appendChild(select);
+}
+
+// Every list folds away under its heading, and stays as the reader left it.
+const FOLD_KEY = "mimers-facet-collapsed";
+let folded = new Set();
+try { folded = new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || "[]")); } catch { /* storage unavailable */ }
+for (const facet of document.querySelectorAll(".facet")) {
+  const key = facet.dataset.facet;
+  const head = facet.querySelector(".facet-head");
+  const h2 = head.querySelector("h2");
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "facet-toggle";
+  toggle.append(h2);
+  head.prepend(toggle);
+  const apply = () => {
+    const closed = folded.has(key);
+    facet.classList.toggle("folded", closed);
+    toggle.setAttribute("aria-expanded", String(!closed));
+    toggle.title = tr(closed ? "filters.expand" : "filters.collapse");
+  };
+  toggle.onclick = () => {
+    if (folded.has(key)) folded.delete(key); else folded.add(key);
+    try { localStorage.setItem(FOLD_KEY, JSON.stringify([...folded])); } catch { /* storage unavailable */ }
+    apply();
+  };
+  apply();
 }
 
 function chips(container, entries, key, label = (name) => name) {
