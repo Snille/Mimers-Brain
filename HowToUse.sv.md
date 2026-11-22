@@ -205,14 +205,14 @@ servern" är användbart.
 
 ## Redigera i webbgränssnittet
 
-Håll muspekaren över ett minne under **Tankar** och välj **Redigera** för att
+Håll muspekaren över ett minne under **Minnen** och välj **Redigera** för att
 ändra text, titel, sammanfattning, typ, livscykel, uppgiftsstatus, projekt,
 ämnen, personer, system, nivå eller verifieringsdatum, eller fästa det i
 startpaketet (`memory_digest`). När du sparar bäddas minnet in igen, eftersom titel och
 sammanfattning ingår i det sökningen jämför. **Kopiera referens** kopierar id och
 titel på en rad, att klistra in i en chatt med en ansluten modell följt av vad som
 ska ändras. Texten måste vara kortare än 1 200 tecken, som överallt annars;
-längre text sparar du som ny tanke, så delas den upp i flera minnen.
+längre text sparar du som nytt minne, så delas den upp i flera minnen.
 
 ## Ansluta igen efter en ominstallation
 

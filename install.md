@@ -289,7 +289,7 @@ same text differently.
 - `q` is a question you would really ask, worded as you would ask it. Questions
   taken from real sessions are worth the most.
 - `expect` lists the ids of the memories that answer it; any one counts as a hit.
-  Copy an id with **Copy reference** on the Thoughts page.
+  Copy an id with **Copy reference** on the Memories page.
 - `expect: []` marks a question nothing should answer. These measure noise from
   the recall hook.
 - For a suggestion you need at least **3 questions with an answer and 1

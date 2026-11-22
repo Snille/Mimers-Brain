@@ -14,7 +14,7 @@
     "loading": "Hämtar …"
   },
   "nav": {
-    "thoughts": "Tankar",
+    "thoughts": "Minnen",
     "review": "Granska",
     "statistics": "Statistik",
     "connect": "Anslut",
@@ -23,7 +23,7 @@
   "header": {
     "fullAccess": "full åtkomst (LAN)",
     "openOnly": "endast öppen nivå",
-    "newThought": "+ Ny tanke",
+    "newThought": "+ Nytt minne",
     "shown": "{shown} visas",
     "shownOf": "{shown} av {total}"
   },
@@ -46,7 +46,7 @@
     "text": "Textsökning",
     "semantic": "Semantisk",
     "clear": "Rensa",
-    "noMatches": "Inga tankar matchar."
+    "noMatches": "Inga minnen matchar."
   },
   "login": {
     "title": "Lås upp Mimers Brain",
@@ -55,7 +55,7 @@
     "unlock": "Lås upp"
   },
   "editor": {
-    "newTitle": "Ny tanke",
+    "newTitle": "Nytt minne",
     "description": "Skriv den som ett fristående påstående — den ska gå att förstå av vilken AI som helst, långt senare, utan sammanhang.",
     "content": "Innehåll",
     "title": "Titel",
@@ -76,12 +76,12 @@
     "pinned": "Med i startpaketet",
     "pinnedHint": "Alla anslutna modeller läser startpaketet först, en gång per session. Preferenser och profilminnen är med om du inte bockar ur dem. Bara bekräftade minnen visas. Fäst bara det som en modell skulle göra fel utan, i många olika uppgifter; allt annat hittas med sökning.",
     "tierToOpenConfirm": "Minnet lämnar valvet. Det blir läsbart via den öppna porten, även utanför LAN. Fortsätta?",
-    "tooLong": "Texten har {length} tecken. Ett minne måste vara kortare än {max} tecken. Korta texten, eller spara den som ny tanke så delas den upp i flera minnen."
+    "tooLong": "Texten har {length} tecken. Ett minne måste vara kortare än {max} tecken. Korta texten, eller spara den som nytt minne så delas den upp i flera minnen."
   },
   "thought": {
     "edit": "Redigera",
     "delete": "Ta bort",
-    "confirmDelete": "Ta bort den här tanken permanent?",
+    "confirmDelete": "Ta bort det här minnet permanent?",
     "history": "Historik",
     "evidenceOnly": "endast evidens",
     "stale": "verifieringen kan vara gammal",
@@ -120,8 +120,8 @@
     "pending": {
       "title": "Tillitsgranskning",
       "description": "Agentgenererade minnen är evidens tills du bekräftar hur de får användas.",
-      "moved": "Väntar på granskning: {count}. Granska dem under Tankar, där hela texten syns.",
-      "open": "Öppna i Tankar"
+      "moved": "Väntar på granskning: {count}. Granska dem under Minnen, där hela texten syns.",
+      "open": "Öppna i Minnen"
     },
     "rarelyUseful": {
       "title": "Sällan till nytta",

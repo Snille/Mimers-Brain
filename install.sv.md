@@ -293,7 +293,7 @@ en annan poäng.
 - `q` är en fråga du verkligen skulle ställa, med dina egna ord. Frågor från
   riktiga sessioner är värda mest.
 - `expect` listar id för de minnen som svarar på frågan; vilket som helst av dem
-  räknas som en träff. Kopiera ett id med **Kopiera referens** på sidan **Tankar**.
+  räknas som en träff. Kopiera ett id med **Kopiera referens** på sidan **Minnen**.
 - `expect: []` markerar en fråga som inget minne ska svara på. De mäter brus
   från recall-hooken.
 - För ett förslag behöver du minst **3 frågor med svar och 1 utan**. Ungefär

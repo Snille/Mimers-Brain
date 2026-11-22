@@ -14,7 +14,7 @@
     "loading": "Loading …"
   },
   "nav": {
-    "thoughts": "Thoughts",
+    "thoughts": "Memories",
     "review": "Review",
     "statistics": "Statistics",
     "connect": "Connect",
@@ -23,7 +23,7 @@
   "header": {
     "fullAccess": "full access (LAN)",
     "openOnly": "open tier only",
-    "newThought": "+ New thought",
+    "newThought": "+ New memory",
     "shown": "{shown} shown",
     "shownOf": "{shown} of {total}"
   },
@@ -46,7 +46,7 @@
     "text": "Text search",
     "semantic": "Semantic",
     "clear": "Clear",
-    "noMatches": "No thoughts match."
+    "noMatches": "No memories match."
   },
   "login": {
     "title": "Unlock Mimers Brain",
@@ -55,7 +55,7 @@
     "unlock": "Unlock"
   },
   "editor": {
-    "newTitle": "New thought",
+    "newTitle": "New memory",
     "description": "Write it as a standalone statement that any AI can understand much later without the original context.",
     "content": "Content",
     "title": "Title",
@@ -76,12 +76,12 @@
     "pinned": "In the session digest",
     "pinnedHint": "Every connected model reads the digest first, once per session. Preferences and profile memories are included unless unticked. Only confirmed memories are shown. Pin only what a model would get wrong without it, across many different tasks; search finds everything else.",
     "tierToOpenConfirm": "This memory leaves the vault. It becomes readable through the open listener, also from outside the LAN. Continue?",
-    "tooLong": "The text has {length} characters. A memory must be shorter than {max} characters. Shorten the text, or save it as a new thought so it is split into several memories."
+    "tooLong": "The text has {length} characters. A memory must be shorter than {max} characters. Shorten the text, or save it as a new memory so it is split into several memories."
   },
   "thought": {
     "edit": "Edit",
     "delete": "Delete",
-    "confirmDelete": "Permanently delete this thought?",
+    "confirmDelete": "Permanently delete this memory?",
     "history": "History",
     "evidenceOnly": "evidence only",
     "stale": "verification may be stale",
@@ -120,8 +120,8 @@
     "pending": {
       "title": "Trust review",
       "description": "Agent-generated memories remain evidence until you confirm how they may be used.",
-      "moved": "Awaiting review: {count}. Review them under Thoughts, where the whole text shows.",
-      "open": "Open in Thoughts"
+      "moved": "Awaiting review: {count}. Review them under Memories, where the whole text shows.",
+      "open": "Open in Memories"
     },
     "rarelyUseful": {
       "title": "Rarely useful",

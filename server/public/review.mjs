@@ -81,7 +81,7 @@ export async function render(root) {
       <div id="review-recalls"></div>
     </section>`;
 
-  // New memories are reviewed on the Thoughts page, where their whole text
+  // New memories are reviewed on the Memories page, where their whole text
   // shows; here they are only counted.
   const openPending = root.querySelector("#review-pending-open");
   if (openPending) openPending.onclick = () => window.dispatchEvent(new CustomEvent("mimer:awaiting-review"));

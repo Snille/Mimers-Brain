@@ -111,9 +111,9 @@ and `people` remain for older clients.
 - **Age notes.** A current memory not verified for 180 days carries an `AGE`
   note, so a model checks before relying on it. Incidents are exempt.
 - **Session digest.** `memory_digest` returns the full usage policy, the confirmed
-  preference and profile memories, and anything pinned on the Thoughts page. It
+  preference and profile memories, and anything pinned on the Memories page. It
   is capped at 15 memories or 9,000 characters and names what it left out. The
-  *Session digest* filter on the Thoughts page shows its contents.
+  *Session digest* filter on the Memories page shows its contents.
 - **Thresholds.** A similarity score means something only for the embedding
   model that produced it, so the four floors (search, recall hook, contradiction,
   duplicate) are stored per embedding model on the Models card of the Settings
