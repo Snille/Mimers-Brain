@@ -100,6 +100,30 @@ and `people` remain for older clients.
 - **Tier promotion.** `upsert_thought` can move a row into the vault but never out
   of it: capturing the same content as `open` leaves it in the vault.
 
+## Media
+
+A memory can carry `media`: pointers to a person, an album or an asset on a
+media source, or a plain web link (`normaliseMedia` in `server/memory-model.mjs`
+keeps only clean pointers and http(s) links, at most 20). The brain stores no
+files. Sources are set up on the Settings page (LAN listener only); each holds
+an address, an optional address for browser links, and an API key sealed with
+`SETTINGS_KEY` like a model provider's key. That key is the second exception to
+"no secrets in the brain", for the same reason: everything is set up from the
+web. It should be a key that can only read. Immich is the only kind so far
+(`server/media.mjs`).
+
+- **Thumbnails** go through `/api/media/<source>/<type>/<id>/thumbnail`, so the
+  browser never sees the key. The open listener serves one only when an open
+  memory links that exact item; an id cannot be guessed into a picture. The
+  full listener serves any, for the picker.
+- **Searching** a source (the picker in the editor) is a full-listener action.
+- **`get_media`** reads the memory through the tier-bound `getThought`, then
+  returns a line with a link per item and up to eight pictures as MCP image
+  content. A broken pointer is reported in its line. The OpenAPI version
+  returns the links only.
+- **Corrections.** A replacement with no media of its own takes the media of
+  the memory it supersedes.
+
 ## Search and recall
 
 - **Ranking** (`RANK_WEIGHTS` in `server/lib.mjs`) is mostly semantic similarity,

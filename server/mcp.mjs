@@ -14,6 +14,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as db from "./lib.mjs";
+import { mediaSummary, resolveMedia } from "./media.mjs";
 import { publishSoon } from "./mqtt.mjs";
 import { memoryPolicy, sessionPolicy } from "./memory-policy.mjs";
 import { recallReference } from "./recall.mjs";
@@ -49,6 +50,7 @@ function render(t, { compact = false } = {}) {
   if (Array.isArray(m.topics) && m.topics.length) bits.push(`Topics: ${m.topics.join(", ")}`);
   if (Array.isArray(m.people) && m.people.length) bits.push(`People: ${m.people.join(", ")}`);
   if (Array.isArray(m.systems) && m.systems.length) bits.push(`Systems: ${m.systems.join(", ")}`);
+  if (Array.isArray(m.media) && m.media.length) bits.push(`Media: ${mediaSummary(m.media)} (get_media)`);
   if (m.verified_at) bits.push(`Verified: ${m.verified_at}`);
   if (m.origin) bits.push(`Origin: ${m.origin}`);
   if (m.review_status && m.review_status !== "confirmed") bits.push(`Review: ${m.review_status}`);
@@ -395,6 +397,50 @@ export function buildServer(tiers, ctx = {}) {
         text: t.content,
         url: `${process.env.CITATION_BASE_URL || "http://localhost:8790/thoughts"}/${t.id}`,
       }));
+    } catch (e) { return fail(e); }
+  }));
+
+  // Pictures, albums and people a memory points at, fetched by the brain with
+  // the source's own key, so the client sees images and links but never the
+  // key. getThought is tier-bound, so the open ports cannot reach a vault
+  // memory's media either. A read, so it is on every listener.
+  server.registerTool("get_media", {
+    title: "Get media",
+    description: "Show the media a memory links to: pictures of a person, an album such as a how-to, one photo or video, or a web link. Use it when a search result lists Media and the answer is helped by seeing or linking it. Returns a line with a link per item and up to `images` pictures. Videos come as a still picture and a link; give the link to the user.",
+    inputSchema: {
+      id: z.string().describe("The memory's uuid"),
+      images: z.number().int().min(0).max(8).default(4).describe("How many pictures to include, 0-8"),
+      size: z.enum(["thumbnail", "preview"]).default("thumbnail").describe("thumbnail is small; preview is larger and costs more to read"),
+    },
+  }, track("get_media", "read", async ({ id, images, size }, note) => {
+    try {
+      const t = await db.getThought(tiers, id);
+      if (!t) return fail(new Error("Not found"));
+      const refs = t.metadata?.media || [];
+      if (!refs.length) return text("This memory links to no media.");
+      const { items, pictures } = await resolveMedia(refs, { images, size });
+      note.count = items.length;
+      const lines = items.map((item, i) => {
+        const what = item.type === "link" ? "Link" : `${item.type[0].toUpperCase()}${item.type.slice(1)}`;
+        const where = item.source_name ? ` on ${item.source_name}` : "";
+        const extra = [
+          item.count != null ? `${item.count} items` : "",
+          item.video ? "video" : "",
+          item.taken ? `taken ${String(item.taken).slice(0, 10)}` : "",
+        ].filter(Boolean).join(", ");
+        return item.error
+          ? `${i + 1}. ${what} "${item.title || item.id}"${where}: ${item.error}`
+          : `${i + 1}. ${what} "${item.title}"${where}${extra ? ` (${extra})` : ""}: ${item.url}`;
+      });
+      return {
+        content: [
+          { type: "text", text: `Media for "${t.metadata?.title || t.id}":\n${lines.join("\n")}` },
+          ...pictures.flatMap((p) => [
+            { type: "text", text: p.caption },
+            { type: "image", data: p.data.toString("base64"), mimeType: p.contentType },
+          ]),
+        ],
+      };
     } catch (e) { return fail(e); }
   }));
 

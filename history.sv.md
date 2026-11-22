@@ -6,6 +6,35 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-22 — 0.27.0: media från Immich
+
+Ett minne kan nu peka på media: en person, ett album eller en bild eller video i
+Immich, eller en vanlig webblänk. Ett profilminne kan visa personens ansikte; en
+howto kan öppna albumet med stegen. Minnet sparar bara pekaren, med en titel så
+att ett sökresultat säger vad det är utan ett anrop.
+
+**Inställningar → Mediakällor** har varje server: en adress, en valfri adress
+för länkar och en API-nyckel som bara kan läsa, förseglad med `SETTINGS_KEY`.
+Nycklarna kunde ha legat kvar i `.env`, men då gick det inte att lägga till en
+server från webben. Det är samma skäl som gör att modelleverantörers nycklar får
+ligga på Modeller-kortet. Regeln att inga andra hemligheter sparas gäller.
+
+Redigeraren får en Media-del med en väljare (personer, album, bilder, med
+miniatyrer) och ett fält för vanliga länkar. Kortet visar små bilder som öppnar
+saken på sin egen server.
+
+`get_media` ger en modell länkarna och upp till åtta bilder, så att en klient
+kan visa dem eller titta på dem. Hjärnan hämtar med källans nyckel; klienten ser
+den aldrig.
+
+Nivåregeln behövde en ny idé. En miniatyr hämtas med sakens id, och ett id säger
+inget om vilket minne som länkade det. På den öppna lyssnaren visas en miniatyr
+bara när ett öppet minne länkar just den saken. En bild som länkas från valvet
+kan inte läsas utifrån, och inget id kan gissas fram till en bild som ingen
+länkat.
+
+---
+
 ## 2026-11-22 — 0.26.0: minnen överallt, fria taggar och en ordnad sidopanel
 
 Webbgränssnittet kallade samma sak minne på ett ställe och tanke på nästa. Alla

@@ -34,6 +34,7 @@ import * as models from "./model-settings.mjs";
 import * as recall from "./recall-settings.mjs";
 import * as contradictionEval from "./contradiction-eval.mjs";
 import * as appearanceSettings from "./appearance.mjs";
+import * as media from "./media.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -311,6 +312,7 @@ function connectInfo(req, { tiers, allowUrlKey }) {
       { name: "thought_stats", what: "Totals, kinds, statuses, projects, topics, people and systems" },
       { name: "search", what: "Search, in the shape ChatGPT and Gemini expect" },
       { name: "fetch", what: "Fetch one memory by id" },
+      { name: "get_media", what: "Pictures and links for the media a memory points at" },
       ...(full ? [
         { name: "review_memory", what: "Review trust and allowed use of an agent memory" },
         { name: "list_contradictions", what: "Possible contradictions from the Review page, with both texts" },
@@ -714,6 +716,49 @@ function makeListener(tiers, {
             return json(res, 200, out);
           }
           return json(res, 404, { error: "Unknown endpoint" });
+        }
+
+        // --- media sources -------------------------------------------------
+        //
+        // The servers a memory's pictures, albums and people live on; see
+        // media.mjs. Every listener may read the names, to show a memory's
+        // media. Setting a source up stores its key, and searching it shows
+        // anything on the server, so both are full-listener actions. A
+        // thumbnail on the open listener needs an open memory that links it.
+        if (path === "/api/media/sources" && req.method === "GET")
+          return json(res, 200, await media.listSources({ full: tiers.includes("vault") }));
+        if (path.startsWith("/api/media/sources")) {
+          if (!tiers.includes("vault"))
+            return json(res, 403, { error: "Media sources are set up on the full listener" });
+          if (path === "/api/media/sources" && req.method === "POST") {
+            const out = await media.saveSource(await body(req));
+            note("ui.media.source", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          const source = path.match(/^\/api\/media\/sources\/([a-z0-9-]{1,32})$/);
+          if (source && req.method === "DELETE") {
+            const out = await media.deleteSource(source[1]);
+            note("ui.media.source", "delete", { results: 1 });
+            return json(res, 200, out);
+          }
+          return json(res, 404, { error: "Unknown endpoint" });
+        }
+        const mediaSearch = path.match(/^\/api\/media\/([a-z0-9-]{1,32})\/search$/);
+        if (mediaSearch && req.method === "GET") {
+          if (!tiers.includes("vault"))
+            return json(res, 403, { error: "Media is searched on the full listener" });
+          const rows = await media.searchSource(mediaSearch[1], url.searchParams.get("type"), url.searchParams.get("q"));
+          note("ui.media.search", "read", { results: rows.length });
+          return json(res, 200, rows);
+        }
+        const mediaThumb = path.match(/^\/api\/media\/([a-z0-9-]{1,32})\/(person|album|asset)\/([A-Za-z0-9_-]{1,64})\/thumbnail$/);
+        if (mediaThumb && req.method === "GET") {
+          const picture = await media.thumbnail(tiers, {
+            source: mediaThumb[1], type: mediaThumb[2], id: mediaThumb[3], size: url.searchParams.get("size"),
+          }, { full: tiers.includes("vault") });
+          // Private: the picture is behind the same sign-in as the page.
+          res.writeHead(200, { "Content-Type": picture.contentType, "Cache-Control": "private, max-age=3600" });
+          return res.end(picture.data);
         }
 
         // For the Claude Code hook that brings memories to a prompt unasked.

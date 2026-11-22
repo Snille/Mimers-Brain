@@ -155,6 +155,31 @@
   .editfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 12px; }
   .editfields input, .editfields select { width: 100%; }
   .field-hint { margin-top: 4px; font-size: 12px; line-height: 1.35; }
+  /* Media a memory links to (media.mjs): a row of small pictures under the text. */
+  .media-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 2px; }
+  .media-item { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 112px; text-decoration: none; color: inherit; font-size: 12px; text-align: center; }
+  .media-item img { width: 112px; height: 84px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); }
+  .media-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 112px; }
+  .media-item.media-link, .media-item.missing { width: auto; flex-direction: row; align-self: center; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; }
+  .media-item.missing { opacity: .6; }
+  .media-editor { margin-top: 10px; }
+  .media-edit-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+  .media-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 6px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; }
+  .media-chip img { width: 24px; height: 24px; object-fit: cover; border-radius: 50%; }
+  .media-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .media-add input { flex: 1 1 180px; }
+  .media-error { color: var(--danger); margin-top: 4px; }
+  .media-dlg { width: min(860px, 94vw); }
+  .media-picker-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+  .media-picker-form .grow { flex: 1 1 220px; }
+  .media-picker-form input, .media-picker-form select { width: 100%; }
+  .media-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 12px; max-height: 60vh; overflow: auto; }
+  .media-result { display: flex; flex-direction: column; gap: 4px; padding: 4px; background: none; color: inherit; border: 2px solid transparent; border-radius: 10px; font-size: 12px; text-align: center; }
+  .media-result img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--panel); }
+  .media-result span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .media-result.on { border-color: var(--accent); }
+  .media-source-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 12px; margin-top: 8px; }
+  .media-source-form input { width: 100%; }
   .card .edit-title { width: 100%; margin-bottom: 8px; font-size: 16px; font-weight: 600; }
   .card .edit-summary { margin-bottom: 8px; color: var(--muted); }
   .card .edit-label { margin: 0 0 4px; }
@@ -446,6 +471,7 @@ import {
 } from "./i18n.mjs";
 import { copy } from "./clipboard.mjs";
 import { apply as applyAppearance } from "./appearance.mjs";
+import { loadSources as loadMediaSources, mediaEditor, mediaStrip, wireStrip } from "./media.mjs";
 
 await initI18n();
 
@@ -628,6 +654,7 @@ function card(t) {
     ${m.title ? `<h3 class="memory-title">${esc(m.title)}</h3>` : ""}
     ${m.summary && m.summary !== m.title ? `<div class="summary">${esc(m.summary)}</div>` : ""}
     <div class="body">${esc(t.content)}</div>
+    ${mediaStrip(m.media)}
     ${relationIds.length ? `<div class="history-links">${relationIds.map((id) =>
       `<button class="ghost small history" data-id="${esc(id)}">${esc(tr("thought.history"))} ${esc(String(id).slice(0, 8))}</button>`).join("")}</div>` : ""}
     ${awaiting ? `<div class="review-bar">
@@ -644,6 +671,8 @@ function card(t) {
       <button class="ghost danger del">${esc(tr("thought.delete"))}</button>
     </div>
     <div class="change-log"></div>`;
+
+  wireStrip(el);
 
   for (const button of el.querySelectorAll(".history")) {
     button.onclick = async () => {
@@ -752,6 +781,10 @@ function card(t) {
       <label class="e-pin-row"><input type="checkbox" class="e-pinned"${inDigest(m) ? " checked" : ""} /> ${esc(tr("editor.pinned"))}
         <span class="sub">${esc(tr("editor.pinnedHint"))}</span></label>`;
     textLabel.after(fields);
+    // Pictures, albums and people the memory points at; see media.mjs.
+    el.querySelector(".media-strip")?.remove();
+    const mediaDraft = mediaEditor(m.media, { full: state.vault });
+    fields.after(mediaDraft.el);
     for (const [selector, group] of [[".e-kind", "kind"], [".e-lifecycle", "lifecycle"], [".e-task-status", "taskStatus"], [".e-tier", "tier"]]) {
       const select = fields.querySelector(selector);
       if (select) withHelp(select, group);
@@ -799,6 +832,7 @@ function card(t) {
             people: list(".e-people"),
             systems: list(".e-systems"),
             verified_at: fields.querySelector(".e-verified").value,
+            media: mediaDraft.value(),
             pinned: undefined,
           },
         };
@@ -871,6 +905,8 @@ function card(t) {
 
 async function refresh() {
   showError("");
+  // The source names and addresses that the media under each memory need.
+  await loadMediaSources();
   const list = $("#list");
   try {
     let rows;

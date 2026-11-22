@@ -464,6 +464,38 @@ local file.
 **4. Apply.** **Use for contradictions** makes that model the one the nightly
 check uses. Pairs judged by the old model are judged again.
 
+## 10. Link media from Immich
+
+A memory can point at a person, an album or one photo or video in Immich: a
+profile memory at the person's face, a how-to at an album of steps. The memory
+stores only the pointer. The files stay in Immich.
+
+**1. Make a key.** In Immich, open **Account settings → API keys** and create a
+key with only these permissions: `asset.read`, `asset.view`, `album.read` and
+`person.read`. A key that can only read cannot change your library, whatever
+asks it to.
+
+**2. Add the source.** On port 8790, open **Settings → Media sources** and choose
+**Add Immich server**.
+
+- *Address the server uses*: where the brain reaches Immich, for example
+  `http://10.0.0.25:2283`.
+- *Address for links*: the address your browser opens, if it is a different
+  one, for example `https://photos.example.com`.
+- *API key*: the key from step 1. It is sealed with `SETTINGS_KEY`, like a
+  model provider's key, and is never shown again.
+
+**Test and save** makes a real call first. A key without `album.read` or
+`person.read` is saved, and the card names what it lacks.
+
+**3. Link media.** Open a memory with **Edit**. Under **Media**, choose **Add
+from a media source…**, pick a person, an album or a picture, and save. A plain
+web link can be added on any listener.
+
+**4. Use it.** A search result now lists the media. `get_media` gives a model
+a link per item and up to eight pictures; a video comes as a still and a link.
+The open listener shows media only for open memories.
+
 ## Troubleshooting
 
 **The build fails in `npm install` inside an LXC.** Search the log for

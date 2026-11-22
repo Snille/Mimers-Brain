@@ -43,7 +43,12 @@
     "sortLabel": "Ordning i listan",
     "collapse": "Dölj listan",
     "expand": "Visa listan",
-    "sort": { "countDesc": "Flest först", "countAsc": "Minst först", "alphaAsc": "A–Ö", "alphaDesc": "Ö–A" }
+    "sort": {
+      "countDesc": "Flest först",
+      "countAsc": "Minst först",
+      "alphaAsc": "A–Ö",
+      "alphaDesc": "Ö–A"
+    }
   },
   "search": {
     "placeholder": "Sök …",
@@ -773,6 +778,57 @@
     "tier": {
       "open": "Kan läsas även utanför LAN, via den öppna porten.",
       "vault": "Kan bara läsas på LAN. För känslig kontext och SECRET_REF-pekare, aldrig råa hemligheter."
+    }
+  },
+  "media": {
+    "title": "Media",
+    "none": "Ingen media är länkad.",
+    "pick": "Lägg till från en mediakälla …",
+    "addLink": "Lägg till länk",
+    "linkTitle": "Länkens namn (valfritt)",
+    "badLink": "En länk måste börja med http:// eller https://.",
+    "remove": "Ta bort",
+    "unknownSource": "Mediakällan \"{source}\" finns inte.",
+    "type": {
+      "person": "Person",
+      "album": "Album",
+      "asset": "Bild eller video"
+    },
+    "picker": {
+      "title": "Lägg till media",
+      "source": "Källa",
+      "type": "Typ",
+      "search": "Sök",
+      "placeholder": "Ett namn, ett album eller vad bilden visar",
+      "empty": "Inget hittades.",
+      "done": "Klar",
+      "loading": "Söker …"
+    },
+    "sources": {
+      "title": "Mediakällor",
+      "description": "Servrar som minnen kan länka bilder, album och personer från. Ett minne sparar bara länken. Filerna stannar på servern.",
+      "scopes": "Använd en API-nyckel som bara kan läsa. Immich behöver dessa behörigheter: {scopes}.",
+      "keyNote": "Nyckeln krypteras med SETTINGS_KEY. Den visas aldrig igen.",
+      "noSeal": "Sätt SETTINGS_KEY i .env för att spara nycklar från webbsidan.",
+      "none": "Det finns inga mediakällor ännu.",
+      "name": "Namn",
+      "url": "Adress som servern använder",
+      "webUrl": "Adress för länkar (valfri)",
+      "webUrlHint": "Adressen som din webbläsare öppnar, om den är en annan. Till exempel https://photos.example.com.",
+      "key": "API-nyckel",
+      "keyKeep": "Lämna tomt för att behålla den sparade nyckeln",
+      "keyStored": "Nyckel sparad",
+      "keyUnreadable": "Nyckeln kan inte öppnas. Skriv in den igen.",
+      "add": "Lägg till Immich-server",
+      "save": "Testa och spara",
+      "saving": "Testar …",
+      "saved": "Sparad.",
+      "missing": "Sparad. Men nyckeln saknar dessa behörigheter: {scopes}.",
+      "edit": "Ändra",
+      "delete": "Ta bort",
+      "deleteConfirm": "Ta bort mediakällan \"{name}\"? Minnena behåller sina länkar. Men bilderna visas inte förrän du lägger till källan igen.",
+      "cancel": "Avbryt",
+      "fetchError": "Kunde inte läsa mediakällorna:"
     }
   }
 }

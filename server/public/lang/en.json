@@ -43,7 +43,12 @@
     "sortLabel": "Order of this list",
     "collapse": "Hide this list",
     "expand": "Show this list",
-    "sort": { "countDesc": "Most first", "countAsc": "Fewest first", "alphaAsc": "A–Z", "alphaDesc": "Z–A" }
+    "sort": {
+      "countDesc": "Most first",
+      "countAsc": "Fewest first",
+      "alphaAsc": "A–Z",
+      "alphaDesc": "Z–A"
+    }
   },
   "search": {
     "placeholder": "Search …",
@@ -773,6 +778,57 @@
     "tier": {
       "open": "Readable also from outside the LAN, through the open listener.",
       "vault": "Readable only on the LAN. For sensitive context and SECRET_REF pointers, never raw secrets."
+    }
+  },
+  "media": {
+    "title": "Media",
+    "none": "No media is linked.",
+    "pick": "Add from a media source…",
+    "addLink": "Add link",
+    "linkTitle": "Link name (optional)",
+    "badLink": "A link must start with http:// or https://.",
+    "remove": "Remove",
+    "unknownSource": "The media source \"{source}\" does not exist.",
+    "type": {
+      "person": "Person",
+      "album": "Album",
+      "asset": "Picture or video"
+    },
+    "picker": {
+      "title": "Add media",
+      "source": "Source",
+      "type": "Type",
+      "search": "Search",
+      "placeholder": "A name, an album or what the picture shows",
+      "empty": "Nothing was found.",
+      "done": "Done",
+      "loading": "Searching…"
+    },
+    "sources": {
+      "title": "Media sources",
+      "description": "Servers that memories can link pictures, albums and people from. A memory stores only the link. The files stay on the server.",
+      "scopes": "Use an API key that can only read. Immich needs these permissions: {scopes}.",
+      "keyNote": "The key is encrypted with SETTINGS_KEY. It is never shown again.",
+      "noSeal": "Set SETTINGS_KEY in .env to store keys from the web page.",
+      "none": "There are no media sources yet.",
+      "name": "Name",
+      "url": "Address the server uses",
+      "webUrl": "Address for links (optional)",
+      "webUrlHint": "The address your browser opens, if it is different. For example https://photos.example.com.",
+      "key": "API key",
+      "keyKeep": "Leave empty to keep the stored key",
+      "keyStored": "Key stored",
+      "keyUnreadable": "The key cannot be opened. Enter it again.",
+      "add": "Add Immich server",
+      "save": "Test and save",
+      "saving": "Testing…",
+      "saved": "Saved.",
+      "missing": "Saved. But the key does not have these permissions: {scopes}.",
+      "edit": "Change",
+      "delete": "Delete",
+      "deleteConfirm": "Delete the media source \"{name}\"? The memories keep their links. But the pictures are not shown until you add the source again.",
+      "cancel": "Cancel",
+      "fetchError": "Could not read the media sources:"
     }
   }
 }

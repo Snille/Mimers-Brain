@@ -468,6 +468,38 @@ samlingen, med svaren, tillbaka till din lokala fil.
 **4. Använd.** **Använd för motsägelser** gör den modellen till den som den
 nattliga kontrollen använder. Par som den gamla modellen bedömt bedöms igen.
 
+## 10. Länka media från Immich
+
+Ett minne kan peka på en person, ett album eller en bild eller video i Immich:
+ett profilminne på personens ansikte, en howto på ett album med stegen. Minnet
+sparar bara pekaren. Filerna stannar i Immich.
+
+**1. Skapa en nyckel.** Öppna **Kontoinställningar → API-nycklar** i Immich och
+skapa en nyckel med bara dessa behörigheter: `asset.read`, `asset.view`,
+`album.read` och `person.read`. En nyckel som bara kan läsa kan inte ändra ditt
+bibliotek, vem som än ber den.
+
+**2. Lägg till källan.** Öppna **Inställningar → Mediakällor** på port 8790 och
+välj **Lägg till Immich-server**.
+
+- *Adress som servern använder*: där hjärnan når Immich, till exempel
+  `http://10.0.0.25:2283`.
+- *Adress för länkar*: adressen som din webbläsare öppnar, om den är en annan,
+  till exempel `https://photos.example.com`.
+- *API-nyckel*: nyckeln från steg 1. Den förseglas med `SETTINGS_KEY`, som en
+  modelleverantörs nyckel, och visas aldrig igen.
+
+**Testa och spara** gör först ett riktigt anrop. En nyckel utan `album.read`
+eller `person.read` sparas, och kortet säger vad som saknas.
+
+**3. Länka media.** Öppna ett minne med **Redigera**. Under **Media** väljer du
+**Lägg till från en mediakälla …**, väljer en person, ett album eller en bild och
+sparar. En vanlig webblänk kan läggas till på alla lyssnare.
+
+**4. Använd det.** Ett sökresultat visar nu mediet. `get_media` ger en modell en
+länk per sak och upp till åtta bilder; en video kommer som en stillbild och en
+länk. Den öppna lyssnaren visar media bara för öppna minnen.
+
 ## Felsökning
 
 **Bygget misslyckas i `npm install` i en LXC.** Sök i loggen efter `runc run

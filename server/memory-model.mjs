@@ -187,6 +187,42 @@ export function memoryFreshness(metadata = {}, createdAt = null) {
   };
 }
 
+// Media a memory points at: a person, an album or one photo on a media server
+// set up under Settings -> Media sources, or a plain web link. Only the pointer
+// is stored - the files stay on the server they came from, and the title is
+// kept so a model reading a search result knows what it is without a call.
+export const MEDIA_TYPES = ["person", "album", "asset"];
+export const MEDIA_MAX = 20;
+const MEDIA_SOURCE = /^[a-z0-9][a-z0-9-]{0,31}$/;
+const MEDIA_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function normaliseMedia(list) {
+  const seen = new Set();
+  const kept = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    if (!raw || typeof raw !== "object") continue;
+    const title = clean(raw.title).slice(0, 120);
+    let ref = null;
+    if (raw.type === "link") {
+      const url = clean(raw.url);
+      if (/^https?:\/\/[^\s/]+/i.test(url) && url.length <= 2000)
+        ref = { type: "link", url, ...(title ? { title } : {}) };
+    } else if (MEDIA_TYPES.includes(raw.type)) {
+      const source = clean(raw.source).toLowerCase();
+      const id = clean(raw.id);
+      if (MEDIA_SOURCE.test(source) && MEDIA_ID.test(id))
+        ref = { source, type: raw.type, id, ...(title ? { title } : {}) };
+    }
+    if (!ref) continue;
+    const key = ref.type === "link" ? `link|${ref.url}` : `${ref.source}|${ref.type}|${ref.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    kept.push(ref);
+    if (kept.length >= MEDIA_MAX) break;
+  }
+  return kept;
+}
+
 function dedupe(list, { lower = false } = {}) {
   const seen = new Set();
   const kept = [];
@@ -580,6 +616,9 @@ export function normaliseMeta(meta = {}, content = "", defaults = {}) {
 
   out.source_refs = dedupe(out.source_refs || []);
   out.artifact_refs = dedupe(out.artifact_refs || []);
+  const media = normaliseMedia(out.media);
+  if (media.length) out.media = media;
+  else delete out.media;
 
   const reviewedAt = clean(out.reviewed_at);
   if (reviewedAt) out.reviewed_at = reviewedAt;

@@ -17,6 +17,7 @@
 // on. TOOLS below is the whole of it; keep the descriptions in step.
 
 import * as db from "./lib.mjs";
+import { resolveMedia } from "./media.mjs";
 import { publishSoon } from "./mqtt.mjs";
 import { memoryPolicy } from "./memory-policy.mjs";
 import { recallReference } from "./recall.mjs";
@@ -72,6 +73,7 @@ function memory(t) {
     requires_user_confirmation: Boolean(m.requires_user_confirmation),
     source_refs: m.source_refs || [],
     artifact_refs: m.artifact_refs || [],
+    media: m.media || [],
     tier: t.tier,
     created_at: t.created_at,
     updated_at: t.updated_at,
@@ -309,6 +311,23 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
           relations: await db.thoughtRelations(tiers, t.id),
           ...item,
         };
+      },
+    },
+    {
+      name: "get_media",
+      action: "read",
+      summary: "Links to the media a memory points at",
+      description: "List the media a memory links to - pictures of a person, an album such as a how-to, one photo or video, or a web link - with the name on the server and a link to open it. Pictures are not included here; use the MCP tool for those.",
+      schema: {
+        type: "object",
+        required: ["id"],
+        properties: { id: str("The memory's uuid") },
+      },
+      async run({ id }) {
+        const t = await db.getThought(tiers, uuid(id));
+        if (!t) throw new BadRequest("No memory with that id on this tier");
+        const { items } = await resolveMedia(t.metadata?.media || [], { images: 0 });
+        return { id: t.id, media: items, count: items.length };
       },
     },
   ];

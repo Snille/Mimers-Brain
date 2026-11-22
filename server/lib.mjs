@@ -640,6 +640,22 @@ export async function linkSupersession(tiers, replacementId, oldIds, { fresh = f
           SELECT 1 FROM thoughts old WHERE old.id = ANY($2::uuid[]) AND old.metadata->>'pinned' = 'true')`,
       [replacementId, ids],
     );
+    // A corrected memory still points at the same pictures. The replacement
+    // takes the old media only when it brings none of its own.
+    await client.query(
+      `UPDATE thoughts
+          SET metadata = jsonb_set(metadata, '{media}', (
+                SELECT jsonb_agg(DISTINCT e) FROM thoughts old,
+                       jsonb_array_elements(old.metadata->'media') e
+                 WHERE old.id = ANY($2::uuid[]) AND jsonb_typeof(old.metadata->'media') = 'array'), true)
+        WHERE id = $1
+          AND coalesce(jsonb_array_length(CASE WHEN jsonb_typeof(metadata->'media') = 'array'
+                                               THEN metadata->'media' END), 0) = 0
+          AND EXISTS (SELECT 1 FROM thoughts old WHERE old.id = ANY($2::uuid[])
+                         AND jsonb_typeof(old.metadata->'media') = 'array'
+                         AND jsonb_array_length(old.metadata->'media') > 0)`,
+      [replacementId, ids],
+    );
     if (fresh) {
       // A rewrite keeps the old memory's place in the digest. The model may
       // guess a new kind from the new text: a procedure that reads like a

@@ -6,6 +6,35 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-22 — 0.27.0: media from Immich
+
+A memory can now point at media: a person, an album or one photo or video in
+Immich, or a plain web link. A profile memory can show the person's face; a
+how-to can open the album of steps. The memory stores only the pointer, with a
+title so that a search result says what it is without a call.
+
+**Settings → Media sources** holds each server: an address, an optional address
+for links, and a read-only API key sealed with `SETTINGS_KEY`. Keys could have
+stayed in `.env`, but then a server could not be added from the web, which is
+the same reason model provider keys are allowed on the Models card. The rule
+that no other secret is stored still holds.
+
+The editor gets a Media section with a picker (people, albums, pictures, with
+thumbnails) and a field for plain links. The card shows small pictures that
+open the item on its own server.
+
+`get_media` gives a model the links and up to eight pictures as images, so a
+client can show them or look at them. The brain fetches with the source's key;
+the client never sees it.
+
+The tier rule needed one new idea. A thumbnail is fetched by the item's id, and
+an id says nothing about which memory linked it. On the open listener a
+thumbnail is served only when an open memory links that exact item, so a
+picture linked from the vault cannot be read from outside, and no id can be
+guessed into a picture nobody linked.
+
+---
+
 ## 2026-11-22 — 0.26.0: memories everywhere, free tags and a tidier sidebar
 
 The web UI called the same thing a memory in one place and a thought in the

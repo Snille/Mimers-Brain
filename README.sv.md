@@ -154,12 +154,13 @@ ingen parameter, header eller sökväg ändrar vad de svarar. Se
 | `list_thoughts`, `thought_stats` | ✓ | ✓ | ✓ |
 | `search` + `fetch` — paret ChatGPT förväntar sig | ✓ | ✓ | ✓ |
 | `report_memory_usage` — kvitto för en sökning | ✓ | ✓ | ✓ |
+| `get_media` — bilder och länkar till den media ett minne pekar på | ✓ | ✓ | ✓ |
 | `capture_thought`, `preview_ingest` + `apply_ingest` | ✓ | ✓ | |
 | `supersede_thought`, `review_memory`, `delete_thought` | ✓ | | |
 | `list_contradictions` + `dismiss_contradiction` — gå igenom Granska-sidans möjliga motsägelser | ✓ | | |
 | `list_duplicates` + `resolve_duplicate` — gå igenom Granska-sidans möjliga dubbletter | ✓ | | |
 
-Det är 17 verktyg på 8790, 10 på 8791 och 7 på 8792. Samma verktyg finns som REST
+Det är 18 verktyg på 8790, 11 på 8791 och 8 på 8792. Samma verktyg finns som REST
 för OpenAPI-klienter: `GET /openapi.json` och `POST /tools/<namn>` (med
 `fetch_thought` i stället för `search`/`fetch`).
 

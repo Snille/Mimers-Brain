@@ -1,6 +1,7 @@
 // The "Settings" view: what this instance runs with - providers, models, the
-// re-embedding, the similarity floors and the measurements behind them, and
-// the memory policy every client is told to follow. It
+// re-embedding, the similarity floors and the measurements behind them, the
+// media sources memories link pictures from, and the memory policy every
+// client is told to follow. It
 // used to sit at the bottom of Connect, which is about setting up clients.
 //
 // Only the full listener can change any of it; see /api/ai in index.mjs. The
@@ -10,6 +11,7 @@
 import { renderAppearance } from "./appearance.mjs";
 import { renderContradiction } from "./contradiction.mjs";
 import { t } from "./i18n.mjs";
+import { renderMediaSources } from "./media.mjs";
 import { renderMemoryPolicy } from "./memory-policy.mjs";
 import { renderModels } from "./models.mjs";
 
@@ -22,12 +24,13 @@ export async function render(el) {
     el.innerHTML = `<div class="empty">${esc(t("settings.fullOnly"))}</div>`;
     return;
   }
-  el.innerHTML = `<div id="appearance-host"></div><div id="policy-host"></div><div id="models-host"></div><div id="contradiction-host"></div>`;
+  el.innerHTML = `<div id="appearance-host"></div><div id="policy-host"></div><div id="models-host"></div><div id="media-host"></div><div id="contradiction-host"></div>`;
   const models = el.querySelector("#models-host");
   await Promise.all([
     renderAppearance(el.querySelector("#appearance-host")),
     renderMemoryPolicy(el.querySelector("#policy-host")),
     renderModels(models),
+    renderMediaSources(el.querySelector("#media-host")),
     renderContradiction(el.querySelector("#contradiction-host"), () => renderModels(models)),
   ]);
 }

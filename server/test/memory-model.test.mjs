@@ -385,3 +385,26 @@ test("metadata paths preserve significant underscores in directory names", () =>
   assert.equal(describesContent(String.raw`Read C:\Users\tester\Coding\_secrets_\<project>\<file>.`, content), true);
   assert.equal(describesContent(String.raw`Read C:\Users\tester\Coding\_secrets\<project>\<file>.`, content), false);
 });
+
+// A memory stores pointers to media, never the files. Anything that is not a
+// clean pointer or an http(s) link is dropped, and repeats count once.
+test("media pointers are kept clean and capped", async () => {
+  const { normaliseMedia, normaliseMeta, MEDIA_MAX } = await import("../memory-model.mjs");
+  const id = "11111111-1111-4111-8111-111111111111";
+  assert.deepEqual(normaliseMedia([
+    { source: "Immich", type: "person", id, title: "  Camilla  " },
+    { source: "immich", type: "person", id },
+    { type: "link", url: "https://example.com/a.pdf" },
+    { type: "link", url: "javascript:alert(1)" },
+    { source: "immich", type: "song", id },
+    { source: "immich", type: "asset", id: "../../etc/passwd" },
+    "not an object",
+  ]), [
+    { source: "immich", type: "person", id, title: "Camilla" },
+    { type: "link", url: "https://example.com/a.pdf" },
+  ]);
+  const many = Array.from({ length: 30 }, (_, i) => ({ type: "link", url: `https://example.com/${i}` }));
+  assert.equal(normaliseMedia(many).length, MEDIA_MAX);
+  assert.equal("media" in normaliseMeta({ title: "A memory", media: [] }, "A memory."), false);
+  assert.equal(normaliseMeta({ title: "A memory", media: many.slice(0, 1) }, "A memory.").media.length, 1);
+});
