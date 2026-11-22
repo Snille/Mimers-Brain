@@ -830,5 +830,33 @@
       "cancel": "Avbryt",
       "fetchError": "Kunde inte läsa mediakällorna:"
     }
+  },
+  "contexts": {
+    "title": "Sammanhang",
+    "description_card": "Ett sammanhang är ett startpaket för en sorts arbete, till exempel en arbetsplats, en hobby eller en resa. Det grundläggande startpaketet har det som gäller överallt. En modell som ser att uppgiften passar ett sammanhang ber om det. Dess minnen vinner där de skiljer sig från grunden.",
+    "none": "Det finns inga sammanhang ännu.",
+    "name": "Namn",
+    "projects": "Projekt (kommaseparerade)",
+    "projectsHint": "Preferenser, profiler och fästa minnen i dessa projekt hör till detta sammanhang.",
+    "description": "När det gäller",
+    "descriptionHint": "En rad som säger till en modell när den ska välja detta sammanhang.",
+    "instruction": "Instruktion",
+    "instructionHint": "Vad en modell ska göra i detta sammanhang. Till exempel: länka bilder från Immich och spara platser och personer som egna minnen.",
+    "add": "Lägg till sammanhang",
+    "save": "Spara",
+    "saved": "Sparat.",
+    "cancel": "Avbryt",
+    "edit": "Ändra",
+    "delete": "Ta bort",
+    "confirm": "Bekräfta",
+    "confirmed": "Bekräftat.",
+    "proposed": "Föreslaget av {by}",
+    "memories": "Minnen: {n}",
+    "deleteConfirm": "Ta bort sammanhanget \"{name}\"? Dess minnen går tillbaka till det grundläggande startpaketet.",
+    "fetchError": "Kunde inte läsa sammanhangen:",
+    "editorTitle": "Sammanhang",
+    "editorHint": "Ett minne i ett sammanhang finns i det startpaketet, inte i det grundläggande.",
+    "editorNone": "Det finns inga sammanhang. Lägg till dem under Inställningar.",
+    "tagHint": "I startpaketet för sammanhanget {name}"
   }
 }

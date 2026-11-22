@@ -14,6 +14,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as db from "./lib.mjs";
+import * as contexts from "./contexts.mjs";
 import { mediaSummary, resolveMedia } from "./media.mjs";
 import { publishSoon } from "./mqtt.mjs";
 import { memoryPolicy, sessionPolicy } from "./memory-policy.mjs";
@@ -311,30 +312,77 @@ export function buildServer(tiers, ctx = {}) {
 
   // Read-only, so on every listener; the tier set keeps the vault out of it
   // on the open ones. No recall trace: nothing was searched for.
+  // One numbered block per digest memory, shared by the base and a context.
+  const digestLines = (items) => items.map((item, index) =>
+    `${index + 1}. ${item.title ? `${item.title}\n` : ""}${item.text}\n  [${[
+      item.kind ? `Kind: ${item.kind}` : "", item.pinned ? "Pinned" : "",
+      item.tier === "vault" ? "TIER: VAULT" : "",
+      item.complete ? "" : "Summary only - fetch for the full text",
+    ].filter(Boolean).join(" | ")}] (id ${item.id})`).join("\n\n");
+  const omittedLine = (digest) => (digest.omitted
+    ? `\n\n${digest.omitted} more standing ${digest.omitted === 1 ? "memory does" : "memories do"} not fit in the digest. ` +
+      `They still apply; search_thoughts finds them, or fetch by id: ` +
+      `${digest.omitted_items.map((item) => `${item.title || "untitled"} (id ${item.id})`).join("; ")}.`
+    : "");
+
   server.registerTool("memory_digest", {
     title: "Session digest",
-    description: `Call once at the start of a session. Returns the standing rules and preferences the user has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
-    inputSchema: {},
-  }, track("memory_digest", "read", async (_args, note) => {
+    description: `Call once at the start of a session. Returns the standing rules and preferences the user has confirmed for every session - the things to know before asking anything - and the list of contexts (kinds of work, such as a workplace or a hobby). When the task fits a context, or the user names one, call it again with that context: its memories hold in that work and win over general preferences where they differ. Search for everything else. ${scope}`,
+    inputSchema: {
+      context: z.string().optional().describe("A context id from the list the digest gives"),
+      include_base: z.boolean().default(true).describe("false when the base digest is already read in this session"),
+    },
+  }, track("memory_digest", "read", async ({ context, include_base = true } = {}, note) => {
     try {
-      const digest = await db.memoryDigest(tiers);
-      note.count = digest.count;
-      const policy = `${memoryPolicy()}\n\nConnection scope: ${scope}\n\n---\n\n`;
-      if (!digest.count) return text(`${policy}No standing memories yet: nothing is pinned and no preference or profile memory is confirmed.`);
-      return text(
-        `${policy}Standing memories - ${digest.count} confirmed by the user. Treat them as known for this session.\n\n` +
-        digest.items.map((item, index) =>
-          `${index + 1}. ${item.title ? `${item.title}\n` : ""}${item.text}\n  [${[
-            item.kind ? `Kind: ${item.kind}` : "", item.pinned ? "Pinned" : "",
-            item.tier === "vault" ? "TIER: VAULT" : "",
-            item.complete ? "" : "Summary only - fetch for the full text",
-          ].filter(Boolean).join(" | ")}] (id ${item.id})`).join("\n\n") +
-        (digest.omitted
-          ? `\n\n${digest.omitted} more standing ${digest.omitted === 1 ? "memory does" : "memories do"} not fit in the digest. ` +
-            `They still apply; search_thoughts finds them, or fetch by id: ` +
-            `${digest.omitted_items.map((item) => `${item.title || "untitled"} (id ${item.id})`).join("; ")}.`
-          : ""),
-      );
+      const list = await contexts.listContexts();
+      const chosen = context ? list.find((c) => c.id === String(context).trim().toLowerCase()) : null;
+      if (context && !chosen)
+        return fail(new Error(`No context "${context}". Contexts: ${list.map((c) => c.id).join(", ") || "none"}`));
+      const parts = [];
+      let count = 0;
+      if (!chosen || include_base) {
+        const digest = await db.memoryDigest(tiers);
+        count += digest.count;
+        parts.push(`${memoryPolicy()}\n\nConnection scope: ${scope}`);
+        parts.push(digest.count
+          ? `Standing memories - ${digest.count} confirmed by the user. Treat them as known for this session.\n\n${digestLines(digest.items)}${omittedLine(digest)}`
+          : "No standing memories yet: nothing is pinned and no preference or profile memory is confirmed.");
+        if (!chosen && list.length)
+          parts.push(`Contexts - kinds of work with standing memories of their own. When the task fits one, or the user names one, call memory_digest with context set to its id (include_base: false); its memories win over the general ones above where they differ.\n` +
+            list.map((c) => `- ${c.id}: ${c.name}${c.description ? ` - ${c.description}` : ""}`).join("\n"));
+      }
+      if (chosen) {
+        const digest = await db.memoryDigest(tiers, { context: chosen });
+        count += digest.count;
+        parts.push(`Context: ${chosen.name} (${chosen.id})${chosen.description ? `\n${chosen.description}` : ""}` +
+          `${chosen.instruction ? `\n\nIn this context:\n${chosen.instruction}` : ""}\n\n` +
+          (digest.count
+            ? `Standing memories for this context - ${digest.count}, confirmed by the user. Where they differ from general preferences, these win.\n\n${digestLines(digest.items)}${omittedLine(digest)}`
+            : "No standing memories in this context yet."));
+      }
+      note.count = count;
+      return text(parts.join("\n\n---\n\n"));
+    } catch (e) { return fail(e); }
+  }));
+
+  // A model may suggest a new context; the user confirms it on the Settings
+  // page before it is listed or used, because its instruction would otherwise
+  // be an agent's words read as the user's by every later session. Full
+  // listener only, like the rest of Settings.
+  if (full) registerWrite("propose_context", {
+    title: "Propose a context",
+    description: "Suggest a new context: a kind of work with a start pack of its own, for example a workplace, a hobby or a trip. It is saved as a proposal; the user confirms or changes it on the Settings page, and until then it is not listed or used. Propose one only when the user asks for it or agrees.",
+    inputSchema: {
+      name: z.string().describe("Short name, for example Spectrogon or Holiday"),
+      description: z.string().default("").describe("One line: when this context applies"),
+      instruction: z.string().default("").describe("What a model should do in this context, in a few sentences"),
+      projects: z.array(z.string()).default([]).describe("Project names whose standing memories belong to this context"),
+    },
+  }, track("propose_context", "write", async ({ name, description, instruction, projects }, note) => {
+    try {
+      const saved = await contexts.saveContext({ name, description, instruction, projects }, { proposed: true, by: ctx.client });
+      note.count = 1;
+      return text(`Proposed context "${saved.name}" (id ${saved.id}). The user confirms it on the Settings page; until then it is not listed or used.`);
     } catch (e) { return fail(e); }
   }));
 

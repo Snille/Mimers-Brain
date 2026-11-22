@@ -17,6 +17,7 @@
 // on. TOOLS below is the whole of it; keep the descriptions in step.
 
 import * as db from "./lib.mjs";
+import * as contexts from "./contexts.mjs";
 import { resolveMedia } from "./media.mjs";
 import { publishSoon } from "./mqtt.mjs";
 import { memoryPolicy } from "./memory-policy.mjs";
@@ -274,10 +275,25 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
       name: "memory_digest",
       action: "read",
       summary: "Session digest",
-      description: `Call once at the start of a session. Returns the standing rules and preferences the user has confirmed for every session - the things to know before asking anything. Search for everything else. ${scope}`,
-      schema: { type: "object", properties: {} },
-      async run() {
-        return { policy: memoryPolicy(), scope, ...(await db.memoryDigest(tiers)) };
+      description: `Call once at the start of a session. Returns the standing rules and preferences the user has confirmed for every session, and the list of contexts (kinds of work, such as a workplace or a hobby). When the task fits a context, or the user names one, call it again with that context: its memories win over general preferences where they differ. Search for everything else. ${scope}`,
+      schema: {
+        type: "object",
+        properties: {
+          context: str("A context id from the list the digest gives"),
+          include_base: { type: "boolean", default: true, description: "false when the base digest is already read" },
+        },
+      },
+      async run({ context, include_base = true } = {}) {
+        const list = await contexts.listContexts();
+        const chosen = context ? list.find((c) => c.id === String(context).trim().toLowerCase()) : null;
+        if (context && !chosen) throw new BadRequest(`No context "${context}". Contexts: ${list.map((c) => c.id).join(", ") || "none"}`);
+        const out = { scope, contexts: list.map(({ id, name, description }) => ({ id, name, description })) };
+        if (!chosen || include_base) Object.assign(out, { policy: memoryPolicy(), ...(await db.memoryDigest(tiers)) });
+        if (chosen) {
+          const { id, name, description, instruction } = chosen;
+          out.context = { id, name, description, instruction, ...(await db.memoryDigest(tiers, { context: chosen })) };
+        }
+        return out;
       },
     },
     {
@@ -333,6 +349,25 @@ export function toolsFor(tiers, ctx = {}, { writable = true } = {}) {
   ];
 
   if (full) {
+    tools.push({
+      name: "propose_context",
+      action: "write",
+      summary: "Propose a context",
+      description: "Suggest a new context: a kind of work with a start pack of its own, for example a workplace, a hobby or a trip. It is saved as a proposal; the user confirms or changes it on the Settings page, and until then it is not listed or used. Propose one only when the user asks for it or agrees.",
+      schema: {
+        type: "object",
+        required: ["name"],
+        properties: {
+          name: str("Short name, for example Spectrogon or Holiday"),
+          description: str("One line: when this context applies"),
+          instruction: str("What a model should do in this context, in a few sentences"),
+          projects: { type: "array", items: str("A project name"), default: [] },
+        },
+      },
+      async run({ name, description = "", instruction = "", projects = [] }) {
+        return contexts.saveContext({ name, description, instruction, projects }, { proposed: true, by: ctx.client });
+      },
+    });
     tools.push({
       name: "review_memory",
       action: "write",

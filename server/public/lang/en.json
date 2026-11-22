@@ -830,5 +830,33 @@
       "cancel": "Cancel",
       "fetchError": "Could not read the media sources:"
     }
+  },
+  "contexts": {
+    "title": "Contexts",
+    "description_card": "A context is a start pack for one kind of work, for example a workplace, a hobby or a trip. The base start pack holds what is true everywhere. A model that sees the task fits a context asks for it, and its memories win where they differ from the base.",
+    "none": "There are no contexts yet.",
+    "name": "Name",
+    "projects": "Projects (comma-separated)",
+    "projectsHint": "Preferences, profiles and pinned memories of these projects belong to this context.",
+    "description": "When it applies",
+    "descriptionHint": "One line that tells a model when to choose this context.",
+    "instruction": "Instruction",
+    "instructionHint": "What a model must do in this context. For example: link pictures from Immich, and save places and people as their own memories.",
+    "add": "Add context",
+    "save": "Save",
+    "saved": "Saved.",
+    "cancel": "Cancel",
+    "edit": "Change",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "confirmed": "Confirmed.",
+    "proposed": "Proposed by {by}",
+    "memories": "Memories: {n}",
+    "deleteConfirm": "Delete the context \"{name}\"? Its memories go back to the base start pack.",
+    "fetchError": "Could not read the contexts:",
+    "editorTitle": "Contexts",
+    "editorHint": "A memory in a context is in that start pack, not in the base one.",
+    "editorNone": "There are no contexts. Add them under Settings.",
+    "tagHint": "In the start pack of the context {name}"
   }
 }

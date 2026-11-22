@@ -27,7 +27,7 @@ test("every client sees the whole short policy, and the digest carries the full 
   assert.match(sessionPolicy(), /report_memory_usage/);
   assert.match(sessionPolicy(), /never raw secrets/);
   const mcp = await source("../mcp.mjs");
-  assert.match(mcp, /const policy = `\$\{memoryPolicy\(\)\}/);
+  assert.match(mcp, /parts\.push\(`\$\{memoryPolicy\(\)\}/);
   const digest = toolsFor(["open"]).find((tool) => tool.name === "memory_digest");
   assert.match(digest.run.toString(), /policy: memoryPolicy\(\)/);
 });
@@ -35,23 +35,27 @@ test("every client sees the whole short policy, and the digest carries the full 
 test("only the reader can put a memory in the digest", async () => {
   const lib = await source("../lib.mjs");
   const capture = lib.slice(lib.indexOf("export async function captureThought("));
-  assert.match(capture.slice(0, capture.indexOf("normaliseMeta(")), /"captured_by", "pinned",?\s*\]\) delete proposed\[field\]/);
-  const rule = lib.slice(lib.indexOf("const DIGEST_SQL = `"), lib.indexOf("`;", lib.indexOf("const DIGEST_SQL = `")));
+  // `contexts` is a pin into one context's start pack (contexts.mjs).
+  assert.match(capture.slice(0, capture.indexOf("normaliseMeta(")), /"captured_by", "pinned", "contexts",?\s*\]\) delete proposed\[field\]/);
+  const sql = await source("../context-sql.mjs");
+  const rule = sql.slice(sql.indexOf("export const TRUSTED_SQL = `"), sql.indexOf("`;", sql.indexOf("export const TRUSTED_SQL = `")));
   assert.match(rule, /review_status', 'confirmed'\) = 'confirmed'/);
   assert.match(rule, /can_use_as_instruction', 'true'\) = 'true'/);
   assert.match(rule, /lifecycle', 'current'\) = 'current'/);
   // One rule for the digest itself, the Thoughts filter and the sidebar count.
-  assert.match(lib.slice(lib.indexOf("export async function memoryDigest(")), /AND \$\{DIGEST_SQL\}/);
-  assert.equal(lib.match(/\$\{DIGEST_SQL\}/g).length, 4);
+  assert.match(lib, /const DIGEST_SQL = BASE_DIGEST_SQL;/);
+  assert.match(sql, /export const BASE_DIGEST_SQL = `\$\{TRUSTED_SQL\}/);
+  assert.match(lib.slice(lib.indexOf("export async function memoryDigest(")), /: DIGEST_SQL;/);
+  assert.equal(lib.match(/\$\{DIGEST_SQL\}/g).length, 3);
 });
 
 test("the Thoughts page and the server agree on what is in the digest", async () => {
-  const lib = await source("../lib.mjs");
+  const lib = await source("../context-sql.mjs");
   const page = await source("../public/index.html");
   assert.match(lib, /metadata->>'kind' IN \('preference', 'profile'\) AND coalesce\(metadata->>'pinned', ''\) <> 'false'/);
   assert.match(page, /const DIGEST_KINDS = \["preference", "profile"\];/);
   assert.match(page, /m\.pinned === true \|\| \(m\.pinned !== false && DIGEST_KINDS\.includes\(m\.kind\)\)/);
-  assert.match(page, /const digestReady = \(m\) => inDigest\(m\)/);
+  assert.match(page, /const digestReady = \(m\) => inDigest\(m\) && trusted\(m\) && !contextsOf\(m, \{ standing: true \}\)\.length;/);
   assert.match(page, /chips\("#f-digest"/);
   for (const language of ["en", "sv"]) {
     const messages = JSON.parse(await source(`../public/lang/${language}.json`));

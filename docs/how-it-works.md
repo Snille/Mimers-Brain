@@ -140,6 +140,19 @@ web. It should be a key that can only read. Immich is the only kind so far
   preference and profile memories, and anything pinned on the Memories page. It
   is capped at 15 memories or 9,000 characters and names what it left out. The
   *Session digest* filter on the Memories page shows its contents.
+- **Contexts.** One start pack per kind of work (`server/contexts.mjs`), set up
+  under Settings: a name, a line on when it applies, an instruction, and
+  projects. A memory is in a context when the reader ticks it in the editor
+  (`metadata.contexts`, a pin into that context whatever its kind), or when it
+  is a standing memory of one of the context's projects. Either way it leaves
+  the base digest. The base lists the contexts; a model whose task fits one
+  calls `memory_digest(context=<id>)` and gets its instruction and memories
+  (10 memories, 6,000 characters), which win over the base where they differ.
+  So Spectrogon's red accent and the personal green no longer sit side by side.
+  A model may `propose_context` (full listener); a proposal is not listed or
+  used until the reader confirms it, since its instruction would otherwise be an
+  agent's words read as the user's. An agent's capture cannot set `contexts`,
+  like `pinned`. Deleting a context returns its memories to the base.
 - **Thresholds.** A similarity score means something only for the embedding
   model that produced it, so the four floors (search, recall hook, contradiction,
   duplicate) are stored per embedding model on the Models card of the Settings

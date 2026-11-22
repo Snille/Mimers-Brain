@@ -6,6 +6,30 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-22 — 0.28.0: ett startpaket per sorts arbete
+
+Startpaketet var en lista för allt. En regel för Eriks egna appar (grön
+accentfärg) låg bredvid en regel för jobbet (Spectrogons röda), och varje modell
+fick gissa vilken som gällde.
+
+Ett **sammanhang** är nu ett startpaket för en sorts arbete. Det ställs in under
+Inställningar: ett namn, en rad om när det gäller, en instruktion och projekt.
+Ett minne hör till ett sammanhang när det är förbockat i redigeraren, eller när
+det är ett stående minne i ett av sammanhangets projekt. Då lämnar det det
+grundläggande startpaketet. Grunden listar sammanhangen, och en modell vars
+uppgift passar ett av dem ber om det med `memory_digest(context=...)`.
+Sammanhangets minnen vinner där de skiljer sig från grunden.
+
+Modellen väljer, eftersom det fungerar i alla klienter. Att välja efter mapp i
+en Claude Code-hook vore automatiskt, men bara där. Det kan komma senare.
+
+En modell kan föreslå ett sammanhang med `propose_context`. Förslaget väntar på
+läsaren på Inställningar-sidan. Annars skulle dess instruktion vara en agents ord
+som varje senare session läser som användarens. Av samma skäl kan en agent inte
+lägga sitt eget minne i ett sammanhang, lika lite som den kan fästa det.
+
+---
+
 ## 2026-11-22 — 0.27.0: media från Immich
 
 Ett minne kan nu peka på media: en person, ett album eller en bild eller video i

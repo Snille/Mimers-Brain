@@ -148,7 +148,7 @@ so no parameter, header or path changes what they return. See
 
 | Tool | 8790 | 8791 | 8792 |
 | --- | :-: | :-: | :-: |
-| `memory_digest` — usage policy and standing rules; call once per session | ✓ | ✓ | ✓ |
+| `memory_digest` — usage policy and standing rules; call once per session, again with `context` for one kind of work | ✓ | ✓ | ✓ |
 | `search_thoughts` — semantic search | ✓ | ✓ | ✓ |
 | `list_thoughts`, `thought_stats` | ✓ | ✓ | ✓ |
 | `search` + `fetch` — the pair ChatGPT expects | ✓ | ✓ | ✓ |
@@ -156,10 +156,11 @@ so no parameter, header or path changes what they return. See
 | `get_media` — pictures and links for the media a memory points at | ✓ | ✓ | ✓ |
 | `capture_thought`, `preview_ingest` + `apply_ingest` | ✓ | ✓ | |
 | `supersede_thought`, `review_memory`, `delete_thought` | ✓ | | |
+| `propose_context` — suggest a context; you confirm it under Settings | ✓ | | |
 | `list_contradictions` + `dismiss_contradiction` — go through the Review page's possible contradictions | ✓ | | |
 | `list_duplicates` + `resolve_duplicate` — go through the Review page's possible duplicates | ✓ | | |
 
-That is 18 tools on 8790, 11 on 8791 and 8 on 8792. The same tools are
+That is 19 tools on 8790, 11 on 8791 and 8 on 8792. The same tools are
 available as REST for OpenAPI clients: `GET /openapi.json` and
 `POST /tools/<name>` (with `fetch_thought` instead of `search`/`fetch`).
 

@@ -156,6 +156,15 @@
   .editfields input, .editfields select { width: 100%; }
   .field-hint { margin-top: 4px; font-size: 12px; line-height: 1.35; }
   /* Media a memory links to (media.mjs): a row of small pictures under the text. */
+  .tag.context { border-color: var(--accent-dim); }
+  .context-editor { margin-top: 10px; }
+  .context-boxes { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0; }
+  .context-box { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+  .context-box input { width: auto; }
+  .context-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 12px; margin-top: 8px; }
+  .context-form input, .context-form textarea { width: 100%; }
+  .context-form .wide { grid-column: 1 / -1; }
+  .context-instruction { white-space: pre-wrap; margin-top: 4px; }
   .media-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 2px; }
   .media-item { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 112px; text-decoration: none; color: inherit; font-size: 12px; text-align: center; }
   .media-item img { width: 112px; height: 84px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); }
@@ -472,6 +481,7 @@ import {
 import { copy } from "./clipboard.mjs";
 import { apply as applyAppearance } from "./appearance.mjs";
 import { loadSources as loadMediaSources, mediaEditor, mediaStrip, wireStrip } from "./media.mjs";
+import { contextEditor, contextsOf, contextTags, loadContexts } from "./contexts.mjs";
 
 await initI18n();
 
@@ -606,11 +616,12 @@ function chips(container, entries, key, label = (name) => name) {
 const DIGEST_KINDS = ["preference", "profile"];
 const inDigest = (m) => m.pinned === true || (m.pinned !== false && DIGEST_KINDS.includes(m.kind));
 // Actually sent to the models: meant for it, current and confirmed for use as
-// an instruction. Mirrors DIGEST_SQL in lib.mjs; the tag and the filter show this.
-const digestReady = (m) => inDigest(m)
-  && (m.lifecycle || "current") === "current"
+// an instruction, and held by no context (contexts.mjs), which takes it out of
+// the base start pack. Mirrors BASE_DIGEST_SQL; the tag and the filter show this.
+const trusted = (m) => (m.lifecycle || "current") === "current"
   && (m.review_status || "confirmed") === "confirmed"
   && m.can_use_as_instruction !== false;
+const digestReady = (m) => inDigest(m) && trusted(m) && !contextsOf(m, { standing: true }).length;
 
 // Waiting for a reader's verdict. Mirrors AWAITING_REVIEW_SQL in lib.mjs.
 const awaitingReview = (m) => (m.lifecycle || "current") === "current"
@@ -629,7 +640,8 @@ function card(t) {
   const stale = verified && Number.isFinite(verified.valueOf()) && Date.now() - verified.valueOf() > 180 * 86400000;
   const tags = [
     digestReady(m) ? `<span class="tag pinned" title="${esc(tr("thought.pinnedHint"))}">📌 ${esc(tr("thought.pinned"))}</span>`
-      : inDigest(m) && m.pinned === true ? `<span class="tag" title="${esc(tr("thought.pinnedWaitingHint"))}">📌 ${esc(tr("thought.pinnedWaiting"))}</span>` : "",
+      : inDigest(m) && m.pinned === true && !contextsOf(m).length ? `<span class="tag" title="${esc(tr("thought.pinnedWaitingHint"))}">📌 ${esc(tr("thought.pinnedWaiting"))}</span>` : "",
+    contextTags(contextsOf(m, { standing: inDigest(m) })),
     t.tier === "vault" ? `<span class="tag vault">🔒 ${esc(tr("tiers.vault"))}</span>` : "",
     m.kind ? `<span class="tag type">${esc(m.kind)}</span>` : (m.type ? `<span class="tag type">${esc(m.type)}</span>` : ""),
     m.lifecycle && m.lifecycle !== "current" ? `<span class="tag">${esc(m.lifecycle)}</span>` : "",
@@ -784,7 +796,10 @@ function card(t) {
     // Pictures, albums and people the memory points at; see media.mjs.
     el.querySelector(".media-strip")?.remove();
     const mediaDraft = mediaEditor(m.media, { full: state.vault });
-    fields.after(mediaDraft.el);
+    // The start packs, besides the base one, that this memory belongs to.
+    const contextDraft = contextEditor(m);
+    fields.after(contextDraft.el);
+    contextDraft.el.after(mediaDraft.el);
     for (const [selector, group] of [[".e-kind", "kind"], [".e-lifecycle", "lifecycle"], [".e-task-status", "taskStatus"], [".e-tier", "tier"]]) {
       const select = fields.querySelector(selector);
       if (select) withHelp(select, group);
@@ -833,6 +848,7 @@ function card(t) {
             systems: list(".e-systems"),
             verified_at: fields.querySelector(".e-verified").value,
             media: mediaDraft.value(),
+            contexts: contextDraft.value(),
             pinned: undefined,
           },
         };
@@ -905,8 +921,9 @@ function card(t) {
 
 async function refresh() {
   showError("");
-  // The source names and addresses that the media under each memory need.
-  await loadMediaSources();
+  // The source names and addresses that the media under each memory need,
+  // and the contexts that decide which start pack a memory is in.
+  await Promise.all([loadMediaSources(), loadContexts({ force: true })]);
   const list = $("#list");
   try {
     let rows;

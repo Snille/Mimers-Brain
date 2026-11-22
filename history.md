@@ -6,6 +6,30 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-22 — 0.28.0: a start pack per kind of work
+
+The session digest was one list for everything. A rule for Erik's own apps (a
+green accent) sat next to one for work (Spectrogon's red), and every model had
+to guess which one won.
+
+A **context** is now a start pack for one kind of work, set up under Settings:
+a name, a line that says when it applies, an instruction, and projects. A
+memory belongs to a context when it is ticked in the editor, or when it is a
+standing memory of one of the context's projects. It then leaves the base start
+pack. The base lists the contexts, and a model whose task fits one asks for it
+with `memory_digest(context=...)`. That context's memories win where they
+differ from the base.
+
+The model chooses, because that works in every client. Choosing by folder in a
+Claude Code hook would be automatic, but only there; it can come later.
+
+A model can propose a context with `propose_context`. The proposal waits for the
+reader on the Settings page: its instruction would otherwise be an agent's words
+read as the user's by every later session. For the same reason an agent cannot
+put its own memory in a context, as it cannot pin one.
+
+---
+
 ## 2026-11-22 — 0.27.0: media from Immich
 
 A memory can now point at media: a person, an album or one photo or video in

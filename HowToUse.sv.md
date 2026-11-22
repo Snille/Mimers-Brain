@@ -170,7 +170,7 @@ nästa session.
 
 Det viktigaste:
 
-- **Börja** sessionen med `memory_digest`.
+- **Börja** sessionen med `memory_digest`. När uppgiften passar ett av sammanhangen den listar (Spectrogon, Semester …), anropa den igen med `context`: de minnena vinner över de allmänna.
 - **Sök** med `search_thoughts` innan du svarar om dina system, och före varje
   bygge, deploy eller steg med inloggningsuppgifter.
 - **Rapportera** varje sökning som gav träffar med `report_memory_usage`: dess

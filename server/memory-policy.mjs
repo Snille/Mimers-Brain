@@ -30,7 +30,7 @@ export const FULL_MAX = 12000;
 
 export const DEFAULT_MEMORY_POLICY = [
   "Mimers Brain usage policy:",
-  "1. At the start of a session, call memory_digest once. It returns this policy and the standing rules and preferences the user has confirmed; treat them as known.",
+  "1. At the start of a session, call memory_digest once. It returns this policy and the standing rules and preferences the user has confirmed; treat them as known. When it lists contexts and the task fits one, or the user names one, call memory_digest again with that context; its memories win over the general ones where they differ.",
   "2. Before answering about the user, their systems, access, configuration, workflows, preferences, prior decisions or pending work, search Mimers Brain first. Use fetch/fetch_thought when the compact result is not enough. Use current memories; read superseded or archived history only when the question needs it.",
   "3. Every non-empty search creates its own trace_id. Before the final answer, report each exactly once with report_memory_usage; multiple searches require separate reports. If nothing helped, send used_ids=[] and every returned id as ignored. Never include the query or the answer.",
   "4. Save only a current, verified, durable decision, fact, preference, procedure, lesson, reference, profile detail, incident conclusion, idea or unfinished task that can change a future answer and is not already in repository documentation, history or source: one standalone memory with one main purpose. Never save ordinary conversation, tentative reasoning, debug state or lists of changes made during the session.",

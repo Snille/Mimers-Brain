@@ -149,7 +149,7 @@ ingen parameter, header eller sökväg ändrar vad de svarar. Se
 
 | Verktyg | 8790 | 8791 | 8792 |
 | --- | :-: | :-: | :-: |
-| `memory_digest` — användarpolicy och stående regler; anropas en gång per session | ✓ | ✓ | ✓ |
+| `memory_digest` — användarpolicy och stående regler; anropas en gång per session, igen med `context` för en sorts arbete | ✓ | ✓ | ✓ |
 | `search_thoughts` — semantisk sökning | ✓ | ✓ | ✓ |
 | `list_thoughts`, `thought_stats` | ✓ | ✓ | ✓ |
 | `search` + `fetch` — paret ChatGPT förväntar sig | ✓ | ✓ | ✓ |
@@ -157,10 +157,11 @@ ingen parameter, header eller sökväg ändrar vad de svarar. Se
 | `get_media` — bilder och länkar till den media ett minne pekar på | ✓ | ✓ | ✓ |
 | `capture_thought`, `preview_ingest` + `apply_ingest` | ✓ | ✓ | |
 | `supersede_thought`, `review_memory`, `delete_thought` | ✓ | | |
+| `propose_context` — föreslå ett sammanhang; du bekräftar det under Inställningar | ✓ | | |
 | `list_contradictions` + `dismiss_contradiction` — gå igenom Granska-sidans möjliga motsägelser | ✓ | | |
 | `list_duplicates` + `resolve_duplicate` — gå igenom Granska-sidans möjliga dubbletter | ✓ | | |
 
-Det är 18 verktyg på 8790, 11 på 8791 och 8 på 8792. Samma verktyg finns som REST
+Det är 19 verktyg på 8790, 11 på 8791 och 8 på 8792. Samma verktyg finns som REST
 för OpenAPI-klienter: `GET /openapi.json` och `POST /tools/<namn>` (med
 `fetch_thought` i stället för `search`/`fetch`).
 

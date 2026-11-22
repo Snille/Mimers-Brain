@@ -4,6 +4,7 @@
 // listener the request arrived on - never from a header, a parameter or
 // anything else the caller can influence.
 
+import { BASE_DIGEST_SQL, CONTEXT_MEMBER_SQL } from "./context-sql.mjs";
 import pg from "pg";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
@@ -268,11 +269,7 @@ const COLS = "id, content, metadata, tier, created_at, updated_at";
 
 // What the session digest contains, as one condition, so the digest, the
 // Thoughts filter and its count can never disagree. See memoryDigest().
-const DIGEST_SQL = `coalesce(metadata->>'lifecycle', 'current') = 'current'
-        AND coalesce(metadata->>'review_status', 'confirmed') = 'confirmed'
-        AND coalesce(metadata->>'can_use_as_instruction', 'true') = 'true'
-        AND (metadata->>'pinned' = 'true'
-             OR (metadata->>'kind' IN ('preference', 'profile') AND coalesce(metadata->>'pinned', '') <> 'false'))`;
+const DIGEST_SQL = BASE_DIGEST_SQL;
 
 // Waiting for a reader's verdict: new agent memories, stale ones, and evidence
 // nobody has looked at yet. The Review queue, the Thoughts filter and the
@@ -640,6 +637,21 @@ export async function linkSupersession(tiers, replacementId, oldIds, { fresh = f
           SELECT 1 FROM thoughts old WHERE old.id = ANY($2::uuid[]) AND old.metadata->>'pinned' = 'true')`,
       [replacementId, ids],
     );
+    // A corrected memory keeps the contexts the reader put the old one in,
+    // like its pin above; the digest still waits for the replacement's review.
+    await client.query(
+      `UPDATE thoughts
+          SET metadata = jsonb_set(metadata, '{contexts}', (
+                SELECT jsonb_agg(DISTINCT e) FROM thoughts old,
+                       jsonb_array_elements(old.metadata->'contexts') e
+                 WHERE old.id = ANY($2::uuid[]) AND jsonb_typeof(old.metadata->'contexts') = 'array'), true)
+        WHERE id = $1
+          AND jsonb_typeof(metadata->'contexts') IS DISTINCT FROM 'array'
+          AND EXISTS (SELECT 1 FROM thoughts old WHERE old.id = ANY($2::uuid[])
+                         AND jsonb_typeof(old.metadata->'contexts') = 'array'
+                         AND jsonb_array_length(old.metadata->'contexts') > 0)`,
+      [replacementId, ids],
+    );
     // A corrected memory still points at the same pictures. The replacement
     // takes the old media only when it brings none of its own.
     await client.query(
@@ -761,9 +773,10 @@ export async function captureThought(tiers, content, {
   // `pinned` puts a memory in the digest every session reads first, so it is
   // the reader's choice on the Thoughts page, never an agent's. An agent able
   // to pin would be able to put words in front of every model that connects.
+  // `contexts` is a pin into one context's digest (contexts.mjs), so the same.
   for (const field of [
     "provenance", "review_status", "can_use_as_instruction", "can_use_as_evidence",
-    "requires_user_confirmation", "reviewed_at", "reviewed_by", "captured_by", "pinned",
+    "requires_user_confirmation", "reviewed_at", "reviewed_by", "captured_by", "pinned", "contexts",
   ]) delete proposed[field];
   const meta = normaliseMeta(
     proposed,
@@ -2256,18 +2269,30 @@ export const DIGEST_LIMIT = 15;
 export const DIGEST_WHOLE = 700;
 export const DIGEST_BUDGET = 9000;
 
-export async function memoryDigest(tiers, { limit = DIGEST_LIMIT } = {}) {
+// A context's own share: fewer memories and characters, since the base is
+// read beside it.
+export const CONTEXT_DIGEST_LIMIT = 10;
+export const CONTEXT_DIGEST_BUDGET = 6000;
+
+// Without `context` this is the base: what holds everywhere. With one (an
+// object from contexts.mjs) it is that context's memories alone; the caller
+// puts the two together. See contexts.mjs for which memory goes where.
+export async function memoryDigest(tiers, { limit, context = null } = {}) {
+  const args = [tiers];
+  const where = context
+    ? CONTEXT_MEMBER_SQL(args.push(context.id), args.push(context.projects || []))
+    : DIGEST_SQL;
   const { rows } = await pool.query(
     `SELECT ${COLS}, count(*) OVER () AS qualifying FROM thoughts
-      WHERE tier = ANY($1) AND ${DIGEST_SQL}
+      WHERE tier = ANY($1) AND ${where}
       ORDER BY (metadata->>'pinned' = 'true') DESC NULLS LAST,
                CASE metadata->>'kind' WHEN 'preference' THEN 0 WHEN 'profile' THEN 1 ELSE 2 END,
                updated_at DESC
       LIMIT 50`,
-    [tiers],
+    args,
   );
-  const cap = Math.min(Number(limit) || DIGEST_LIMIT, 50);
-  let budget = DIGEST_BUDGET;
+  const cap = Math.min(Number(limit) || (context ? CONTEXT_DIGEST_LIMIT : DIGEST_LIMIT), 50);
+  let budget = context ? CONTEXT_DIGEST_BUDGET : DIGEST_BUDGET;
   const items = [];
   for (const row of rows) {
     const m = row.metadata || {};

@@ -616,6 +616,11 @@ export function normaliseMeta(meta = {}, content = "", defaults = {}) {
 
   out.source_refs = dedupe(out.source_refs || []);
   out.artifact_refs = dedupe(out.artifact_refs || []);
+  // The contexts (contexts.mjs) whose start pack this memory is pinned into.
+  const contexts = dedupe(out.contexts || [], { lower: true })
+    .filter((id) => /^[a-z0-9][a-z0-9-]{0,31}$/.test(id)).slice(0, 10);
+  if (contexts.length) out.contexts = contexts;
+  else delete out.contexts;
   const media = normaliseMedia(out.media);
   if (media.length) out.media = media;
   else delete out.media;

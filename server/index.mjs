@@ -34,6 +34,7 @@ import * as models from "./model-settings.mjs";
 import * as recall from "./recall-settings.mjs";
 import * as contradictionEval from "./contradiction-eval.mjs";
 import * as appearanceSettings from "./appearance.mjs";
+import * as contexts from "./contexts.mjs";
 import * as media from "./media.mjs";
 import { startMqtt, stopMqtt, mqttStatus, publishNow, publishSoon } from "./mqtt.mjs";
 
@@ -315,6 +316,7 @@ function connectInfo(req, { tiers, allowUrlKey }) {
       { name: "get_media", what: "Pictures and links for the media a memory points at" },
       ...(full ? [
         { name: "review_memory", what: "Review trust and allowed use of an agent memory" },
+        { name: "propose_context", what: "Suggest a new context; the user confirms it under Settings" },
         { name: "list_contradictions", what: "Possible contradictions from the Review page, with both texts" },
         { name: "dismiss_contradiction", what: "Mark a pair as not a contradiction, after the user agreed" },
         { name: "list_duplicates", what: "Possible duplicates from the Review page, with both texts" },
@@ -713,6 +715,37 @@ function makeListener(tiers, {
           if (path === "/api/ai/contradiction/evaluate" && req.method === "POST") {
             const out = await contradictionEval.startEvaluation(tiers, await body(req));
             note("ui.contradiction.evaluate", "read", { results: 1 });
+            return json(res, 200, out);
+          }
+          return json(res, 404, { error: "Unknown endpoint" });
+        }
+
+        // --- contexts --------------------------------------------------------
+        //
+        // One start pack per kind of work; see contexts.mjs. Every listener
+        // may read the confirmed ones, which the Memories page shows as tags.
+        // Making, confirming and deleting them is Settings, full listener only.
+        if (path === "/api/contexts" && req.method === "GET") {
+          const full = tiers.includes("vault");
+          return json(res, 200, await contexts.listContexts({ tiers, all: full, withCounts: full }));
+        }
+        if (path.startsWith("/api/contexts")) {
+          if (!tiers.includes("vault"))
+            return json(res, 403, { error: "Contexts are set up on the full listener" });
+          if (path === "/api/contexts" && req.method === "POST") {
+            const out = await contexts.saveContext(await body(req));
+            note("ui.context", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          const one = path.match(/^\/api\/contexts\/([a-z0-9-]{1,32})(\/confirm)?$/);
+          if (one && one[2] && req.method === "POST") {
+            const out = await contexts.confirmContext(one[1]);
+            note("ui.context", "write", { results: 1 });
+            return json(res, 200, out);
+          }
+          if (one && !one[2] && req.method === "DELETE") {
+            const out = await contexts.deleteContext(one[1]);
+            note("ui.context", "delete", { results: 1 });
             return json(res, 200, out);
           }
           return json(res, 404, { error: "Unknown endpoint" });

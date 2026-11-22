@@ -168,7 +168,7 @@ the default back. Connected clients get the new text in their next session.
 
 The essentials:
 
-- **Start** a session with `memory_digest`.
+- **Start** a session with `memory_digest`. When the task fits one of the contexts it lists (Spectrogon, Holiday …), call it again with `context`: those memories win over the general ones.
 - **Search** with `search_thoughts` before answering about your systems, and
   before any build, deploy or credential step.
 - **Report** every search that returned results with `report_memory_usage`:
