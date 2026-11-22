@@ -29,7 +29,14 @@ test("the project rule retains ownership guidance when no project exists yet", (
 test("the topic rule offers the real subjects and holds other back", () => {
   const rule = topicRule();
   assert.match(rule, /home-assistant/);
-  assert.doesNotMatch(rule, /chosen only from:[^\n]*\bother\b/);
+  assert.doesNotMatch(rule, /from this list when one fits:[^\n]*\bother\b/);
   assert.match(rule, /Use "other" only when not one of those values applies/);
   assert.match(rule, /never\n {2}beside a value that does apply/);
+});
+
+// Topics are free text, but a topic that exists is always reused when it fits.
+test("the topic rule offers the topics in use and makes a new one the exception", () => {
+  const rule = topicRule(["home-assistant", "Garden Robots"]);
+  assert.match(rule, /ALWAYS use a topic from this list when one fits: home-assistant, Garden Robots/);
+  assert.match(rule, /Make a new topic only when none of them fits/);
 });

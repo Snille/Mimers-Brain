@@ -40,7 +40,7 @@ test("a long text keeps the topic vocabulary within reach of the answer", async 
   const prompt = await promptFor(LONG_SWEDISH_TEXT);
 
   // The rule still opens the prompt.
-  const ruleAt = prompt.indexOf("1-3 values chosen only from");
+  const ruleAt = prompt.indexOf("ALWAYS use a topic from this list");
   const textAt = prompt.indexOf(LONG_SWEDISH_TEXT);
   assert.ok(ruleAt >= 0, "the topic rule must be in the prompt");
   assert.ok(textAt > ruleAt, "the topic rule must precede the text");

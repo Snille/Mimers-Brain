@@ -124,18 +124,54 @@ export async function knownProjects() {
 // "other" was one of twenty-six equal options, so the model reached for it
 // whenever it hesitated - 158 of 290 memories carried it, 98 of them with
 // nothing else, which makes a memory invisible to a topic filter. Offering the
-// real subjects first and naming "other" as the last resort states what the
-// closed vocabulary alone cannot: that it is a fallback, not a choice. The
-// second sentence covers the other half of the mess, "other" added beside a
-// value that already fits.
-export function topicRule() {
-  return `- "topics": 1-3 values chosen only from: ${topicSubjects().join(", ")}\n` +
-    `  Use "other" only when not one of those values applies to the text, and never\n` +
-    `  beside a value that does apply.\n`;
+// real subjects first and naming "other" as the last resort says it is a
+// fallback, not a choice.
+//
+// Topics are free text now, so a reader can file a memory under any subject.
+// The model must not take that as licence: a topic that already exists is
+// always used when it fits, and a new one is made only when none does. The
+// list is the settled vocabulary followed by the topics in use, most used first.
+const KNOWN_TOPICS_LIMIT = 80;
+let knownTopicsCache = { at: 0, names: [] };
+
+export async function knownTopics() {
+  if (Date.now() - knownTopicsCache.at < KNOWN_PROJECTS_TTL_MS) return knownTopicsCache.names;
+  let used = [];
+  try {
+    const { rows } = await pool.query(
+      `SELECT topic, count(*) AS n
+         FROM thoughts, jsonb_array_elements_text(
+                CASE WHEN jsonb_typeof(metadata->'topics') = 'array' THEN metadata->'topics' ELSE '[]'::jsonb END) AS topic
+        GROUP BY 1
+        ORDER BY n DESC, topic
+        LIMIT $1`,
+      [KNOWN_TOPICS_LIMIT],
+    );
+    used = rows.map((row) => row.topic);
+  } catch { /* a failed lookup must never block a save: the settled list stands */ }
+  knownTopicsCache = { at: Date.now(), names: topicSubjects(used) };
+  return knownTopicsCache.names;
 }
 
-function topicSubjects() {
-  return CANONICAL_TOPICS.filter((topic) => topic !== "other");
+function topicSubjects(used = []) {
+  const seen = new Set();
+  return [...CANONICAL_TOPICS, ...used].filter((topic) => {
+    const key = String(topic).trim().toLowerCase();
+    if (!key || key === "other" || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function topicRule(existing = topicSubjects()) {
+  return `- "topics": 1-3 subjects. ALWAYS use a topic from this list when one fits: ${existing.join(", ")}
+` +
+    `  Make a new topic only when none of them fits: a short, general subject, never a detail of
+` +
+    `  this text. Use "other" only when not one of those values applies to the text, and never
+` +
+    `  beside a value that does apply.
+`;
 }
 
 // The rule above sits at the top of the prompt, which holds while the text is
@@ -143,15 +179,19 @@ function topicSubjects() {
 // 4500-character body could reach extraction whole. Two such Swedish memories
 // about Mimers Brain itself came back as topics ["other"] on 2026-08-20 with
 // project correctly set to "mimers-brain", so the subject was never in doubt -
-// the closed list had simply scrolled thousands of characters out of reach by
-// the time the answer was written. Repeating the list and the last-resort
+// the list had simply scrolled thousands of characters out of reach by the
+// time the answer was written. Repeating the list and the last-resort
 // sentence after the text remains useful defence in depth for direct extraction
 // callers and legacy content.
-export function topicReminder() {
-  return `Choose "topics" only from this list: ${topicSubjects().join(", ")}\n` +
-    `"other" is the last resort: use it only when no value on that list applies to\n` +
-    `the text above, and never beside a value that does apply. When "project" names\n` +
-    `a subject that is on the list, that subject belongs in "topics".\n`;
+export function topicReminder(existing = topicSubjects()) {
+  return `Choose "topics" from this list whenever one fits: ${existing.join(", ")}
+` +
+    `A new topic only when none of them fits. "other" is the last resort: use it only when no
+` +
+    `value on that list applies to the text above, and never beside a value that does apply.
+` +
+    `When "project" names a subject that is on the list, that subject belongs in "topics".
+`;
 }
 
 // project is the one facet with no closed vocabulary, so the rule carries its own
@@ -175,6 +215,7 @@ export function projectRule(existing) {
 export async function extractMetadata(text) {
   if (!ai.roleReady("metadata")) return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
   const existingProjects = await knownProjects();
+  const existingTopics = await knownTopics();
   try {
     return await ai.chatJson(ai.role("metadata"),
             `Extract long-term-memory metadata as JSON. Return only these keys:\n` +
@@ -198,11 +239,11 @@ export async function extractMetadata(text) {
             `  Tools, services, apps, accounts, companies and devices are NOT people;\n` +
             `  Luba/Sleipner is a robot mower. Never derive a name from surrounding prose.\n` +
             `- "systems": software, services, tools, machines, devices and named robots\n` +
-            topicRule() +
+            topicRule(existingTopics) +
             `- "verified_at": YYYY-MM-DD when the text states a verification date, or empty\n` +
             `Do not invent facts. lifecycle is always set by the server.\n\n` +
             `<<<TEXT\n${text}\nTEXT>>>\n\n` +
-            topicReminder());
+            topicReminder(existingTopics));
   } catch {
     return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
   }
