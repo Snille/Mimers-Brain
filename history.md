@@ -6,6 +6,36 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-22 — 0.26.0: memories everywhere, free tags and a tidier sidebar
+
+The web UI called the same thing a memory in one place and a thought in the
+next. Every button, heading and message now says memory; the tool names
+(`capture_thought` and the rest) stay, since clients depend on them.
+
+Each card shows its GUID under the date, in the edit view too, with a
+*Copy GUID* button beside *Copy reference*. The search box finds a memory by
+its GUID, whole or in part. A full GUID finds it whatever its lifecycle, since
+an old id is exactly what someone pastes to look at history; in semantic mode a
+GUID is looked up as text, because it means nothing to an embedding. The search
+mode itself is remembered across reloads.
+
+Facets take any text. A project kept only lower case and dashes, and a topic
+outside the 26-word vocabulary was moved to `legacy_topics`, out of every
+filter. Now only the comma separates values. Known topics and their aliases
+still land on one spelling, and the metadata model is told to reuse a topic
+that exists whenever one fits, from a list of the settled vocabulary and the
+topics in use; a new topic is the exception. Existing memories do not change.
+
+The sidebar listed only the most common values of each facet, so a rare tag
+could not be filtered on. It lists them all now. Each list can be sorted by
+count or by name, either way, and folded away under its heading; both choices
+are remembered in the browser. Kind, lifecycle, task status and tier explain
+each choice: a tooltip on the chips and options, and a line under each
+drop-down that follows the value chosen.
+
+All 140 tests pass with a disposable pgvector database, and the whole UI was
+checked in a throwaway Docker Desktop instance.
+
 ## 2026-11-22 — 0.25.0: one length limit, and labelled edit boxes
 
 Since 0.9.18 the documentation said the 1200-character limit applied everywhere,

@@ -6,6 +6,37 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-22 — 0.26.0: minnen överallt, fria taggar och en ordnad sidopanel
+
+Webbgränssnittet kallade samma sak minne på ett ställe och tanke på nästa. Alla
+knappar, rubriker och meddelanden säger nu minne; verktygsnamnen
+(`capture_thought` med flera) är kvar, eftersom klienter är beroende av dem.
+
+Varje kort visar sitt GUID under datumet, även i redigeringsläget, med en knapp
+*Kopiera GUID* bredvid *Kopiera referens*. Sökrutan hittar ett minne på dess
+GUID, helt eller en del av det. Ett helt GUID hittar minnet oavsett livscykel,
+eftersom ett gammalt id är just det man klistrar in för att se historik; i
+semantiskt läge slås ett GUID upp som text, eftersom det inte betyder något för
+en embedding. Sökläget sparas också mellan omladdningar.
+
+Fälten tar vilken text som helst. Ett projekt fick bara små bokstäver och
+bindestreck, och ett ämne utanför ordlistan på 26 ord flyttades till
+`legacy_topics`, utanför alla filter. Nu är det bara kommatecknet som skiljer
+värden åt. Kända ämnen och deras alias hamnar fortfarande på en stavning, och
+metadatamodellen ombeds alltid återanvända ett ämne som finns när ett passar,
+från en lista med ordlistan och de ämnen som används; ett nytt ämne är
+undantaget. Befintliga minnen ändras inte.
+
+Sidopanelen visade bara de vanligaste värdena i varje fält, så en ovanlig tagg
+gick inte att filtrera på. Nu visas alla. Varje lista kan sorteras på antal
+eller namn, åt båda hållen, och fällas ihop under sin rubrik; båda valen sparas
+i webbläsaren. Sort, livscykel, uppgiftsstatus och nivå förklarar varje val:
+ett verktygstips på knapparna och alternativen, och en rad under varje
+rullgardinsmeny som följer det valda värdet.
+
+Alla 140 tester går igenom mot en tillfällig pgvector-databas, och hela
+gränssnittet kontrollerades i en tillfällig instans i Docker Desktop.
+
 ## 2026-11-22 — 0.25.0: en längdgräns, och rubriker i redigeraren
 
 Sedan 0.9.18 har dokumentationen sagt att gränsen på 1200 tecken gäller
