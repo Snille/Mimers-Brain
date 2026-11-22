@@ -76,8 +76,11 @@
   @media (max-width: 820px) { main { grid-template-columns: 1fr; } aside { border-right: none !important; } }
 
   aside { border-right: 1px solid var(--line); padding: 18px; background: var(--panel); }
-  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 20px 0 8px; }
-  aside h2:first-child { margin-top: 0; }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0; }
+  .facet-head { display: flex; align-items: center; gap: 6px; margin: 20px 0 8px; }
+  .facet:first-child .facet-head { margin-top: 0; }
+  .facet-head h2 { flex: 1; }
+  .facet-sort { padding: 1px 4px; font-size: 11px; border-radius: 6px; color: var(--muted); max-width: 110px; }
   .digest-note { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--warn); }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
@@ -326,16 +329,24 @@
 
 <main class="on" id="view-thoughts">
   <aside>
-    <h2 data-i18n="filters.review">Review</h2><div id="f-review"></div>
-    <h2 data-i18n="filters.digest">Session digest</h2><div id="f-digest"></div>
-    <p id="f-digest-note" class="digest-note" hidden></p>
-    <h2 data-i18n="filters.kind">Kind</h2><div id="f-kinds"></div>
-    <h2 data-i18n="filters.lifecycle">Lifecycle</h2><div id="f-lifecycles"></div>
-    <h2 data-i18n="filters.taskStatus">Tasks</h2><div id="f-task-statuses"></div>
-    <h2 data-i18n="filters.projects">Projects</h2><div id="f-projects"></div>
-    <h2 data-i18n="filters.topics">Topics</h2><div id="f-topics"></div>
-    <h2 data-i18n="filters.people">People</h2><div id="f-people"></div>
-    <h2 data-i18n="filters.systems">Systems</h2><div id="f-systems"></div>
+    <div class="facet" data-facet="review"><div class="facet-head"><h2 data-i18n="filters.review">Review</h2></div>
+      <div class="facet-body"><div id="f-review"></div></div></div>
+    <div class="facet" data-facet="digest"><div class="facet-head"><h2 data-i18n="filters.digest">Session digest</h2></div>
+      <div class="facet-body"><div id="f-digest"></div><p id="f-digest-note" class="digest-note" hidden></p></div></div>
+    <div class="facet" data-facet="kind" data-sortable><div class="facet-head"><h2 data-i18n="filters.kind">Kind</h2></div>
+      <div class="facet-body"><div id="f-kinds"></div></div></div>
+    <div class="facet" data-facet="lifecycle" data-sortable><div class="facet-head"><h2 data-i18n="filters.lifecycle">Lifecycle</h2></div>
+      <div class="facet-body"><div id="f-lifecycles"></div></div></div>
+    <div class="facet" data-facet="task_status" data-sortable><div class="facet-head"><h2 data-i18n="filters.taskStatus">Tasks</h2></div>
+      <div class="facet-body"><div id="f-task-statuses"></div></div></div>
+    <div class="facet" data-facet="project" data-sortable><div class="facet-head"><h2 data-i18n="filters.projects">Projects</h2></div>
+      <div class="facet-body"><div id="f-projects"></div></div></div>
+    <div class="facet" data-facet="topic" data-sortable><div class="facet-head"><h2 data-i18n="filters.topics">Topics</h2></div>
+      <div class="facet-body"><div id="f-topics"></div></div></div>
+    <div class="facet" data-facet="person" data-sortable><div class="facet-head"><h2 data-i18n="filters.people">People</h2></div>
+      <div class="facet-body"><div id="f-people"></div></div></div>
+    <div class="facet" data-facet="system" data-sortable><div class="facet-head"><h2 data-i18n="filters.systems">Systems</h2></div>
+      <div class="facet-body"><div id="f-systems"></div></div></div>
   </aside>
 
   <section class="content">
@@ -457,10 +468,44 @@ async function api(path, opts) {
   return d;
 }
 
+// How each list in the sidebar is ordered, per browser: most memories first
+// unless the reader picked another order.
+const SORT_KEY = "mimers-facet-sort";
+const SORTS = ["countDesc", "countAsc", "alphaAsc", "alphaDesc"];
+let facetSort = {};
+try { facetSort = JSON.parse(localStorage.getItem(SORT_KEY) || "{}") || {}; } catch { /* storage unavailable */ }
+
+function sortEntries(entries, key, label) {
+  const mode = SORTS.includes(facetSort[key]) ? facetSort[key] : "countDesc";
+  const alpha = (a, b) => String(label(a[0])).localeCompare(String(label(b[0])), currentLanguage(), { sensitivity: "base" });
+  const sorted = [...entries];
+  if (mode === "countDesc") sorted.sort((a, b) => b[1] - a[1] || alpha(a, b));
+  if (mode === "countAsc") sorted.sort((a, b) => a[1] - b[1] || alpha(a, b));
+  if (mode === "alphaAsc") sorted.sort(alpha);
+  if (mode === "alphaDesc") sorted.sort((a, b) => alpha(b, a));
+  return sorted;
+}
+
+for (const facet of document.querySelectorAll(".facet[data-sortable]")) {
+  const key = facet.dataset.facet;
+  const select = document.createElement("select");
+  select.className = "facet-sort";
+  select.title = tr("filters.sortLabel");
+  select.setAttribute("aria-label", select.title);
+  select.innerHTML = SORTS.map((mode) => `<option value="${mode}">${esc(tr(`filters.sort.${mode}`))}</option>`).join("");
+  select.value = SORTS.includes(facetSort[key]) ? facetSort[key] : "countDesc";
+  select.onchange = () => {
+    facetSort[key] = select.value;
+    try { localStorage.setItem(SORT_KEY, JSON.stringify(facetSort)); } catch { /* storage unavailable */ }
+    refresh();
+  };
+  facet.querySelector(".facet-head").appendChild(select);
+}
+
 function chips(container, entries, key, label = (name) => name) {
   const el = $(container);
   el.innerHTML = "";
-  for (const [name, count] of entries) {
+  for (const [name, count] of sortEntries(entries, key, label)) {
     const b = document.createElement("button");
     b.className = "chip" + (state.filters[key] === name ? " on" : "");
     b.innerHTML = `${esc(label(name))} <b>${count}</b>`;
@@ -802,8 +847,9 @@ async function refresh() {
     $("#headstat").textContent = tr("header.shown", { shown: rows.length });
 
     const s = await api("/api/stats");
-    // Every value, not the most common few: a tag that is not listed cannot be filtered on.
-    const top = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]);
+    // Every value, not the most common few: a tag that is not listed cannot be
+    // filtered on. chips() puts them in the order the reader chose.
+    const top = (o) => Object.entries(o);
     chips("#f-review", [["1", s.awaitingReview || 0]], "review", () => tr("filters.awaitingReview"));
     chips("#f-digest", [["1", s.digest || 0]], "digest", () => tr("filters.inDigest"));
     // What does not fit is still pinned, but no model reads it at session start.

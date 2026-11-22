@@ -39,7 +39,9 @@
     "inDigest": "i startpaketet",
     "digestFull": "{omitted} får inte plats (högst {limit} minnen eller 9 000 tecken) och läses inte vid sessionsstart. Bocka ur det som inte behövs i varje session.",
     "review": "Granskning",
-    "awaitingReview": "väntar på granskning"
+    "awaitingReview": "väntar på granskning",
+    "sortLabel": "Ordning i listan",
+    "sort": { "countDesc": "Flest först", "countAsc": "Minst först", "alphaAsc": "A–Ö", "alphaDesc": "Ö–A" }
   },
   "search": {
     "placeholder": "Sök …",
