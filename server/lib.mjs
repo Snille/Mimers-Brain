@@ -4,7 +4,7 @@
 // listener the request arrived on - never from a header, a parameter or
 // anything else the caller can influence.
 
-import { BASE_DIGEST_SQL, CONTEXT_MEMBER_SQL } from "./context-sql.mjs";
+import { BASE_DIGEST_SQL, CONTEXT_COUNTS_SQL, CONTEXT_MEMBER_SQL, IN_CONTEXT_SQL } from "./context-sql.mjs";
 import pg from "pg";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
@@ -279,7 +279,7 @@ const AWAITING_REVIEW_SQL = `(coalesce(metadata->>'review_status', 'confirmed') 
 
 export async function listThoughts(tiers, {
   limit = 10, type, kind, lifecycle = "current", taskStatus, task_status, project,
-  topic, person, system, days, digest, review,
+  topic, person, system, days, digest, review, context,
 } = {}) {
   taskStatus ||= task_status;
   const args = [tiers];
@@ -294,6 +294,7 @@ export async function listThoughts(tiers, {
   if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
   if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
   if (days) sql += ` AND created_at > now() - ($${args.push(String(days))} || ' days')::interval`;
+  if (context) sql += ` AND ${IN_CONTEXT_SQL(args.push(context))}`;
   if (digest) sql += ` AND ${DIGEST_SQL}`;
   if (review) sql += ` AND ${AWAITING_REVIEW_SQL}`;
   sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 200))}`;
@@ -518,7 +519,7 @@ export async function recallHint(tiers, prompt, { exclude = [], floor = threshol
 const FULL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function textSearch(tiers, q, {
-  limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system, digest, review,
+  limit = 100, lifecycle = "current", kind, taskStatus, project, topic, person, system, digest, review, context,
 } = {}) {
   const args = [tiers, `%${q}%`];
   // The GUID shown on every card is searchable too, whole or in part. A full
@@ -536,6 +537,7 @@ export async function textSearch(tiers, q, {
   if (topic) sql += ` AND metadata @> $${args.push(JSON.stringify({ topics: [topic] }))}::jsonb`;
   if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
   if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
+  if (context) sql += ` AND ${IN_CONTEXT_SQL(args.push(context))}`;
   if (digest) sql += ` AND ${DIGEST_SQL}`;
   if (review) sql += ` AND ${AWAITING_REVIEW_SQL}`;
   sql += ` ORDER BY created_at DESC LIMIT $${args.push(Math.min(limit, 500))}`;
@@ -2141,7 +2143,8 @@ export async function stats(tiers) {
                   FROM (SELECT metadata->'systems' AS arr FROM base
                          WHERE jsonb_typeof(metadata->'systems') = 'array') s,
                        jsonb_array_elements_text(s.arr) AS system
-                 GROUP BY lower(system)) x) AS systems`,
+                 GROUP BY lower(system)) x) AS systems,
+       ${CONTEXT_COUNTS_SQL} AS contexts`,
     [tiers],
   );
   const r = rows[0];
@@ -2161,6 +2164,7 @@ export async function stats(tiers) {
     topics: r.topics || {},
     people: r.people || {},
     systems: r.systems || {},
+    contexts: r.contexts || {},
     // min/max, not a sort. The old code sorted Date objects with the default
     // comparator, which compares them as strings - so it ordered by weekday name
     // and these two came out wrong. Nothing reads them yet, which is why it was

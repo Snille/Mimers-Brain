@@ -376,6 +376,8 @@
       <div class="facet-body"><div id="f-review"></div></div></div>
     <div class="facet" data-facet="digest"><div class="facet-head"><h2 data-i18n="filters.digest">Session digest</h2></div>
       <div class="facet-body"><div id="f-digest"></div><p id="f-digest-note" class="digest-note" hidden></p></div></div>
+    <div class="facet" data-facet="context" data-sortable><div class="facet-head"><h2 data-i18n="filters.contexts">Contexts</h2></div>
+      <div class="facet-body"><div id="f-contexts"></div></div></div>
     <div class="facet" data-facet="kind" data-sortable><div class="facet-head"><h2 data-i18n="filters.kind">Kind</h2></div>
       <div class="facet-body"><div id="f-kinds"></div></div></div>
     <div class="facet" data-facet="lifecycle" data-sortable><div class="facet-head"><h2 data-i18n="filters.lifecycle">Lifecycle</h2></div>
@@ -481,7 +483,7 @@ import {
 import { copy } from "./clipboard.mjs";
 import { apply as applyAppearance } from "./appearance.mjs";
 import { loadSources as loadMediaSources, mediaEditor, mediaStrip, wireStrip } from "./media.mjs";
-import { contextEditor, contextsOf, contextTags, loadContexts } from "./contexts.mjs";
+import { contextEditor, contextName, contextsOf, contextTags, loadContexts } from "./contexts.mjs";
 
 await initI18n();
 
@@ -945,6 +947,8 @@ async function refresh() {
       // same one the tag uses, so filtering here gives the same answer.
       if (state.filters.digest) rows = rows.filter((t) => digestReady(t.metadata || {}));
       if (state.filters.review) rows = rows.filter((t) => awaitingReview(t.metadata || {}));
+      if (state.filters.context) rows = rows.filter((t) => contextsOf(t.metadata || {}, { standing: inDigest(t.metadata || {}) })
+        .some((c) => c.id === state.filters.context));
     } else {
       const p = new URLSearchParams();
       if (state.q) p.set("q", state.q);
@@ -970,6 +974,7 @@ async function refresh() {
     const digestNote = $("#f-digest-note");
     digestNote.hidden = !s.digestOmitted;
     digestNote.textContent = s.digestOmitted ? tr("filters.digestFull", { omitted: s.digestOmitted, limit: s.digestLimit }) : "";
+    chips("#f-contexts", top(s.contexts || {}), "context", contextName);
     chips("#f-kinds", top(s.kinds || s.types), "kind");
     chips("#f-lifecycles", top(s.lifecycles || { current: s.total }), "lifecycle");
     chips("#f-task-statuses", top(s.taskStatuses || {}), "task_status");

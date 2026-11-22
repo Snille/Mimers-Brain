@@ -6,6 +6,14 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-22 — 0.28.1: contexts in the sidebar
+
+The Memories page lists the contexts in the sidebar, like projects and
+topics: one chip per confirmed context with its count, sortable and foldable.
+A chip filters the list by the same rule as the 🧭 tag on a card.
+
+---
+
 ## 2026-11-22 — 0.28.0: a start pack per kind of work
 
 The session digest was one list for everything. A rule for Erik's own apps (a

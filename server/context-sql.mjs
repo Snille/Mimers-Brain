@@ -31,6 +31,26 @@ export const SCOPED_SQL = `EXISTS (
                   OR (jsonb_typeof(c.value->'projects') = 'array'
                       AND c.value->'projects' ? coalesce(metadata->>'project', ''))))`;
 
+// The context row `c` (from jsonb_each over the stored contexts) holds this
+// memory: named in `contexts`, or a standing memory of one of its projects.
+// No trust check, so a memory waiting for review still shows where it belongs.
+const HELD_BY_C = `(${NAMES_CONTEXT("c.key")}
+                  OR (jsonb_typeof(c.value->'projects') = 'array'
+                      AND c.value->'projects' ? coalesce(metadata->>'project', '')
+                      AND ${BY_PIN_OR_KIND}))`;
+
+export const CONFIRMED_CONTEXTS_FROM = `app_settings s, jsonb_each(s.value::jsonb) c
+           WHERE s.key = '${CONTEXTS_KEY}' AND c.value->>'status' = 'confirmed'`;
+
+// The Memories page's filter: in the confirmed context with this id.
+export const IN_CONTEXT_SQL = (idArg) => `EXISTS (
+          SELECT 1 FROM ${CONFIRMED_CONTEXTS_FROM} AND c.key = $${idArg} AND ${HELD_BY_C})`;
+
+// How many memories each confirmed context holds, for the sidebar. Used as a
+// column of the statistics query, whose rows are in `base`.
+export const CONTEXT_COUNTS_SQL = `(SELECT jsonb_object_agg(c.key, (SELECT count(*) FROM base WHERE ${HELD_BY_C}))
+          FROM ${CONFIRMED_CONTEXTS_FROM})`;
+
 export const BASE_DIGEST_SQL = `${TRUSTED_SQL}
         AND ${BY_PIN_OR_KIND}
         AND NOT ${SCOPED_SQL}`;

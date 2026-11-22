@@ -48,7 +48,8 @@
       "countAsc": "Fewest first",
       "alphaAsc": "A–Z",
       "alphaDesc": "Z–A"
-    }
+    },
+    "contexts": "Contexts"
   },
   "search": {
     "placeholder": "Search …",

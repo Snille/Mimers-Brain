@@ -152,7 +152,9 @@ web. It should be a key that can only read. Immich is the only kind so far
   A model may `propose_context` (full listener); a proposal is not listed or
   used until the reader confirms it, since its instruction would otherwise be an
   agent's words read as the user's. An agent's capture cannot set `contexts`,
-  like `pinned`. Deleting a context returns its memories to the base.
+  like `pinned`. Deleting a context returns its memories to the base. The
+  Memories page lists the contexts in the sidebar with a count and filters on
+  them by the same rule as the 🧭 tag.
 - **Thresholds.** A similarity score means something only for the embedding
   model that produced it, so the four floors (search, recall hook, contradiction,
   duplicate) are stored per embedding model on the Models card of the Settings

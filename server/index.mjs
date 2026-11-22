@@ -852,6 +852,7 @@ function makeListener(tiers, {
                 topic: url.searchParams.get("topic") || undefined,
                 person: url.searchParams.get("person") || undefined,
                 system: url.searchParams.get("system") || undefined,
+                context: url.searchParams.get("context") || undefined,
                 digest: url.searchParams.get("digest") === "1",
                 review: url.searchParams.get("review") === "1",
               })
@@ -865,6 +866,7 @@ function makeListener(tiers, {
                 topic: url.searchParams.get("topic") || undefined,
                 person: url.searchParams.get("person") || undefined,
                 system: url.searchParams.get("system") || undefined,
+                context: url.searchParams.get("context") || undefined,
                 digest: url.searchParams.get("digest") === "1",
                 review: url.searchParams.get("review") === "1",
               });

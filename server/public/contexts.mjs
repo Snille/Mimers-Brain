@@ -28,6 +28,9 @@ export function loadContexts({ force = false } = {}) {
 
 const confirmed = () => known.filter((c) => c.status === "confirmed");
 
+// For the sidebar, which filters by id and shows the name.
+export const contextName = (id) => `🧭 ${known.find((c) => c.id === id)?.name || id}`;
+
 // The contexts a memory is in, by name or by project. `standing` says whether
 // it would be in the start pack at all; only then does a project count.
 export function contextsOf(m, { standing = false } = {}) {

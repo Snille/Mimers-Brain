@@ -6,6 +6,14 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-22 — 0.28.1: sammanhang i sidopanelen
+
+Sidan Minnen listar sammanhangen i sidopanelen, som projekt och ämnen: en
+knapp per bekräftat sammanhang med antal, som går att sortera och fälla ihop.
+En knapp filtrerar listan efter samma regel som taggen 🧭 på ett kort.
+
+---
+
 ## 2026-11-22 — 0.28.0: ett startpaket per sorts arbete
 
 Startpaketet var en lista för allt. En regel för Eriks egna appar (grön
