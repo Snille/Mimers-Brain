@@ -746,5 +746,33 @@
     "saved": "Saved.",
     "restored": "The defaults are back.",
     "fetchError": "Could not load the memory policy."
+  },
+  "help": {
+    "kind": {
+      "fact": "Something that is true about how a thing is.",
+      "reference": "Where something is: a path, an address, a link.",
+      "procedure": "How to do something, step by step.",
+      "decision": "A choice that was made, and why.",
+      "lesson": "Something learned the hard way, so the mistake is not repeated.",
+      "incident": "What happened when something broke, and the conclusion.",
+      "task": "Something still to do, with a concrete next step.",
+      "idea": "A possible future change. Not decided.",
+      "preference": "How the user wants things done. Goes into the session digest.",
+      "profile": "A fact about the user as a person. Goes into the session digest."
+    },
+    "lifecycle": {
+      "current": "True now. Search finds it.",
+      "superseded": "Replaced by a newer memory. Kept as history.",
+      "archived": "No longer true or needed. Kept, but search does not find it."
+    },
+    "taskStatus": {
+      "none": "No status. Only the kind task has one.",
+      "pending": "Still to do.",
+      "done": "Done. Kept so the result can be found."
+    },
+    "tier": {
+      "open": "Readable also from outside the LAN, through the open listener.",
+      "vault": "Readable only on the LAN. For sensitive context and SECRET_REF pointers, never raw secrets."
+    }
   }
 }

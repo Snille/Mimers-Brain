@@ -746,5 +746,33 @@
     "saved": "Sparat.",
     "restored": "Standardtexten är tillbaka.",
     "fetchError": "Kunde inte hämta minnespolicyn."
+  },
+  "help": {
+    "kind": {
+      "fact": "Något som är sant om hur något är.",
+      "reference": "Var något finns: en sökväg, en adress, en länk.",
+      "procedure": "Hur man gör något, steg för steg.",
+      "decision": "Ett val som har gjorts, och varför.",
+      "lesson": "Något man har lärt sig, så att misstaget inte görs igen.",
+      "incident": "Vad som hände när något gick sönder, och slutsatsen.",
+      "task": "Något som återstår att göra, med ett konkret nästa steg.",
+      "idea": "En möjlig framtida ändring. Inte beslutad.",
+      "preference": "Hur användaren vill ha saker gjorda. Ingår i startpaketet.",
+      "profile": "Fakta om användaren som person. Ingår i startpaketet."
+    },
+    "lifecycle": {
+      "current": "Gäller nu. Sökningen hittar det.",
+      "superseded": "Ersatt av ett nyare minne. Sparas som historik.",
+      "archived": "Gäller inte längre eller behövs inte. Sparas, men sökningen hittar det inte."
+    },
+    "taskStatus": {
+      "none": "Ingen status. Bara sorten task har en.",
+      "pending": "Återstår att göra.",
+      "done": "Klar. Sparas så att resultatet går att hitta."
+    },
+    "tier": {
+      "open": "Kan läsas även utanför LAN, via den öppna porten.",
+      "vault": "Kan bara läsas på LAN. För känslig kontext och SECRET_REF-pekare, aldrig råa hemligheter."
+    }
   }
 }
