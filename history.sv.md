@@ -6,6 +6,30 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.8: valda filter syns, och räknarna visar vad listan visar
+
+Ett klick på `spectrogon` under Projekt gav en tom lista. Orsaken var ett val
+som låg kvar i en annan grupp i sidofältet: två val smalnar av listan
+tillsammans, och det syntes inte att det första fortfarande var valt.
+
+Varje val står nu på en rad ovanför listan, "Filtrerar på: Projekt: spectrogon ✕",
+med ✕ för att ta bort ett val och "Ta bort alla" när det är fler än ett. En
+grupp med ett val får en punkt vid rubriken, som syns också när gruppen är
+hopfälld.
+
+Siffran bakom ett namn räknade varje livscykel, så Spectrogon visade 28 över
+en lista med 18: tio minnen var ersatta. `/api/stats` tar nu `lifecycle`, och
+sidan frågar efter den livscykel som listan visar (aktuella om inget är valt).
+Gruppen Livscykel räknar fortfarande alla. Utan `lifecycle` räknar
+`thought_stats` som förut.
+
+0.26.0 lät sidofältet visa varje värde, så att ett värde går att filtrera på.
+System växte då till hundratals chips. Projekt, Ämnen, Personer och System
+visar nu de 20 första i vald ordning och en knapp, "Visa N till", för resten.
+Ett valt värde visas alltid.
+
+---
+
 ## 2026-11-24 — 0.29.7: välj projekt bland dem som finns
 
 Ett nytt minne om alla skattjakter fick projektet `skattjakt-2026`, en

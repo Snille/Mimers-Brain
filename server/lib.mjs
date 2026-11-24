@@ -2117,9 +2117,19 @@ export async function liveCounters(tiers = ALL) {
 // The jsonb_typeof guards are the old Array.isArray() checks: metadata is
 // free-form, and one hand-edited row whose topics is not an array must not be
 // able to fail the whole call.
-export async function stats(tiers) {
+//
+// `lifecycle` narrows the sidebar lists (kind, task, project, topic, person,
+// system) to the memories the list below them shows, so a chip's count is what
+// a click on it opens. The web page opens on current memories; before, Spectrogon
+// showed 28 over a list of 18, because superseded memories were counted. The
+// Lifecycle list itself always counts every lifecycle. Left out, or "all",
+// every lifecycle is counted, as thought_stats has always done.
+export async function stats(tiers, { lifecycle } = {}) {
+  const facetLifecycle = lifecycle && lifecycle !== "all" ? lifecycle : null;
   const { rows } = await pool.query(
-    `WITH base AS (SELECT metadata, tier, created_at FROM thoughts WHERE tier = ANY($1))
+    `WITH base AS (SELECT metadata, tier, created_at FROM thoughts WHERE tier = ANY($1)),
+          facet AS (SELECT metadata FROM base
+                     WHERE $2::text IS NULL OR coalesce(metadata->>'lifecycle', 'current') = $2)
      SELECT
        (SELECT count(*)        FROM base) AS total,
        (SELECT min(created_at) FROM base) AS first,
@@ -2130,41 +2140,41 @@ export async function stats(tiers) {
        (SELECT jsonb_object_agg(tier, c)
           FROM (SELECT tier, count(*) AS c FROM base GROUP BY tier) x) AS by_tier,
        (SELECT jsonb_object_agg(type, c)
-          FROM (SELECT metadata->>'type' AS type, count(*) AS c FROM base
+          FROM (SELECT metadata->>'type' AS type, count(*) AS c FROM facet
                  WHERE coalesce(metadata->>'type', '') <> ''
                  GROUP BY 1) x) AS types,
        (SELECT jsonb_object_agg(kind, c)
           FROM (SELECT coalesce(nullif(metadata->>'kind', ''), metadata->>'type', 'unknown') AS kind,
-                       count(*) AS c FROM base GROUP BY 1) x) AS kinds,
+                       count(*) AS c FROM facet GROUP BY 1) x) AS kinds,
        (SELECT jsonb_object_agg(lifecycle, c)
           FROM (SELECT coalesce(nullif(metadata->>'lifecycle', ''), 'current') AS lifecycle,
                        count(*) AS c FROM base GROUP BY 1) x) AS lifecycles,
        (SELECT jsonb_object_agg(task_status, c)
-          FROM (SELECT metadata->>'task_status' AS task_status, count(*) AS c FROM base
+          FROM (SELECT metadata->>'task_status' AS task_status, count(*) AS c FROM facet
                  WHERE coalesce(metadata->>'task_status', '') <> '' GROUP BY 1) x) AS task_statuses,
        (SELECT jsonb_object_agg(project, c)
-          FROM (SELECT metadata->>'project' AS project, count(*) AS c FROM base
+          FROM (SELECT metadata->>'project' AS project, count(*) AS c FROM facet
                  WHERE coalesce(metadata->>'project', '') <> '' GROUP BY 1) x) AS projects,
        (SELECT jsonb_object_agg(topic, c)
           FROM (SELECT topic, count(*) AS c
-                  FROM (SELECT metadata->'topics' AS arr FROM base
+                  FROM (SELECT metadata->'topics' AS arr FROM facet
                          WHERE jsonb_typeof(metadata->'topics') = 'array') s,
                        jsonb_array_elements_text(s.arr) AS topic
                  GROUP BY 1) x) AS topics,
        (SELECT jsonb_object_agg(person, c)
           FROM (SELECT mode() WITHIN GROUP (ORDER BY person) AS person, count(*) AS c
-                  FROM (SELECT metadata->'people' AS arr FROM base
+                  FROM (SELECT metadata->'people' AS arr FROM facet
                          WHERE jsonb_typeof(metadata->'people') = 'array') s,
                        jsonb_array_elements_text(s.arr) AS person
                  GROUP BY lower(person)) x) AS people,
        (SELECT jsonb_object_agg(system, c)
           FROM (SELECT mode() WITHIN GROUP (ORDER BY system) AS system, count(*) AS c
-                  FROM (SELECT metadata->'systems' AS arr FROM base
+                  FROM (SELECT metadata->'systems' AS arr FROM facet
                          WHERE jsonb_typeof(metadata->'systems') = 'array') s,
                        jsonb_array_elements_text(s.arr) AS system
                  GROUP BY lower(system)) x) AS systems,
        ${CONTEXT_COUNTS_SQL} AS contexts`,
-    [tiers],
+    [tiers, facetLifecycle],
   );
   const r = rows[0];
   const digest = await memoryDigest(tiers);

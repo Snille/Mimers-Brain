@@ -6,6 +6,30 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.8: the filters in use show, and the counts match the list
+
+A click on `spectrogon` under Projects gave an empty list. A choice was still
+made in another sidebar group: two choices narrow the list together, and
+nothing showed that the first one was still on.
+
+Every choice now stands in a line over the list, "Filtered by: Projects:
+spectrogon ✕", with ✕ to take one away and "Remove all" when there is more than
+one. A group with a choice gets a dot by its heading, seen also when it is
+folded.
+
+The count after a name took every lifecycle, so Spectrogon showed 28 over a list
+of 18: ten memories were superseded. `/api/stats` now takes `lifecycle`, and the
+page asks for the lifecycle its list shows (current when none is chosen). The
+Lifecycle group still counts all of them. Without `lifecycle`, `thought_stats`
+counts as before.
+
+0.26.0 made the sidebar list every value, so every value can be filtered on.
+Systems then grew to hundreds of chips. Projects, Topics, People and Systems
+now show the first 20 in the chosen order and a button, "Show N more", for the
+rest. A chosen value always shows.
+
+---
+
 ## 2026-11-24 — 0.29.7: pick a project from the ones that exist
 
 A new memory about every treasure hunt got the project `skattjakt-2026`, a

@@ -42,6 +42,11 @@
     "awaitingReview": "väntar på granskning",
     "sortLabel": "Ordning i listan",
     "collapse": "Dölj listan",
+    "active": "Filtrerar på:",
+    "remove": "Ta bort filtret",
+    "removeAll": "Ta bort alla",
+    "showMore": "Visa {hidden} till",
+    "showFewer": "Visa färre",
     "expand": "Visa listan",
     "sort": {
       "countDesc": "Flest först",

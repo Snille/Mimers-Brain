@@ -87,6 +87,13 @@
   .facet-toggle:hover h2 { color: var(--ink); }
   .facet-toggle::before { content: "▾"; font-size: 11px; width: 10px; }
   .facet.folded .facet-toggle::before { content: "▸"; }
+  /* A list with a chip in use: a dot after its heading, seen also when folded. */
+  .facet.has-choice h2 { color: var(--accent); }
+  .facet.has-choice h2::after { content: " ●"; font-size: 9px; vertical-align: middle; }
+  #active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 12px; font-size: 13px; }
+  #active-filters .active-label { color: var(--muted); }
+  #active-filters .chip { margin: 0; }
+  #active-filters .chip .x { margin-left: 4px; opacity: .7; }
   .facet.folded .facet-body, .facet.folded .facet-sort { display: none; }
   .facet-sort { padding: 1px 4px; font-size: 11px; border-radius: 6px; color: var(--muted); max-width: 110px; }
   .digest-note { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--warn); }
@@ -102,6 +109,8 @@
   .chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .chip b { color: var(--muted); font-weight: 500; }
   .chip.on b { color: var(--on-accent); opacity: .7; }
+  .facet-more { display: block; background: none; border: 0; padding: 4px 0; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; }
+  .facet-more:hover { text-decoration: underline; }
 
   section.content { padding: 18px 22px; }
   .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
@@ -409,6 +418,7 @@
       </select>
       <button class="ghost" id="clear" data-i18n="search.clear">Clear</button>
     </div>
+    <div id="active-filters" hidden></div>
     <div id="error"></div>
     <div id="list"></div>
   </section>
@@ -603,11 +613,20 @@ function withHelp(select, group) {
   return line;
 }
 
+// The long free-text lists (projects, topics, people, systems) show the first
+// FACET_SHOWN in the order the reader chose, and a button for the rest. Every
+// value stays one click away: a tag that is not listed cannot be filtered on.
+// The chip in use is always shown. Open lists stay open until the page reloads.
+const FACET_SHOWN = 20;
+const facetOpen = new Set();
+
 // `shown` replaces the plain count on the chip, for example "8 / 12".
-function chips(container, entries, key, label = (name) => name, shown = (name, count) => count) {
+function chips(container, entries, key, label = (name) => name, shown = (name, count) => count, limit = Infinity) {
   const el = $(container);
   el.innerHTML = "";
-  for (const [name, count] of sortEntries(entries, key, label)) {
+  const sorted = sortEntries(entries, key, label);
+  const cut = facetOpen.has(key) ? sorted : sorted.filter(([name], i) => i < limit || state.filters[key] === name);
+  for (const [name, count] of cut) {
     const b = document.createElement("button");
     b.className = "chip" + (state.filters[key] === name ? " on" : "");
     b.innerHTML = `${esc(label(name))} <b>${esc(shown(name, count))}</b>`;
@@ -617,6 +636,19 @@ function chips(container, entries, key, label = (name) => name, shown = (name, c
       refresh();
     };
     el.appendChild(b);
+  }
+  if (sorted.length > limit) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "facet-more";
+    more.textContent = facetOpen.has(key)
+      ? tr("filters.showFewer")
+      : tr("filters.showMore", { hidden: sorted.length - cut.length });
+    more.onclick = () => {
+      if (facetOpen.has(key)) facetOpen.delete(key); else facetOpen.add(key);
+      chips(container, entries, key, label, shown, limit);
+    };
+    el.appendChild(more);
   }
   if (!entries.length) el.innerHTML = '<span class="sub">–</span>';
 }
@@ -930,6 +962,48 @@ function card(t) {
   return el;
 }
 
+// Every chip in use, over the list, so a choice in one sidebar list is not
+// forgotten while another is picked: two chips narrow the list together, and a
+// list that comes up empty then looks like a fault. A click on one takes it away.
+// Each list with a chip in use gets a mark beside its heading too.
+const FILTER_LABELS = {
+  review: () => tr("filters.awaitingReview"),
+  digest: () => tr("filters.inDigest"),
+  context: (v) => contextName(v),
+};
+function showActiveFilters() {
+  const box = $("#active-filters");
+  const active = Object.entries(state.filters).filter(([, v]) => v);
+  for (const facet of document.querySelectorAll(".facet"))
+    facet.classList.toggle("has-choice", Boolean(state.filters[facet.dataset.facet]));
+  box.hidden = !active.length;
+  box.innerHTML = "";
+  if (!active.length) return;
+  const label = document.createElement("span");
+  label.className = "active-label";
+  label.textContent = tr("filters.active");
+  box.append(label);
+  for (const [key, value] of active) {
+    const group = document.querySelector(`.facet[data-facet="${key}"] h2`)?.textContent || key;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip on";
+    b.title = tr("filters.remove");
+    b.innerHTML = `${esc(group)}: ${esc((FILTER_LABELS[key] || String)(value))}<span class="x">✕</span>`;
+    b.onclick = () => { state.filters[key] = undefined; refresh(); };
+    box.append(b);
+  }
+  if (active.length > 1) {
+    const all = document.createElement("button");
+    all.type = "button";
+    all.className = "facet-more";
+    all.style.display = "inline";
+    all.textContent = tr("filters.removeAll");
+    all.onclick = () => { state.filters = {}; refresh(); };
+    box.append(all);
+  }
+}
+
 async function refresh() {
   showError("");
   // The source names and addresses that the media under each memory need,
@@ -938,7 +1012,8 @@ async function refresh() {
   const list = $("#list");
   // Asked for at once and read before the cards are drawn: a context tag says
   // whether the memory is in that context's start pack.
-  const statsCall = api("/api/stats");
+  // Counted for the lifecycle the list shows, so a chip's count is what it opens.
+  const statsCall = api(`/api/stats?lifecycle=${encodeURIComponent(state.filters.lifecycle || "current")}`);
   statsCall.catch(() => {});
   try {
     let rows;
@@ -1002,10 +1077,11 @@ async function refresh() {
     chips("#f-kinds", top(s.kinds || s.types), "kind");
     chips("#f-lifecycles", top(s.lifecycles || { current: s.total }), "lifecycle");
     chips("#f-task-statuses", top(s.taskStatuses || {}), "task_status");
-    chips("#f-projects", top(s.projects || {}), "project");
-    chips("#f-topics", top(s.topics || {}), "topic");
-    chips("#f-people", top(s.people || {}), "person");
-    chips("#f-systems", top(s.systems || {}), "system");
+    chips("#f-projects", top(s.projects || {}), "project", undefined, undefined, FACET_SHOWN);
+    chips("#f-topics", top(s.topics || {}), "topic", undefined, undefined, FACET_SHOWN);
+    chips("#f-people", top(s.people || {}), "person", undefined, undefined, FACET_SHOWN);
+    chips("#f-systems", top(s.systems || {}), "system", undefined, undefined, FACET_SHOWN);
+    showActiveFilters();
     const tierBits = Object.entries(s.byTier || {}).map(([k, v]) => `${tr(`tiers.${k}`)} ${v}`).join(" · ");
     $("#headstat").textContent = `${tr("header.shownOf", { shown: rows.length, total: s.total })}${tierBits ? ` (${tierBits})` : ""}`;
   } catch (e) {

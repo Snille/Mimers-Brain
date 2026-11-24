@@ -36,6 +36,15 @@ test("the sidebar lists each context with a count and filters on it", {
       semester: { fits: [], omitted: 0 },
       spectrogon: { fits: [standing], omitted: 0 },
     });
+    // The project list counts every lifecycle unless asked for one; the web
+    // page asks for the lifecycle its list shows, so the chip and the list agree.
+    assert.equal(stats.projects.spectrogon, 3);
+    const current = await db.stats(db.ALL, { lifecycle: "current" });
+    assert.equal(current.projects.spectrogon, 2);
+    assert.equal(current.kinds.preference, 1);
+    assert.equal(current.lifecycles.superseded, 1);
+    assert.equal(current.total, stats.total);
+    assert.equal((await db.stats(db.ALL, { lifecycle: "all" })).projects.spectrogon, 3);
     const ids = (rows) => rows.map((r) => r.id);
     assert.deepEqual(ids(await db.listThoughts(db.ALL, { context: "semester" })), [named]);
     assert.deepEqual(ids(await db.listThoughts(db.ALL, { context: "spectrogon" })), [standing]);

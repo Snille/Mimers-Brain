@@ -42,6 +42,11 @@
     "awaitingReview": "awaiting review",
     "sortLabel": "Order of this list",
     "collapse": "Hide this list",
+    "active": "Filtered by:",
+    "remove": "Remove this filter",
+    "removeAll": "Remove all",
+    "showMore": "Show {hidden} more",
+    "showFewer": "Show fewer",
     "expand": "Show this list",
     "sort": {
       "countDesc": "Most first",
