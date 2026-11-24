@@ -143,8 +143,8 @@ flowchart TD
 ## Fälten i redigeraren
 
 Redigeraren på sidan *Minnen* visar de här fälten. Taggarna överst är en
-sammanfattning av samma fält: sort (grön), projekt (📁), ämnen (utan ikon) och
-system (⚙). Datumet är när minnet skrevs; den långa koden under är dess
+sammanfattning av samma fält: sort (🔖, grön), projekt (📁), ämnen (🏷) och
+system (⚙). Varje grupp i sidofältet har samma ikon som sina taggar. Datumet är när minnet skrevs; den långa koden under är dess
 **GUID**, minnets fasta id.
 
 Exemplet är ett riktigt minne: *"Mimers Brain: rätta titel eller sammandrag på

@@ -142,8 +142,8 @@ flowchart TD
 ## The fields in the editor
 
 The editor on the *Memories* page shows these fields. The chips at the top are
-a summary of the same fields: kind (green), project (📁), topics (plain) and
-systems (⚙). The date is when the memory was written; the long code under it is
+a summary of the same fields: kind (🔖, green), project (📁), topics (🏷) and
+systems (⚙). Each group in the sidebar has the same icon as its chips. The date is when the memory was written; the long code under it is
 its **GUID**, the memory's permanent id.
 
 The example below is a real memory: *"Mimers Brain: fix a title or summary in

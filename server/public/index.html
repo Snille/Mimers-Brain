@@ -710,7 +710,9 @@ function card(t) {
   const stale = verified && Number.isFinite(verified.valueOf()) && Date.now() - verified.valueOf() > 180 * 86400000;
   const tags = [
     digestReady(m) ? `<span class="tag pinned" title="${esc(tr("thought.pinnedHint"))}">📌 ${esc(tr("thought.pinned"))}</span>`
-      : inDigest(m) && m.pinned === true && !contextsOf(m).length ? `<span class="tag" title="${esc(tr("thought.pinnedWaitingHint"))}">📌 ${esc(tr("thought.pinnedWaiting"))}</span>` : "",
+      // Waits only when trust is what keeps it out. A memory of a context,
+      // also one there by its project, has the context tag to say so instead.
+      : inDigest(m) && m.pinned === true && !trusted(m) && !contextsOf(m, { standing: true }).length ? `<span class="tag" title="${esc(tr("thought.pinnedWaitingHint"))}">📌 ${esc(tr("thought.pinnedWaiting"))}</span>` : "",
     contextTags(contextsOf(m, { standing: inDigest(m) }), t.id, trusted(m)),
     t.tier === "vault" ? `<span class="tag vault">🔒 ${esc(tr("tiers.vault"))}</span>` : "",
     m.kind ? `<span class="tag type">🔖 ${esc(m.kind)}</span>` : (m.type ? `<span class="tag type">🔖 ${esc(m.type)}</span>` : ""),

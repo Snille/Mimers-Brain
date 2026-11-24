@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.30.1: each group has its icon, and "awaiting confirmation" tells the truth
+
+The tags on a memory card had small icons, but the sidebar groups did not, so
+one could not see which group a tag belonged to. Each group now has an icon,
+and the tags for kind, lifecycle, tasks, review and topics carry the same one.
+The heading's icon is CSS, so the "Filtered by" line still shows plain names.
+
+A pinned memory in the Skattjakt context showed "digest: awaiting
+confirmation", but the Review filter counted 0. The filter was right: the
+memory was confirmed. The tag checked only the contexts one picks by hand, not
+the context a memory is in through its project, and took that for a missing
+confirmation. The tag now shows only when the memory is not confirmed and no
+context holds it; a context's own tag says the rest.
+
+---
+
 ## 2026-11-24 — 0.30.0: several choices in one group
 
 One wants to see every memory about both Home Assistant and ESPHome. Each

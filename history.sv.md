@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.30.1: varje grupp har sin ikon, och "väntar på bekräftelse" stämmer
+
+Taggarna på ett minneskort hade små ikoner, men grupperna i sidofältet hade
+inga, så man såg inte vilken grupp en tagg hörde till. Varje grupp har nu en
+ikon, och taggarna för sort, livscykel, uppgifter, granskning och ämnen har
+samma ikon. Rubrikens ikon ligger i CSS, så raden "Filtrerat på" visar
+fortfarande rena namn.
+
+Ett fäst minne i kontexten Skattjakt visade "startpaket: väntar på
+bekräftelse", men filtret Granskning räknade 0. Filtret hade rätt: minnet var
+bekräftat. Taggen såg bara på kontexter man väljer själv, inte på kontexten
+ett minne hamnar i genom sitt projekt, och tog det för en saknad bekräftelse.
+Nu visas taggen bara när minnet inte är bekräftat och ingen kontext håller
+det; kontextens egen tagg säger resten.
+
+---
+
 ## 2026-11-24 — 0.30.0: flera val i samma grupp
 
 Man vill kunna se alla minnen om både Home Assistant och ESPHome. Förut höll
