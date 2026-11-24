@@ -6,6 +6,14 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.30.2: livligare ikoner för Ämnen och System
+
+Etikettikonen för Ämnen var tråkig, så Ämnen har nu en glödlampa (💡).
+System hade textkugghjulet (⚙), som ritas som en tunn kontur; nu har det
+emojikugghjulet (⚙️), som är ifyllt. Båda byts i sidofältet och på taggarna.
+
+---
+
 ## 2026-11-24 — 0.30.1: varje grupp har sin ikon, och "väntar på bekräftelse" stämmer
 
 Taggarna på ett minneskort hade små ikoner, men grupperna i sidofältet hade

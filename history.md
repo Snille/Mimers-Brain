@@ -6,6 +6,14 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.30.2: livelier icons for Topics and Systems
+
+The label icon for Topics was dull, so Topics now has a light bulb (💡).
+Systems had the text gear (⚙), drawn as a thin outline; it now has the emoji
+gear (⚙️), which is filled. Both change in the sidebar and on the tags.
+
+---
+
 ## 2026-11-24 — 0.30.1: each group has its icon, and "awaiting confirmation" tells the truth
 
 The tags on a memory card had small icons, but the sidebar groups did not, so

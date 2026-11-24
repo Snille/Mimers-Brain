@@ -100,9 +100,9 @@
   .facet[data-facet="lifecycle"] h2::before { content: "⏳"; }
   .facet[data-facet="task_status"] h2::before { content: "✅"; }
   .facet[data-facet="project"] h2::before { content: "📁"; }
-  .facet[data-facet="topic"] h2::before { content: "🏷"; }
+  .facet[data-facet="topic"] h2::before { content: "💡"; }
   .facet[data-facet="person"] h2::before { content: "👤"; }
-  .facet[data-facet="system"] h2::before { content: "⚙"; }
+  .facet[data-facet="system"] h2::before { content: "⚙️"; }
   #active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 12px; font-size: 13px; }
   #active-filters .active-label { color: var(--muted); }
   #active-filters .chip { margin: 0; }
@@ -721,9 +721,9 @@ function card(t) {
     m.review_status && m.review_status !== "confirmed" ? `<span class="tag vault">🔍 ${esc(m.review_status)}</span>` : "",
     m.can_use_as_instruction === false ? `<span class="tag">${esc(tr("thought.evidenceOnly"))}</span>` : "",
     m.project ? `<span class="tag">📁 ${esc(m.project)}</span>` : "",
-    ...(m.topics || []).map((x) => `<span class="tag">🏷 ${esc(x)}</span>`),
+    ...(m.topics || []).map((x) => `<span class="tag">💡 ${esc(x)}</span>`),
     ...(m.people || []).map((x) => `<span class="tag">👤 ${esc(x)}</span>`),
-    ...(m.systems || []).map((x) => `<span class="tag">⚙ ${esc(x)}</span>`),
+    ...(m.systems || []).map((x) => `<span class="tag">⚙️ ${esc(x)}</span>`),
     stale ? `<span class="tag vault">${esc(tr("thought.stale"))}</span>` : "",
     t.similarity != null ? `<span class="tag sim">${(t.similarity * 100).toFixed(0)}%</span>` : "",
   ].join("");
