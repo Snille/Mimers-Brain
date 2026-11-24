@@ -244,6 +244,9 @@ contradictions.
   pointers, possible secret fragments, and titles that are only the cut-off
   opening of the text. Raw credentials are checked in metadata and historical
   records too. The report holds ids, fields and warning codes only.
+  A title or summary in another language than the memory is rewritten by the
+  metadata model with `scripts/resummarise.mjs` (`--dry-run --out <file>`, then
+  `--apply --from <file> --expected-count N`) rather than derived from the text.
   Warnings inspect the stored snapshot before normalisation, so a proposed
   metadata correction cannot hide a credential or a wrong path from the report.
   Numbered steps are not evidence of multiple purposes; substantive Markdown

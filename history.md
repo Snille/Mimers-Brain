@@ -6,6 +6,19 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.1: new summaries for memories in the wrong language
+
+After 0.29.0 the audit listed 189 of 1445 memories whose title or summary was
+in another language than the memory. `renormalise.mjs` would have replaced
+them with the opening of the text cut short, so `server/scripts/resummarise.mjs`
+asks the metadata model for a new title or summary instead. The dry run is the
+only step that calls the model and writes its proposals to a file; `--apply`
+writes exactly those, skips a memory edited in between, and embeds the row
+again. All 189 were rewritten (49 titles too), and the audit reports zero
+changes.
+
+---
+
 ## 2026-11-24 — 0.29.0: summaries in the memory's language, contexts inside the start pack
 
 A title and summary are now always in the same language as the memory. The

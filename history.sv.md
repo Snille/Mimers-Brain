@@ -6,6 +6,19 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.1: nya sammandrag för minnen på fel språk
+
+Efter 0.29.0 listade audit 189 av 1445 minnen där titeln eller sammandraget var
+på ett annat språk än minnet. `renormalise.mjs` hade ersatt dem med början av
+texten, avklippt, så `server/scripts/resummarise.mjs` ber i stället
+metadatamodellen om en ny titel eller ett nytt sammandrag. Provkörningen är det
+enda steget som anropar modellen och skriver förslagen till en fil; `--apply`
+skriver exakt dem, hoppar över ett minne som ändrats under tiden och bäddar in
+raden på nytt. Alla 189 skrevs om (49 titlar också), och audit visar noll
+ändringar.
+
+---
+
 ## 2026-11-24 — 0.29.0: sammandrag på minnets språk, sammanhang inne i startpaketet
 
 En titel och ett sammandrag är nu alltid på samma språk som minnet.
