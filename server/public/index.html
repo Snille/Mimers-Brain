@@ -93,7 +93,9 @@
   .facet-sub { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0; }
   .facet-nested .facet-head { margin: 10px 0 4px; }
   .facet-toggle:hover h3 { color: var(--ink); }
-  #f-contexts { padding-left: 10px; border-left: 2px solid var(--line, #333); }
+  /* Everything in the start pack hangs from its heading on one line: the base
+     pack and the contexts are both parts of it. */
+  .facet[data-facet="digest"] > .facet-body { margin-left: 4px; padding-left: 10px; border-left: 2px solid color-mix(in srgb, var(--muted) 45%, transparent); }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);

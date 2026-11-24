@@ -6,6 +6,15 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.3: en linje under hela startpaketet
+
+Linjen som band Sammanhang till startpaketet gick bara bredvid
+sammanhangsknapparna, i kantfärgen, och syntes knappt i mörkt tema. Nu går en
+tydligare linje under hela gruppen Startpaket, från "alltid med" ner genom
+Sammanhang, så att båda syns som delar av startpaketet.
+
+---
+
 ## 2026-11-24 — 0.29.2: Sammanhang går att fälla ihop som de andra grupperna
 
 Sammanhang inne i gruppen Startpaket hade ingen pil för att fälla ihop, till

@@ -6,6 +6,15 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.3: one line under the whole start pack
+
+The line that tied Contexts to the start pack ran beside the context chips only,
+in the border colour, and was hard to see on the dark theme. A clearer line now
+runs under the whole start pack group, from "every session" down through
+Contexts, so both read as parts of the start pack.
+
+---
+
 ## 2026-11-24 — 0.29.2: Contexts folds away like the other groups
 
 Contexts inside the start pack group had no fold arrow, unlike every other
