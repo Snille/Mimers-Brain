@@ -158,9 +158,13 @@ web. It should be a key that can only read. Immich is the only kind so far
   used until the reader confirms it, since its instruction would otherwise be an
   agent's words read as the user's. An agent's capture cannot set `contexts`,
   like `pinned`. Deleting a context returns its memories to the base. The
-  Memories page lists the contexts in the sidebar inside the start pack group,
-  below the base pack ("every session"), with a count, and filters on them by
-  the same rule as the 🧭 tag.
+  Memories page lists the contexts in a sidebar group of their own, apart from
+  the base start pack, and filters on them by the same rule as the 🧭 tag. Each
+  chip shows `in pack / in context` (for example `10 / 12`), and a note names a
+  context whose pack is full. The numbers come from `stats().contextPacks`,
+  which runs `memoryDigest` for each confirmed context, so the page and the
+  models cannot disagree. The tag marks each memory `📌` (in the pack),
+  *does not fit* or *not used* (not current, not confirmed, or evidence only).
 - **Thresholds.** A similarity score means something only for the embedding
   model that produced it, so the four floors (search, recall hook, contradiction,
   duplicate) are stored per embedding model on the Models card of the Settings

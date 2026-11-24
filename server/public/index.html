@@ -90,12 +90,7 @@
   .facet.folded .facet-body, .facet.folded .facet-sort { display: none; }
   .facet-sort { padding: 1px 4px; font-size: 11px; border-radius: 6px; color: var(--muted); max-width: 110px; }
   .digest-note { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--warn); }
-  .facet-sub { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0; }
-  .facet-nested .facet-head { margin: 10px 0 4px; }
-  .facet-toggle:hover h3 { color: var(--ink); }
-  /* Everything in the start pack hangs from its heading on one line: the base
-     pack and the contexts are both parts of it. */
-  .facet[data-facet="digest"] > .facet-body { margin-left: 4px; padding-left: 10px; border-left: 2px solid color-mix(in srgb, var(--muted) 45%, transparent); }
+  .tag.context.out { opacity: .7; border-style: dashed; }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
@@ -381,11 +376,12 @@
     <div class="facet" data-facet="review"><div class="facet-head"><h2 data-i18n="filters.review">Review</h2></div>
       <div class="facet-body"><div id="f-review"></div></div></div>
     <div class="facet" data-facet="digest"><div class="facet-head"><h2 data-i18n="filters.digest">Session digest</h2></div>
-      <div class="facet-body"><div id="f-digest"></div><p id="f-digest-note" class="digest-note" hidden></p>
-        <!-- A context is a start pack of its own, so it sits inside this one:
-             the base pack that every session reads, then one per kind of work. -->
-        <div class="facet facet-nested" data-facet="context"><div class="facet-head"><h3 class="facet-sub" data-i18n="filters.contexts">Contexts</h3></div>
-          <div class="facet-body"><div id="f-contexts"></div></div></div></div></div>
+      <div class="facet-body"><div id="f-digest"></div><p id="f-digest-note" class="digest-note" hidden></p></div></div>
+    <!-- A context is a group of memories of its own. Only some of them reach
+         its start pack, and only when a model asks for that context: the chip
+         says how many, and each memory's tag says whether it is one of them. -->
+    <div class="facet" data-facet="context"><div class="facet-head"><h2 data-i18n="filters.contexts">Contexts</h2></div>
+      <div class="facet-body"><div id="f-contexts"></div><p id="f-contexts-note" class="digest-note" hidden></p></div></div>
     <div class="facet" data-facet="kind" data-sortable><div class="facet-head"><h2 data-i18n="filters.kind">Kind</h2></div>
       <div class="facet-body"><div id="f-kinds"></div></div></div>
     <div class="facet" data-facet="lifecycle" data-sortable><div class="facet-head"><h2 data-i18n="filters.lifecycle">Lifecycle</h2></div>
@@ -491,7 +487,7 @@ import {
 import { copy } from "./clipboard.mjs";
 import { apply as applyAppearance } from "./appearance.mjs";
 import { loadSources as loadMediaSources, mediaEditor, mediaStrip, wireStrip } from "./media.mjs";
-import { contextEditor, contextName, contextsOf, contextTags, loadContexts } from "./contexts.mjs";
+import { contextEditor, contextName, contextsOf, contextTags, loadContexts, setContextPacks } from "./contexts.mjs";
 
 await initI18n();
 
@@ -564,8 +560,7 @@ try { folded = new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || "[]")); } ca
 for (const facet of document.querySelectorAll(".facet")) {
   const key = facet.dataset.facet;
   const head = facet.querySelector(".facet-head");
-  // A nested group (Contexts inside the start pack) has an h3 instead.
-  const h2 = head.querySelector("h2, h3");
+  const h2 = head.querySelector("h2");
   const toggle = document.createElement("button");
   toggle.type = "button";
   toggle.className = "facet-toggle";
@@ -605,13 +600,14 @@ function withHelp(select, group) {
   return line;
 }
 
-function chips(container, entries, key, label = (name) => name) {
+// `shown` replaces the plain count on the chip, for example "8 / 12".
+function chips(container, entries, key, label = (name) => name, shown = (name, count) => count) {
   const el = $(container);
   el.innerHTML = "";
   for (const [name, count] of sortEntries(entries, key, label)) {
     const b = document.createElement("button");
     b.className = "chip" + (state.filters[key] === name ? " on" : "");
-    b.innerHTML = `${esc(label(name))} <b>${count}</b>`;
+    b.innerHTML = `${esc(label(name))} <b>${esc(shown(name, count))}</b>`;
     if (HELP_GROUPS[key]) b.title = helpText(HELP_GROUPS[key], name);
     b.onclick = () => {
       state.filters[key] = state.filters[key] === name ? undefined : name;
@@ -652,7 +648,7 @@ function card(t) {
   const tags = [
     digestReady(m) ? `<span class="tag pinned" title="${esc(tr("thought.pinnedHint"))}">📌 ${esc(tr("thought.pinned"))}</span>`
       : inDigest(m) && m.pinned === true && !contextsOf(m).length ? `<span class="tag" title="${esc(tr("thought.pinnedWaitingHint"))}">📌 ${esc(tr("thought.pinnedWaiting"))}</span>` : "",
-    contextTags(contextsOf(m, { standing: inDigest(m) })),
+    contextTags(contextsOf(m, { standing: inDigest(m) }), t.id, trusted(m)),
     t.tier === "vault" ? `<span class="tag vault">🔒 ${esc(tr("tiers.vault"))}</span>` : "",
     m.kind ? `<span class="tag type">${esc(m.kind)}</span>` : (m.type ? `<span class="tag type">${esc(m.type)}</span>` : ""),
     m.lifecycle && m.lifecycle !== "current" ? `<span class="tag">${esc(m.lifecycle)}</span>` : "",
@@ -936,6 +932,10 @@ async function refresh() {
   // and the contexts that decide which start pack a memory is in.
   await Promise.all([loadMediaSources(), loadContexts({ force: true })]);
   const list = $("#list");
+  // Asked for at once and read before the cards are drawn: a context tag says
+  // whether the memory is in that context's start pack.
+  const statsCall = api("/api/stats");
+  statsCall.catch(() => {});
   try {
     let rows;
     // A GUID, or a piece of one, means nothing to an embedding: look it up as text.
@@ -965,6 +965,8 @@ async function refresh() {
       rows = await api(`/api/thoughts?${p}`);
     }
 
+    const s = await statsCall;
+    setContextPacks(s.contextPacks);
     list.innerHTML = "";
     if (!rows.length) {
       list.innerHTML = `<div class="empty">${esc(tr("search.noMatches"))}</div>`;
@@ -973,7 +975,6 @@ async function refresh() {
     }
     $("#headstat").textContent = tr("header.shown", { shown: rows.length });
 
-    const s = await api("/api/stats");
     // Every value, not the most common few: a tag that is not listed cannot be
     // filtered on. chips() puts them in the order the reader chose.
     const top = (o) => Object.entries(o);
@@ -983,7 +984,16 @@ async function refresh() {
     const digestNote = $("#f-digest-note");
     digestNote.hidden = !s.digestOmitted;
     digestNote.textContent = s.digestOmitted ? tr("filters.digestFull", { omitted: s.digestOmitted, limit: s.digestLimit }) : "";
-    chips("#f-contexts", top(s.contexts || {}), "context", contextName);
+    // "8 / 12": how many of the context's memories a model gets when it asks
+    // for the context, of all the memories in it.
+    const packs = s.contextPacks || {};
+    chips("#f-contexts", top(s.contexts || {}), "context", contextName,
+      (id, count) => (packs[id] ? `${packs[id].fits.length} / ${count}` : count));
+    const full = Object.entries(packs).filter(([, p]) => p.omitted > 0);
+    const contextsNote = $("#f-contexts-note");
+    contextsNote.hidden = !full.length;
+    contextsNote.textContent = full.map(([id, p]) => tr("filters.contextFull",
+      { name: contextName(id), omitted: p.omitted, limit: s.contextLimit })).join(" ");
     chips("#f-kinds", top(s.kinds || s.types), "kind");
     chips("#f-lifecycles", top(s.lifecycles || { current: s.total }), "lifecycle");
     chips("#f-task-statuses", top(s.taskStatuses || {}), "task_status");

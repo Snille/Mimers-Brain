@@ -49,7 +49,8 @@
       "alphaAsc": "A–Z",
       "alphaDesc": "Z–A"
     },
-    "contexts": "Contexts"
+    "contexts": "Contexts",
+    "contextFull": "{name}: {omitted} do not fit (at most {limit} memories or 6,000 characters). They are marked \"does not fit\"."
   },
   "search": {
     "placeholder": "Search …",
@@ -858,6 +859,11 @@
     "editorTitle": "Contexts",
     "editorHint": "A memory in a context is in that start pack, not in the base one.",
     "editorNone": "There are no contexts. Add them under Settings.",
-    "tagHint": "In the start pack of the context {name}"
+    "tagHint": "In the context {name}",
+    "tagHint_in": "In the start pack of {name}. A model gets this memory when it chooses this context.",
+    "tagHint_full": "In the context {name}, but its start pack is full. A model finds this memory only by search. Pin it to put it before others.",
+    "tagHint_unused": "In the context {name}, but not in its start pack. The memory is not current, not confirmed, or evidence only.",
+    "tag_full": "does not fit",
+    "tag_unused": "not used"
   }
 }

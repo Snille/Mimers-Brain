@@ -26,7 +26,14 @@ test("the sidebar lists each context with a count and filters on it", {
 
     // A proposal is not listed; a fact of the project is not standing, so it
     // is not counted; a memory waiting for review still is.
-    assert.deepEqual((await db.stats(db.ALL)).contexts, { semester: 1, spectrogon: 1 });
+    const stats = await db.stats(db.ALL);
+    assert.deepEqual(stats.contexts, { semester: 1, spectrogon: 1 });
+    // What a model gets with each context: the memory waiting for review is
+    // counted in the context but is not in its start pack.
+    assert.deepEqual(stats.contextPacks, {
+      semester: { fits: [], omitted: 0 },
+      spectrogon: { fits: [standing], omitted: 0 },
+    });
     const ids = (rows) => rows.map((r) => r.id);
     assert.deepEqual(ids(await db.listThoughts(db.ALL, { context: "semester" })), [named]);
     assert.deepEqual(ids(await db.listThoughts(db.ALL, { context: "spectrogon" })), [standing]);

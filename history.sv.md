@@ -6,6 +6,26 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.5: sammanhang i en egen grupp, och vilka minnen som kommer med
+
+0.29.0 lade sammanhangen inuti gruppen Startpaket i sidofältet. Det såg ut som
+om alla minnen i ett sammanhang kom med i startpaketet. Så är det inte: ett
+sammanhangs paket skickas bara när en modell ber om det sammanhanget, och även
+då bara minnen som är bekräftade och aktuella, och bara de första 10 minnena
+eller 6 000 tecknen. Ett minne i ett sammanhang kunde falla bort utan att det
+syntes.
+
+Sammanhangen har nu en egen grupp i sidofältet. Varje knapp visar
+`i paketet / i sammanhanget`, till exempel `Spectrogon 10 / 12`, och en rad
+säger till när ett sammanhangs paket är fullt. 🧭-taggen på varje minne visar
+`📌` när det är med i paketet, *får inte plats* när paketet är fullt och
+*används inte* när det inte är bekräftat eller aktuellt. Siffrorna kommer från
+`stats().contextPacks`, som kör samma `memoryDigest` som modellerna får, så
+sidan kan inte visa en sak medan modellerna får en annan. Korten ritas nu
+efter att statistiken har kommit, så att varje tagg vet sitt läge.
+
+---
+
 ## 2026-11-24 — 0.29.4: en sida som förklarar delarna och fälten
 
 En vän som försökte förstå hjärnan frågade gång på gång vad ett projekt är

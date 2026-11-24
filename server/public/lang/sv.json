@@ -49,7 +49,8 @@
       "alphaAsc": "A–Ö",
       "alphaDesc": "Ö–A"
     },
-    "contexts": "Sammanhang"
+    "contexts": "Sammanhang",
+    "contextFull": "{name}: {omitted} får inte plats (högst {limit} minnen eller 6 000 tecken). De är märkta \"får inte plats\"."
   },
   "search": {
     "placeholder": "Sök …",
@@ -858,6 +859,11 @@
     "editorTitle": "Sammanhang",
     "editorHint": "Ett minne i ett sammanhang finns i det startpaketet, inte i det grundläggande.",
     "editorNone": "Det finns inga sammanhang. Lägg till dem under Inställningar.",
-    "tagHint": "I startpaketet för sammanhanget {name}"
+    "tagHint": "I sammanhanget {name}",
+    "tagHint_in": "Med i startpaketet för {name}. En modell får minnet när den väljer detta sammanhang.",
+    "tagHint_full": "I sammanhanget {name}, men startpaketet är fullt. En modell hittar minnet bara med sökning. Fäst det för att flytta det före andra.",
+    "tagHint_unused": "I sammanhanget {name}, men inte med i startpaketet. Minnet är inte aktuellt, inte bekräftat eller bara ett belägg.",
+    "tag_full": "får inte plats",
+    "tag_unused": "används inte"
   }
 }

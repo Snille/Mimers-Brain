@@ -39,8 +39,29 @@ export function contextsOf(m, { standing = false } = {}) {
     || (standing && m.project && (c.projects || []).includes(m.project)));
 }
 
-export const contextTags = (list) => list.map((c) =>
-  `<span class="tag context" title="${esc(t("contexts.tagHint", { name: c.name }))}">🧭 ${esc(c.name)}</span>`).join("");
+// What each context's start pack holds, from /api/stats: { id: { fits: [ids],
+// omitted } }. Set before the cards are drawn, so a tag can say whether the
+// memory is one a model gets with that context.
+let packs = null;
+export const setContextPacks = (value) => { packs = value && typeof value === "object" ? value : null; };
+
+// Why a memory of a context is in its start pack or not: "in", "unused" (not
+// current, not confirmed, or evidence only) or "full" (no room left).
+function packState(c, id, usable) {
+  const fits = packs?.[c.id]?.fits;
+  if (!Array.isArray(fits)) return "";
+  if (fits.includes(id)) return "in";
+  return usable ? "full" : "unused";
+}
+
+export function contextTags(list, id = "", usable = true) {
+  return list.map((c) => {
+    const state = packState(c, id, usable);
+    const hint = t(state ? `contexts.tagHint_${state}` : "contexts.tagHint", { name: c.name });
+    const mark = state === "in" ? " 📌" : state ? ` · ${t(`contexts.tag_${state}`)}` : "";
+    return `<span class="tag context${state && state !== "in" ? " out" : ""}" title="${esc(hint)}">🧭 ${esc(c.name)}${esc(mark)}</span>`;
+  }).join("");
+}
 
 // The editor's checkboxes. An id that names no confirmed context is kept as it
 // is, so a context that is deleted and made again finds its memories.

@@ -130,6 +130,11 @@ flowchart TD
   skrev väntar tills du bekräftar det på sidan *Granska* eller *Minnen*.
 - Grundpaketet rymmer högst 15 minnen eller 9 000 tecken; ett sammanhang 10
   minnen eller 6 000 tecken. Sidan *Minnen* säger till när något inte får plats.
+  I gruppen *Sammanhang* visar varje sammanhang till exempel `10 / 12`: hur
+  många av dess minnen en modell får, av alla minnen i det. 🧭-taggen på ett
+  minne säger samma sak: `📌` när det är med i startpaketet, *får inte plats*
+  när paketet är fullt och *används inte* när det inte är bekräftat eller
+  aktuellt.
 - Fäst bara det som en modell skulle göra fel utan, i många olika uppgifter.
   Allt annat hittas med sökning.
 - En agent kan inte fästa ett minne eller lägga det i ett sammanhang. Bara du

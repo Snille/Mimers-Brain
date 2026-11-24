@@ -6,6 +6,25 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.5: contexts in their own group, and which memories make the pack
+
+0.29.0 put the contexts inside the start pack group in the sidebar. That read
+as if every memory of a context went into the start pack. It does not: a
+context's pack is sent only when a model asks for that context, and even then
+only memories that are confirmed and current, and only the first 10 memories
+or 6,000 characters. A memory in a context could be left out without any sign.
+
+The contexts now have a sidebar group of their own. Each chip shows
+`in pack / in context`, for example `Spectrogon 10 / 12`, and a note names a
+context whose pack is full. The 🧭 tag on each memory says `📌` when it is in
+the pack, *does not fit* when the pack is full, and *not used* when it is not
+confirmed or not current. The numbers come from `stats().contextPacks`, which
+runs the same `memoryDigest` the models get, so the page cannot say one thing
+while the models get another. The cards are now drawn after the statistics
+arrive, so each tag knows its state.
+
+---
+
 ## 2026-11-24 — 0.29.4: a page that explains the parts and the fields
 
 A friend trying to understand the brain kept asking what a project is next to a

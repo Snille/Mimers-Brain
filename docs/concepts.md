@@ -130,7 +130,10 @@ flowchart TD
   until you confirm it on the *Review* page or the *Memories* page.
 - The base pack holds at most 15 memories or 9,000 characters; a context holds 10
   memories or 6,000 characters. The *Memories* page says when something does not
-  fit.
+  fit. In its *Contexts* group each context shows, for example, `10 / 12`: how
+  many of its memories a model gets, of all the memories in it. The 🧭 tag on a
+  memory says the same: `📌` when it is in the start pack, *does not fit* when
+  the pack is full, and *not used* when it is not confirmed or not current.
 - Pin only what a model would get wrong without, in many different tasks.
   Everything else is found by search.
 - An agent cannot pin a memory or put it in a context. Only you can, because a

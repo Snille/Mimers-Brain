@@ -4,7 +4,7 @@
 // listener the request arrived on - never from a header, a parameter or
 // anything else the caller can influence.
 
-import { BASE_DIGEST_SQL, CONTEXT_COUNTS_SQL, CONTEXT_MEMBER_SQL, IN_CONTEXT_SQL } from "./context-sql.mjs";
+import { BASE_DIGEST_SQL, CONTEXT_COUNTS_SQL, CONTEXT_MEMBER_SQL, CONTEXTS_KEY, IN_CONTEXT_SQL } from "./context-sql.mjs";
 import pg from "pg";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
@@ -2168,6 +2168,7 @@ export async function stats(tiers) {
   );
   const r = rows[0];
   const digest = await memoryDigest(tiers);
+  const contextPacks = await contextPackStats(tiers);
   return {
     total: Number(r.total),
     digest: Number(r.digest || 0),
@@ -2184,6 +2185,8 @@ export async function stats(tiers) {
     people: r.people || {},
     systems: r.systems || {},
     contexts: r.contexts || {},
+    contextPacks,
+    contextLimit: CONTEXT_DIGEST_LIMIT,
     // min/max, not a sort. The old code sorted Date objects with the default
     // comparator, which compares them as strings - so it ordered by weekday name
     // and these two came out wrong. Nothing reads them yet, which is why it was
@@ -2296,6 +2299,23 @@ export const DIGEST_BUDGET = 9000;
 // read beside it.
 export const CONTEXT_DIGEST_LIMIT = 10;
 export const CONTEXT_DIGEST_BUDGET = 6000;
+
+// For each confirmed context, which of its memories a model gets when it asks
+// for that context, and how many do not fit. The Memories page shows this on
+// the tags and in the sidebar. Built with memoryDigest itself, so the page and
+// the models can never disagree. Read from app_settings here, because
+// contexts.mjs imports this file.
+async function contextPackStats(tiers) {
+  let stored = {};
+  try { stored = JSON.parse(await getSetting(CONTEXTS_KEY)) || {}; } catch { stored = {}; }
+  const out = {};
+  for (const [id, c] of Object.entries(stored)) {
+    if (c?.status !== "confirmed") continue;
+    const pack = await memoryDigest(tiers, { context: { id, projects: Array.isArray(c.projects) ? c.projects : [] } });
+    out[id] = { fits: pack.items.map((item) => item.id), omitted: pack.omitted };
+  }
+  return out;
+}
 
 // Without `context` this is the base: what holds everywhere. With one (an
 // object from contexts.mjs) it is that context's memories alone; the caller
