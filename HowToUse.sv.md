@@ -152,8 +152,8 @@ curl -s -X POST https://brain.example.net/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-En verktygslista betyder att det fungerar: 10 verktyg på den öppna porten, 17 på
-8790, 7 på 8792. `401` betyder fel nyckel. En `302` till din autentisering betyder
+En verktygslista betyder att det fungerar: 11 verktyg på den öppna porten, 19 på
+8790, 8 på 8792. `401` betyder fel nyckel. En `302` till din autentisering betyder
 att proxyn skickar `/mcp` genom forward auth; det får den inte.
 
 ## Hur en modell ska använda minnet
@@ -207,11 +207,13 @@ servern" är användbart.
 
 Håll muspekaren över ett minne under **Minnen** och välj **Redigera** för att
 ändra text, titel, sammanfattning, typ, livscykel, uppgiftsstatus, projekt,
-ämnen, personer, system, nivå eller verifieringsdatum, eller fästa det i
-startpaketet (`memory_digest`). När du sparar bäddas minnet in igen, eftersom titel och
+ämnen, personer, system, nivå eller verifieringsdatum, fästa det i
+startpaketet (`memory_digest`), bocka i vilka sammanhang det hör till, eller
+länka media. När du sparar bäddas minnet in igen, eftersom titel och
 sammanfattning ingår i det sökningen jämför. **Kopiera referens** kopierar id och
 titel på en rad, att klistra in i en chatt med en ansluten modell följt av vad som
-ska ändras. Texten måste vara kortare än 1 200 tecken, som överallt annars;
+ska ändras; **Kopiera GUID** kopierar bara id:t. Vad varje fält betyder och vad
+det påverkar står i [docs/concepts.sv.md](docs/concepts.sv.md). Texten måste vara kortare än 1 200 tecken, som överallt annars;
 längre text sparar du som nytt minne, så delas den upp i flera minnen.
 
 ## Ansluta igen efter en ominstallation

@@ -21,7 +21,7 @@ konversation.
    vektor som beskriver vad texten betyder.
 2. **Skrivning.** Vid varje skrivning vägrar servern text som ser ut som en
    hemlighet, ber en metadatamodell om titel, sammanfattning, sort, projekt,
-   ämnen och system, och ber en inbäddningsmodell om vektorn. Ett fingeravtryck
+   ämnen, personer och system, och ber en inbäddningsmodell om vektorn. Ett fingeravtryck
    av texten gör att en exakt kopia uppdaterar den befintliga raden i stället
    för att lägga till en ny.
 3. **Sökningen är semantisk.** Frågan får också en vektor, och pgvector hittar
@@ -33,7 +33,8 @@ konversation.
    träffar den använde. Minnen som används ofta stiger i rangordningen; de som
    aldrig används listas för granskning.
 
-Detaljer: [docs/how-it-works.md](docs/how-it-works.md) (engelska).
+Begrepp och diagram: [docs/concepts.sv.md](docs/concepts.sv.md). Detaljer:
+[docs/how-it-works.md](docs/how-it-works.md) (engelska).
 
 ## Vad det gör
 
@@ -97,6 +98,7 @@ pgvector i imagen `pgvector/pgvector:pg17`, och Docker Compose. Webbgränssnitte
 | --- | --- |
 | **[install.sv.md](install.sv.md)** | Installation på Proxmox LXC, Docker Desktop eller Ubuntu Server: konfiguration, reverse proxy, backup, uppdatering, lokal inbäddningsmodell, test av motsägelser |
 | **[HowToUse.sv.md](HowToUse.sv.md)** | Ansluta Claude Code, Codex, Claude Desktop, ChatGPT, Open WebUI; vad som hör hemma i minnet |
+| **[docs/concepts.sv.md](docs/concepts.sv.md)** | Begrepp och fält med diagram: vad ett minne är, vad projekt, ämnen, system och personer betyder, och vad som påverkar vad |
 | **[docs/how-it-works.md](docs/how-it-works.md)** | Nivågränsen, autentisering, minnesmodellen, sökning, modeller, underhåll (engelska) |
 | **[docs/home-assistant.md](docs/home-assistant.md)** | MQTT-sensorer för Home Assistant (engelska) |
 | **[tools/hooks/](tools/hooks/README.md)** | Claude Code-hook som lägger relevanta minnen vid varje fråga |
@@ -169,11 +171,11 @@ för OpenAPI-klienter: `GET /openapi.json` och `POST /tools/<namn>` (med
 
 | Sida | Till för |
 | --- | --- |
-| **Minnen** | Lista, hybridsökning, filter, granskning av nya agentminnen med hela texten, redigering (på 8790 även flytt av ett minne mellan öppen nivå och valvet), ändringshistorik med återställning, *Kopiera referens* till en chatt, fästa minnen i startpaketet (`memory_digest`) |
+| **Minnen** | Lista, hybridsökning, filter, granskning av nya agentminnen med hela texten, redigering (på 8790 även flytt av ett minne mellan öppen nivå och valvet), sammanhang och media på ett minne, ändringshistorik med återställning, *Kopiera referens* och *Kopiera GUID* till en chatt, fästa minnen i startpaketet (`memory_digest`) |
 | **Granska** | Hur många minnen som väntar på granskning (med länk till dem under Minnen), dubbletter, möjliga motsägelser, sällan till nytta, nyligen raderade |
 | **Statistik** | En 3D-karta över minnet (kan stängas av), hälsa, hur användbara hämtade minnen är, klientaktivitet, MQTT-status, hur länge kvitton sparas |
 | **Anslut** | Inställningar för varje klient |
-| **Inställningar** | Bara port 8790: tema och accentfärg, leverantörer och nycklar, modeller, omindexering, de fyra likhetsgränserna och mätningarna av recall och motsägelser |
+| **Inställningar** | Bara port 8790: tema och accentfärg, minnespolicyn, sammanhang, leverantörer och nycklar, modeller, omindexering, de fyra likhetsgränserna, mediakällor och mätningarna av recall och motsägelser |
 
 Gränssnittet finns på 8790 (logga in med `MCP_ACCESS_KEY`) och 8791 (öppen nivå,
 bakom din autentisering). Texterna laddas från JSON-kataloger, webbläsarens språk

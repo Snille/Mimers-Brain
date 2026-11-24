@@ -21,8 +21,8 @@ conversation.
    column. Each row holds the text, structured metadata and an embedding: a
    vector that describes what the text means.
 2. **Writing.** On every write the server refuses text that looks like a
-   secret, asks a metadata model for title, summary, kind, project, topics and
-   systems, and asks an embedding model for the vector. A fingerprint of the
+   secret, asks a metadata model for title, summary, kind, project, topics,
+   people and systems, and asks an embedding model for the vector. A fingerprint of the
    text makes an exact copy update the existing row instead of adding one.
 3. **Searching is semantic.** The question gets a vector too, and pgvector
    finds the closest memories by cosine similarity through an HNSW index.
@@ -33,7 +33,8 @@ conversation.
    results it used. Memories that keep being used rise in the ranking; ones that
    are never used are listed for review.
 
-Details: [docs/how-it-works.md](docs/how-it-works.md).
+Concepts and diagrams: [docs/concepts.md](docs/concepts.md). Details:
+[docs/how-it-works.md](docs/how-it-works.md).
 
 ## What it does
 
@@ -96,6 +97,7 @@ web UI is plain HTML and ES modules with no build step.
 | --- | --- |
 | **[install.md](install.md)** | Installation on Proxmox LXC, Docker Desktop or Ubuntu Server: configuration, reverse proxy, backups, updates, local embedding model, contradiction test |
 | **[HowToUse.md](HowToUse.md)** | Connecting Claude Code, Codex, Claude Desktop, ChatGPT, Open WebUI; what belongs in the memory |
+| **[docs/concepts.md](docs/concepts.md)** | Concepts and fields, with diagrams: what a memory is, what project, topics, systems and people mean, and what affects what |
 | **[docs/how-it-works.md](docs/how-it-works.md)** | Tier boundary, authentication, memory model, search, models, maintenance |
 | **[docs/home-assistant.md](docs/home-assistant.md)** | MQTT sensors for Home Assistant |
 | **[tools/hooks/](tools/hooks/README.md)** | Claude Code hook that brings memories to each prompt |
@@ -168,11 +170,11 @@ available as REST for OpenAPI clients: `GET /openapi.json` and
 
 | Page | What it is for |
 | --- | --- |
-| **Memories** | List, hybrid search, facets, reviewing new agent memories with their whole text, editing (on 8790 also moving a memory between the open tier and the vault), change history with restore, *Copy reference* for a chat, pinning memories into the session digest |
+| **Memories** | List, hybrid search, facets, reviewing new agent memories with their whole text, editing (on 8790 also moving a memory between the open tier and the vault), contexts and media on a memory, change history with restore, *Copy reference* and *Copy GUID* for a chat, pinning memories into the start pack |
 | **Review** | How many memories await review (with a link to them on Memories), duplicates, possible contradictions, rarely useful memories, recently deleted |
 | **Statistics** | A 3D map of the memory (can be switched off), health, recall usefulness, client activity, MQTT status, receipt retention |
 | **Connect** | Setup for every client |
-| **Settings** | Port 8790 only: theme and accent colour, providers and keys, models, re-embedding, the four similarity thresholds, and the recall and contradiction measurements |
+| **Settings** | Port 8790 only: theme and accent colour, the memory policy, contexts, providers and keys, models, re-embedding, the four similarity thresholds, media sources, and the recall and contradiction measurements |
 
 The UI is served on 8790 (sign in with `MCP_ACCESS_KEY`) and 8791 (open tier,
 behind your authenticator). It loads its text from JSON catalogs, picks the

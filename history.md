@@ -6,6 +6,26 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.4: a page that explains the parts and the fields
+
+A friend trying to understand the brain kept asking what a project is next to a
+topic, what a system is, and what each field in the editor changes. The answers
+were spread over the code and the language files. `docs/concepts.md` (and
+`docs/concepts.sv.md`) now explains it in one place, with Mermaid diagrams: the
+parts and how they connect, what happens on a write and on a search, how the
+start pack and contexts are chosen, every editor field with who fills it and
+what it affects, how memories link to each other, and a glossary. One fact
+stands out: only the title, summary and text go into the vector, so project,
+topics, people and systems are filters and never change a search by meaning.
+
+The other documents had drifted. HowToUse gave the tool counts as 10, 17 and 7
+(they are 11, 19 and 8) and its editing section left out contexts, media and
+*Copy GUID*. The README's Settings row left out the memory policy, contexts and
+media sources, and the port table in how-it-works.md left out `propose_context`
+and `get_media`. All fixed.
+
+---
+
 ## 2026-11-24 — 0.29.3: one line under the whole start pack
 
 The line that tied Contexts to the start pack ran beside the context chips only,

@@ -2,7 +2,8 @@
 
 The design decisions behind the server, for anyone changing it or judging whether
 to trust it. Setup is in [install.md](../install.md); connecting clients is in
-[HowToUse.md](../HowToUse.md); the reasons behind each change are in
+[HowToUse.md](../HowToUse.md); what the fields mean and how the parts connect,
+with diagrams, is in [concepts.md](concepts.md); the reasons behind each change are in
 [history.md](../history.md).
 
 ## The tier boundary
@@ -18,8 +19,8 @@ The tier is a property of the **listener**, never of a header. A check on
 | Port | Built with | Tools |
 | --- | --- | --- |
 | 8790 full | `tiers = ['open', 'vault']` | all |
-| 8791 open | `tiers = ['open']` | all except `review_memory`, `supersede_thought`, `delete_thought`, `list_contradictions`, `dismiss_contradiction`, `list_duplicates`, `resolve_duplicate` |
-| 8792 read | `tiers = ['open']`, no write tools | search, list, fetch, digest, statistics, `report_memory_usage` |
+| 8791 open | `tiers = ['open']` | all except `review_memory`, `supersede_thought`, `delete_thought`, `propose_context`, `list_contradictions`, `dismiss_contradiction`, `list_duplicates`, `resolve_duplicate` |
+| 8792 read | `tiers = ['open']`, no write tools | search, list, fetch, digest, statistics, `get_media`, `report_memory_usage` |
 
 The open and read listeners are constructed without the ability to reach vault
 rows, so no parameter, header or path changes what they return. Someone who gets

@@ -6,6 +6,27 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.4: en sida som förklarar delarna och fälten
+
+En vän som försökte förstå hjärnan frågade gång på gång vad ett projekt är
+jämfört med ett ämne, vad ett system är och vad varje fält i redigeraren
+ändrar. Svaren låg utspridda i koden och språkfilerna. `docs/concepts.sv.md`
+(och `docs/concepts.md`) förklarar det nu på ett ställe, med Mermaid-diagram:
+delarna och hur de hänger ihop, vad som händer vid skrivning och sökning, hur
+startpaketet och sammanhangen väljs, varje fält i redigeraren med vem som
+fyller i det och vad det påverkar, hur minnen länkas till varandra, och en
+ordlista. En sak sticker ut: bara titel, sammanfattning och text går in i
+vektorn, så projekt, ämnen, personer och system är filter och ändrar aldrig en
+sökning på betydelse.
+
+De andra dokumenten hade glidit isär. HowToUse angav 10, 17 och 7 verktyg (det
+är 11, 19 och 8), och avsnittet om redigering saknade sammanhang, media och
+*Kopiera GUID*. README:s rad om Inställningar saknade minnespolicyn,
+sammanhang och mediakällor, och porttabellen i how-it-works.md saknade
+`propose_context` och `get_media`. Allt är rättat.
+
+---
+
 ## 2026-11-24 — 0.29.3: en linje under hela startpaketet
 
 Linjen som band Sammanhang till startpaketet gick bara bredvid

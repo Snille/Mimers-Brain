@@ -151,7 +151,7 @@ curl -s -X POST https://brain.example.net/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-A tool list means it works: 10 tools on the open port, 17 on 8790, 7 on 8792.
+A tool list means it works: 11 tools on the open port, 19 on 8790, 8 on 8792.
 `401` means a wrong key. A `302` to your authenticator means the proxy sends
 `/mcp` through forward auth; it must not.
 
@@ -204,10 +204,12 @@ server" is useful.
 
 Hover a memory on **Memories** and choose **Edit** to change its text, title,
 summary, kind, lifecycle, task status, project, topics, people, systems, tier or
-verification date, or to pin it into the session digest. Saving re-embeds the memory, since the title and
-summary are part of what search compares. **Copy reference** copies the id and
-title as one line to paste into a chat with a connected model, followed by what
-should change. The text must be shorter than 1,200 characters, as everywhere
+verification date, to pin it into the start pack (`memory_digest`), to tick the
+contexts it belongs to, or to link media. Saving re-embeds the memory, since the
+title and summary are part of what search compares. **Copy reference** copies the
+id and title as one line to paste into a chat with a connected model, followed by
+what should change; **Copy GUID** copies the id alone. What each field means, and
+what it changes, is in [docs/concepts.md](docs/concepts.md). The text must be shorter than 1,200 characters, as everywhere
 else; save longer text as a new memory, and it is split into several memories.
 
 ## Reconnecting after a reinstall
