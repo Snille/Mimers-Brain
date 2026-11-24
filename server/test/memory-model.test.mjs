@@ -9,6 +9,7 @@ import {
   applyReview,
   deriveSummary,
   deriveTitle,
+  languageOf,
   shorten,
   describesContent,
   inheritsConfirmedTrust,
@@ -204,7 +205,7 @@ test("short content gives no signal, so proposed metadata is trusted", () => {
   assert.equal(describesContent("Anything at all here", "Too short."), true);
 });
 
-test("a faithful summary in the other language is kept, because anchors survive translation", () => {
+test("a summary in another language than the memory is refused, even a faithful one", () => {
   const content = [
     "Eriks ESPHome-miljö. Repot C:\\Users\\eripet\\Coding\\ESPHome redigeras på Windows.",
     "",
@@ -212,10 +213,34 @@ test("a faithful summary in the other language is kept, because anchors survive 
   ].join("\n");
   const english = "This document outlines the best practices for building and flashing devices"
     + " in an ESPHome environment using WSL2 and Docker.";
-  assert.equal(describesContent(english, content), true);
+  assert.equal(describesContent(english, content), false);
 
   const meta = normaliseMeta({ summary: english }, content);
-  assert.equal(meta.summary, english);
+  assert.notEqual(meta.summary, english);
+  assert.match(meta.summary, /byggvägen/);
+});
+
+test("an English memory keeps neither a Swedish nor a German summary", () => {
+  const content = "PBS01 garbage collection on datastore nas must never overlap the 01:00 host backups"
+    + " on TowerCube. GC on nas takes about 4 hours, and when it ran at 00:30 it deleted chunks"
+    + " that the concurrent backups were using.";
+  const swedish = "PBS01:s garbage collection på datastore nas får inte överlappa TowerCubes backuper"
+    + " kl. 01:00; GC tar cirka fyra timmar.";
+  const german = "Die Garbage Collection von PBS01 auf nas darf nicht mit den Backups um 01:00 auf"
+    + " TowerCube überlappen, weil sie vier Stunden dauert.";
+  const english = "PBS01 GC on nas must not overlap the 01:00 TowerCube backups, because it takes"
+    + " about four hours and deletes chunks in use.";
+  assert.equal(describesContent(swedish, content), false);
+  assert.equal(describesContent(german, content), false);
+  assert.equal(describesContent(english, content), true);
+  assert.equal(normaliseMeta({ summary: german }, content).summary.startsWith("PBS01 garbage collection"), true);
+});
+
+test("the language of a text is told apart for Swedish, English and German", () => {
+  assert.equal(languageOf("Det här är en text som handlar om backuper och när de körs."), "sv");
+  assert.equal(languageOf("This is a text that is about backups and when they run."), "en");
+  assert.equal(languageOf("Das ist ein Text über Backups und wann sie laufen, nicht mehr."), "de");
+  assert.equal(languageOf("PBS01 GC"), null);
 });
 
 test("a short title with a single unmatched anchor is left alone", () => {
@@ -224,7 +249,7 @@ test("a short title with a single unmatched anchor is left alone", () => {
   assert.equal(describesContent("Erik's server inventory at 10.0.0.x", content), true);
 });
 
-test("an English summary of a Swedish memory is trusted even without a shared name", () => {
+test("an English summary of a Swedish memory is refused even without a shared name", () => {
   const content = [
     "EN NOTIS TAR SLOT 0 — andra slots överlever. Verifierat mot hårdvara.",
     "",
@@ -232,7 +257,7 @@ test("an English summary of a Swedish memory is trusted even without a shared na
   ].join("\n");
   const english = "Testing revealed that only the first slot is destroyed by notifications,"
     + " and that a decision was made not to implement a cache for this.";
-  assert.equal(describesContent(english, content), true);
+  assert.equal(describesContent(english, content), false);
 });
 
 test("a hyphenated name matches the content it was split from", () => {

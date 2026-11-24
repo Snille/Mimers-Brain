@@ -402,21 +402,34 @@ const SANITY_MIN_CONTENT_TOKENS = 12;
 const SANITY_MIN_ANCHOR_LENGTH = 3;
 const SANITY_MIN_ANCHORS = 2;
 
-// Anchors carry a faithful translation across languages only when the memory
-// happens to name a product or a path. A summary written in the other language
-// about a memory that names none would otherwise look foreign. Deciding the
-// language first keeps the check where it works: same language, same subject.
+// A title and summary are always in the same language as the memory. The
+// metadata model is told so, but it has still answered an English memory in
+// German, and a later rewrite in Swedish. A title or summary whose language can
+// be told apart from the memory's is refused, whatever it says.
+// German has no word list of its own beyond what sets it apart: "den" and
+// "an" are Swedish or English as well, and would only blur the vote.
 const LANGUAGE_MARKERS = {
   sv: /[åäö]|\b(och|som|för|inte|att|den|det|är|med|till|från|när|kan|ska|men|här)\b/giu,
   en: /\b(the|and|of|to|is|are|that|with|for|from|when|can|should|not|this|these)\b/giu,
+  de: /[ßü]|\b(und|der|die|das|ist|nicht|mit|für|von|auf|wird|werden|eine|einen|wenn|nach|bei|sind|kann)\b/giu,
 };
 
-function languageOf(text) {
+export const LANGUAGE_NAMES = { sv: "Swedish", en: "English", de: "German" };
+
+export function languageOf(text) {
   const scores = Object.entries(LANGUAGE_MARKERS)
     .map(([code, pattern]) => [code, (String(text ?? "").match(pattern) || []).length])
     .sort((a, b) => b[1] - a[1]);
   const [[code, best], [, runnerUp]] = scores;
   return best >= 2 && best > runnerUp ? code : null;
+}
+
+// True only when both languages can be told and they differ. A short title
+// usually carries too few words to tell, and is then left to the other checks.
+export function differsInLanguage(candidate, content) {
+  const candidateLanguage = languageOf(candidate);
+  const contentLanguage = languageOf(content);
+  return Boolean(candidateLanguage && contentLanguage && candidateLanguage !== contentLanguage);
 }
 
 function anchors(value) {
@@ -461,11 +474,9 @@ export function describesContent(candidate, content) {
   // introduce a model name, file, path, version or identifier from another
   // memory. This is the high-signal case that language detection used to skip.
   if (technicalAnchors(candidate).some((anchor) => !normalisedContent.includes(anchor))) return false;
+  if (differsInLanguage(candidate, content)) return false;
   const contentTokens = tokenSet(content);
   if (contentTokens.size < SANITY_MIN_CONTENT_TOKENS) return true;
-  const candidateLanguage = languageOf(candidate);
-  const contentLanguage = languageOf(content);
-  if (candidateLanguage && contentLanguage && candidateLanguage !== contentLanguage) return true;
   const candidateAnchors = anchors(candidate);
   // One unmatched anchor is weak evidence, and a short title carries too little
   // text to detect its language: "Erik's server inventory" is a good title for a

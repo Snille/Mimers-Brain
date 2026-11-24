@@ -17,6 +17,9 @@ import {
   applyReview,
   embeddingText,
   inheritsConfirmedTrust,
+  LANGUAGE_NAMES,
+  differsInLanguage,
+  languageOf,
   normaliseMeta,
 } from "./memory-model.mjs";
 import { fallbackAtoms, normalisePreviewCandidates } from "./smart-ingest.mjs";
@@ -217,13 +220,32 @@ export async function extractMetadata(text) {
   if (!ai.roleReady("metadata")) return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
   const existingProjects = await knownProjects();
   const existingTopics = await knownTopics();
+  // The model is told the language by name, because "the same language" alone
+  // still gave an English memory a German summary. normaliseMeta refuses a
+  // title or summary in another language, so one retry is cheaper than the
+  // fallback, which is the opening of the text itself.
+  const language = LANGUAGE_NAMES[languageOf(text)];
   try {
-    return await ai.chatJson(ai.role("metadata"),
+    const first = await metadataCall(text, existingProjects, existingTopics, language);
+    if (!language || !["title", "summary"].some((field) => differsInLanguage(first?.[field], text))) return first;
+    const second = await metadataCall(text, existingProjects, existingTopics, language,
+      `Your previous answer wrote "title" or "summary" in another language. Write both in ${language}.\n`);
+    return ["title", "summary"].some((field) => differsInLanguage(second?.[field], text)) ? first : second;
+  } catch {
+    return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
+  }
+}
+
+function metadataCall(text, existingProjects, existingTopics, language, retryNote = "") {
+  return ai.chatJson(ai.role("metadata"),
             `Extract long-term-memory metadata as JSON. Return only these keys:\n` +
             // The language rule and "never the opening words" are the two that
             // matter: without them the model answered Swedish text in English
             // and often returned the first 180 or 500 characters cut mid-word.
-            `Write "title" and "summary" in the SAME LANGUAGE as the text (Swedish text gets Swedish metadata).\n` +
+            (language
+              ? `The text is written in ${language}. Write "title" and "summary" in ${language}, never in another language.\n`
+              : `Write "title" and "summary" in the SAME LANGUAGE as the text (Swedish text gets Swedish metadata).\n`) +
+            retryNote +
             `- "title": a short descriptive name for THIS text, at most 100 characters. Name the subject;\n` +
             `  never copy or cut off the opening words of the text.\n` +
             `- "summary": the current conclusion of THIS text in one to three complete sentences, at most\n` +
@@ -245,9 +267,6 @@ export async function extractMetadata(text) {
             `Do not invent facts. lifecycle is always set by the server.\n\n` +
             `<<<TEXT\n${text}\nTEXT>>>\n\n` +
             topicReminder(existingTopics));
-  } catch {
-    return { topics: ["mimers-brain"], kind: "fact", type: "observation" };
-  }
 }
 
 async function extractAtoms(text) {

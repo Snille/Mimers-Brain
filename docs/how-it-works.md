@@ -76,7 +76,11 @@ allowed-use flags, `source_refs` and `artifact_refs`. The older `type`, `topics`
 and `people` remain for older clients.
 
 - **Metadata** is proposed by the metadata model and validated by
-  `server/memory-model.mjs`. Every facet takes any text; in the editor only the
+  `server/memory-model.mjs`. A title and summary are always in the language of
+  the memory: the model is told the language by name, asked once more if it
+  answers in another, and a title or summary that is still Swedish, English or
+  German against a memory in another of the three is replaced by one derived
+  from the text. Every facet takes any text; in the editor only the
   comma separates values. `topics` has a settled vocabulary that the metadata
   model is asked to choose from, and known subjects and their aliases land on
   its spelling, but a topic outside it is kept as written. `project` names the
@@ -153,8 +157,9 @@ web. It should be a key that can only read. Immich is the only kind so far
   used until the reader confirms it, since its instruction would otherwise be an
   agent's words read as the user's. An agent's capture cannot set `contexts`,
   like `pinned`. Deleting a context returns its memories to the base. The
-  Memories page lists the contexts in the sidebar with a count and filters on
-  them by the same rule as the 🧭 tag.
+  Memories page lists the contexts in the sidebar inside the start pack group,
+  below the base pack ("every session"), with a count, and filters on them by
+  the same rule as the 🧭 tag.
 - **Thresholds.** A similarity score means something only for the embedding
   model that produced it, so the four floors (search, recall hook, contradiction,
   duplicate) are stored per embedding model on the Models card of the Settings

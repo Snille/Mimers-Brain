@@ -90,6 +90,8 @@
   .facet.folded .facet-body, .facet.folded .facet-sort { display: none; }
   .facet-sort { padding: 1px 4px; font-size: 11px; border-radius: 6px; color: var(--muted); max-width: 110px; }
   .digest-note { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--warn); }
+  .facet-sub { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 10px 0 4px; }
+  #f-contexts { padding-left: 10px; border-left: 2px solid var(--line, #333); }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
@@ -375,9 +377,11 @@
     <div class="facet" data-facet="review"><div class="facet-head"><h2 data-i18n="filters.review">Review</h2></div>
       <div class="facet-body"><div id="f-review"></div></div></div>
     <div class="facet" data-facet="digest"><div class="facet-head"><h2 data-i18n="filters.digest">Session digest</h2></div>
-      <div class="facet-body"><div id="f-digest"></div><p id="f-digest-note" class="digest-note" hidden></p></div></div>
-    <div class="facet" data-facet="context" data-sortable><div class="facet-head"><h2 data-i18n="filters.contexts">Contexts</h2></div>
-      <div class="facet-body"><div id="f-contexts"></div></div></div>
+      <div class="facet-body"><div id="f-digest"></div><p id="f-digest-note" class="digest-note" hidden></p>
+        <!-- A context is a start pack of its own, so it sits inside this one:
+             the base pack that every session reads, then one per kind of work. -->
+        <h3 class="facet-sub" data-i18n="filters.contexts">Contexts</h3>
+        <div id="f-contexts"></div></div></div>
     <div class="facet" data-facet="kind" data-sortable><div class="facet-head"><h2 data-i18n="filters.kind">Kind</h2></div>
       <div class="facet-body"><div id="f-kinds"></div></div></div>
     <div class="facet" data-facet="lifecycle" data-sortable><div class="facet-head"><h2 data-i18n="filters.lifecycle">Lifecycle</h2></div>

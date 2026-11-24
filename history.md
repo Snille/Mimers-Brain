@@ -6,6 +6,23 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.0: summaries in the memory's language, contexts inside the start pack
+
+A title and summary are now always in the same language as the memory. The
+metadata model had written an English memory's summary in German, and a rewrite
+then gave it a Swedish one. The server used to accept a summary in the other
+language on purpose, as a faithful translation; it now refuses one. The model is
+told the language by name ("The text is written in English"), is asked once more
+if it answers in another, and a title or summary that is still in another
+language is replaced by one derived from the text. Language detection knows
+Swedish, English and German.
+
+On the Memories page the contexts are no longer a group of their own in the
+sidebar. A context is a start pack for one kind of work, so they sit inside the
+start pack group, under the base pack, which is now labelled "every session".
+
+---
+
 ## 2026-11-22 — 0.28.1: contexts in the sidebar
 
 The Memories page lists the contexts in the sidebar, like projects and

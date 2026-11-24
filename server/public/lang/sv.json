@@ -36,7 +36,7 @@
     "people": "Personer",
     "systems": "System",
     "digest": "Startpaket",
-    "inDigest": "i startpaketet",
+    "inDigest": "alltid med",
     "digestFull": "{omitted} får inte plats (högst {limit} minnen eller 9 000 tecken) och läses inte vid sessionsstart. Bocka ur det som inte behövs i varje session.",
     "review": "Granskning",
     "awaitingReview": "väntar på granskning",

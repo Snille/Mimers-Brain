@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.0: sammandrag på minnets språk, sammanhang inne i startpaketet
+
+En titel och ett sammandrag är nu alltid på samma språk som minnet.
+Metadatamodellen hade skrivit sammandraget till ett engelskt minne på tyska, och
+en omskrivning gav det sedan ett svenskt. Servern godtog förut med flit ett
+sammandrag på det andra språket, som en trogen översättning; nu vägrar den det.
+Modellen får språket med namn ("The text is written in English"), får en fråga
+till om den svarar på ett annat, och en titel eller ett sammandrag som ändå är
+på ett annat språk ersätts av ett som härleds ur texten. Språkigenkänningen
+känner till svenska, engelska och tyska.
+
+På sidan Minnen är sammanhangen inte längre en egen grupp i sidopanelen. Ett
+sammanhang är ett startpaket för en sorts arbete, så de ligger inne i gruppen
+Startpaket, under grundpaketet, som nu heter "alltid med".
+
+---
+
 ## 2026-11-22 — 0.28.1: sammanhang i sidopanelen
 
 Sidan Minnen listar sammanhangen i sidopanelen, som projekt och ämnen: en
