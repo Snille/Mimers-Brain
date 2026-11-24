@@ -6,6 +6,16 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.6: ett sammanhangs räknare hoppar över ersatta minnen
+
+Direkt efter att 0.29.5 driftsattes visade Spectrogon `2 / 3` över en lista
+med två minnen. Det tredje var en gammal Hogia-preferens som ett nyare beslut
+hade ersatt. Listan visar bara aktuella minnen, men räknaren tog med alla
+lägen. Nu räknas bara aktuella minnen, så knappen och listan den öppnar visar
+samma sak.
+
+---
+
 ## 2026-11-24 — 0.29.5: sammanhang i en egen grupp, och vilka minnen som kommer med
 
 0.29.0 lade sammanhangen inuti gruppen Startpaket i sidofältet. Det såg ut som

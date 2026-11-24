@@ -23,6 +23,8 @@ test("the sidebar lists each context with a count and filters on it", {
     const standing = await insert("Work preference", { kind: "preference", project: "spectrogon" });
     await insert("Work fact", { project: "spectrogon" });
     await insert("Draft fact", { contexts: ["draft"] });
+    // Replaced by a newer memory: not in the list the chip opens, so not counted.
+    await insert("Old work preference", { kind: "preference", project: "spectrogon", lifecycle: "superseded" });
 
     // A proposal is not listed; a fact of the project is not standing, so it
     // is not counted; a memory waiting for review still is.

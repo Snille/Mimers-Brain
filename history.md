@@ -6,6 +6,16 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.6: a context's count leaves out replaced memories
+
+Right after 0.29.5 went live, Spectrogon showed `2 / 3` over a list of two. The
+third was an old Hogia preference that a newer decision had superseded. The
+list opens on current memories only, but the context count still took every
+lifecycle. The count now takes current memories only, so the chip and the list
+it opens agree.
+
+---
+
 ## 2026-11-24 — 0.29.5: contexts in their own group, and which memories make the pack
 
 0.29.0 put the contexts inside the start pack group in the sidebar. That read

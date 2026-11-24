@@ -47,8 +47,11 @@ export const IN_CONTEXT_SQL = (idArg) => `EXISTS (
           SELECT 1 FROM ${CONFIRMED_CONTEXTS_FROM} AND c.key = $${idArg} AND ${HELD_BY_C})`;
 
 // How many memories each confirmed context holds, for the sidebar. Used as a
-// column of the statistics query, whose rows are in `base`.
-export const CONTEXT_COUNTS_SQL = `(SELECT jsonb_object_agg(c.key, (SELECT count(*) FROM base WHERE ${HELD_BY_C}))
+// column of the statistics query, whose rows are in `base`. Current ones only,
+// like the list the chip opens: a superseded memory was counted once, so
+// Spectrogon showed "2 / 3" over a list of two.
+export const CONTEXT_COUNTS_SQL = `(SELECT jsonb_object_agg(c.key, (SELECT count(*) FROM base
+            WHERE coalesce(metadata->>'lifecycle', 'current') = 'current' AND ${HELD_BY_C}))
           FROM ${CONFIRMED_CONTEXTS_FROM})`;
 
 export const BASE_DIGEST_SQL = `${TRUSTED_SQL}
