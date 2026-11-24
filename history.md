@@ -6,6 +6,22 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.7: pick a project from the ones that exist
+
+A new memory about every treasure hunt got the project `skattjakt-2026`, a
+hunt that is already over, because that was the only treasure-hunt project
+the metadata model knew. Fixing it by hand meant remembering each project's
+exact spelling in two places: the memory editor and a context's project list.
+
+Both fields now list the existing projects under them as chips, most used
+first, narrowed as you type. In the memory editor a click sets the project; in
+a context's list it adds one, replacing a half-typed name, and leaves out the
+projects already listed. A new name can still be typed. The list comes from
+the same `/api/stats` counts as the Projects group in the sidebar
+(`public/projects.mjs`).
+
+---
+
 ## 2026-11-24 — 0.29.6: a context's count leaves out replaced memories
 
 Right after 0.29.5 went live, Spectrogon showed `2 / 3` over a list of two. The

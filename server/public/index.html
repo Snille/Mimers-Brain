@@ -91,6 +91,8 @@
   .facet-sort { padding: 1px 4px; font-size: 11px; border-radius: 6px; color: var(--muted); max-width: 110px; }
   .digest-note { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--warn); }
   .tag.context.out { opacity: .7; border-style: dashed; }
+  .project-picker { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+  .project-picker .chip { font-size: 12px; padding: 2px 8px; margin: 0; }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
@@ -488,6 +490,7 @@ import { copy } from "./clipboard.mjs";
 import { apply as applyAppearance } from "./appearance.mjs";
 import { loadSources as loadMediaSources, mediaEditor, mediaStrip, wireStrip } from "./media.mjs";
 import { contextEditor, contextName, contextsOf, contextTags, loadContexts, setContextPacks } from "./contexts.mjs";
+import { attachProjectPicker, setProjects } from "./projects.mjs";
 
 await initI18n();
 
@@ -804,6 +807,7 @@ function card(t) {
     el.querySelector(".media-strip")?.remove();
     const mediaDraft = mediaEditor(m.media, { full: state.vault });
     // The start packs, besides the base one, that this memory belongs to.
+    attachProjectPicker(fields.querySelector(".e-project"));
     const contextDraft = contextEditor(m);
     fields.after(contextDraft.el);
     contextDraft.el.after(mediaDraft.el);
@@ -967,6 +971,7 @@ async function refresh() {
 
     const s = await statsCall;
     setContextPacks(s.contextPacks);
+    setProjects(s.projects);
     list.innerHTML = "";
     if (!rows.length) {
       list.innerHTML = `<div class="empty">${esc(tr("search.noMatches"))}</div>`;

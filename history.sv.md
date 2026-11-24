@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.7: välj projekt bland dem som finns
+
+Ett nytt minne om alla skattjakter fick projektet `skattjakt-2026`, en
+skattjakt som redan är över, eftersom det var det enda skattjaktsprojektet
+metadatamodellen kände till. För att rätta det för hand måste man minnas varje
+projekts exakta stavning på två ställen: i redigeraren och i ett sammanhangs
+projektlista.
+
+Båda fälten visar nu befintliga projekt som knappar under fältet, de mest
+använda först, och listan krymper medan man skriver. I redigeraren sätter ett
+klick projektet; i ett sammanhangs lista lägger det till ett, ersätter ett
+halvskrivet namn och hoppar över projekt som redan finns i listan. Ett nytt
+namn går fortfarande att skriva. Listan kommer från samma siffror i
+`/api/stats` som gruppen Projekt i sidofältet (`public/projects.mjs`).
+
+---
+
 ## 2026-11-24 — 0.29.6: ett sammanhangs räknare hoppar över ersatta minnen
 
 Direkt efter att 0.29.5 driftsattes visade Spectrogon `2 / 3` över en lista

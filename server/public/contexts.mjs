@@ -4,6 +4,7 @@
 // context's projects, and either way it leaves the base start pack.
 
 import { t } from "./i18n.mjs";
+import { attachProjectPicker } from "./projects.mjs";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -136,6 +137,8 @@ export async function renderContexts(el) {
         ${form}
       </div>`;
 
+    const projectsInput = el.querySelector(".c-projects");
+    if (projectsInput) attachProjectPicker(projectsInput, { multiple: true });
     el.querySelector(".c-add")?.addEventListener("click", () => { editing = "new"; status = ""; draw(); });
     el.querySelector(".c-cancel")?.addEventListener("click", () => { editing = null; status = ""; draw(); });
     for (const b of el.querySelectorAll("[data-edit]"))
