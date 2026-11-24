@@ -296,6 +296,41 @@ const DIGEST_SQL = BASE_DIGEST_SQL;
 const AWAITING_REVIEW_SQL = `(coalesce(metadata->>'review_status', 'confirmed') IN ('pending', 'stale')
              OR (metadata->>'review_status' = 'evidence_only' AND NOT metadata ? 'reviewed_at'))`;
 
+// A filter value is one value or a list of them; empty means no filter.
+export const asList = (value) => (Array.isArray(value) ? value : [value])
+  .filter((v) => v != null && v !== "").map(String);
+
+// A list field (people, systems) holding `value` in any letter case. Stats
+// groups people and systems by lower case, so the filter must match the same way
+// or a chip for "Home Assistant" would miss a memory that wrote "home assistant".
+const holdsAnyCase = (field, arg) => `EXISTS (SELECT 1 FROM jsonb_array_elements_text(
+      CASE WHEN jsonb_typeof(metadata->'${field}') = 'array' THEN metadata->'${field}' ELSE '[]'::jsonb END) v
+     WHERE lower(v) = lower($${arg}))`;
+
+// The sidebar filters, shared by the list, text search and semantic search.
+// A field with one value per memory (lifecycle, kind, task status, project)
+// takes any of the values chosen: a memory has one project, so "both" can only
+// mean "either". A list field (topics, people, systems) takes all of them:
+// Home Assistant and ESPHome means memories about both.
+function facetSql(args, { lifecycle, kind, taskStatus, project, topic, person, system } = {}) {
+  let sql = "";
+  const lifecycles = asList(lifecycle);
+  if (lifecycles.length && !lifecycles.includes("all"))
+    sql += ` AND coalesce(metadata->>'lifecycle', 'current') = ANY($${args.push(lifecycles)}::text[])`;
+  const one = (column, value) => {
+    const values = asList(value);
+    if (values.length) sql += ` AND metadata->>'${column}' = ANY($${args.push(values)}::text[])`;
+  };
+  one("kind", kind);
+  one("task_status", taskStatus);
+  one("project", project);
+  const topics = asList(topic);
+  if (topics.length) sql += ` AND metadata @> $${args.push(JSON.stringify({ topics }))}::jsonb`;
+  for (const value of asList(person)) sql += ` AND ${holdsAnyCase("people", args.push(value))}`;
+  for (const value of asList(system)) sql += ` AND ${holdsAnyCase("systems", args.push(value))}`;
+  return sql;
+}
+
 export async function listThoughts(tiers, {
   limit = 10, type, kind, lifecycle = "current", taskStatus, task_status, project,
   topic, person, system, days, digest, review, context,
@@ -304,14 +339,7 @@ export async function listThoughts(tiers, {
   const args = [tiers];
   let sql = `SELECT ${COLS} FROM thoughts WHERE tier = ANY($1)`;
   if (type) sql += ` AND metadata @> $${args.push(JSON.stringify({ type }))}::jsonb`;
-  if (kind) sql += ` AND metadata @> $${args.push(JSON.stringify({ kind }))}::jsonb`;
-  if (lifecycle && lifecycle !== "all")
-    sql += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
-  if (taskStatus) sql += ` AND metadata->>'task_status' = $${args.push(taskStatus)}`;
-  if (project) sql += ` AND metadata->>'project' = $${args.push(project)}`;
-  if (topic) sql += ` AND metadata @> $${args.push(JSON.stringify({ topics: [topic] }))}::jsonb`;
-  if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
-  if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
+  sql += facetSql(args, { lifecycle, kind, taskStatus, project, topic, person, system });
   if (days) sql += ` AND created_at > now() - ($${args.push(String(days))} || ' days')::interval`;
   if (context) sql += ` AND ${IN_CONTEXT_SQL(args.push(context))}`;
   if (digest) sql += ` AND ${DIGEST_SQL}`;
@@ -435,7 +463,7 @@ const VECTOR_COLUMNS = new Set(["embedding", "embedding_next"]);
 
 export async function searchThoughts(tiers, query, {
   limit = 10, threshold = thresholds.search, kind, lifecycle = "current", taskStatus, project,
-  vector: given, weights, column = "embedding",
+  topic, person, system, vector: given, weights, column = "embedding",
 } = {}) {
   if (!VECTOR_COLUMNS.has(column)) throw new Error(`Unknown vector column: ${column}`);
   // A generic semantic query for "what remains" otherwise ranks incident
@@ -451,11 +479,7 @@ export async function searchThoughts(tiers, query, {
   const args = [JSON.stringify(vector), query, tiers, threshold, terms, JSON.stringify(rankWeights(weights))];
   const w = (key) => `($6::jsonb->>'${key}')::float8`;
   let filters = `tier = ANY($3) AND coalesce(metadata->>'review_status', 'confirmed') <> 'rejected'`;
-  if (lifecycle && lifecycle !== "all")
-    filters += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
-  if (kind) filters += ` AND metadata->>'kind' = $${args.push(kind)}`;
-  if (taskStatus) filters += ` AND metadata->>'task_status' = $${args.push(taskStatus)}`;
-  if (project) filters += ` AND metadata->>'project' = $${args.push(project)}`;
+  filters += facetSql(args, { lifecycle, kind, taskStatus, project, topic, person, system });
   const limitArg = args.push(Math.min(Number(limit) || 10, 100));
   const { rows } = await pool.query(
     `WITH ${RECEIPTS_CTE},
@@ -548,14 +572,10 @@ export async function textSearch(tiers, q, {
     WHERE tier = ANY($1)
       AND (content ILIKE $2 OR metadata->>'title' ILIKE $2 OR metadata->>'summary' ILIKE $2
            OR id::text ILIKE $2)`;
-  if (lifecycle && lifecycle !== "all" && !FULL_ID.test(String(q).trim()))
-    sql += ` AND coalesce(metadata->>'lifecycle', 'current') = $${args.push(lifecycle)}`;
-  if (kind) sql += ` AND metadata->>'kind' = $${args.push(kind)}`;
-  if (taskStatus) sql += ` AND metadata->>'task_status' = $${args.push(taskStatus)}`;
-  if (project) sql += ` AND metadata->>'project' = $${args.push(project)}`;
-  if (topic) sql += ` AND metadata @> $${args.push(JSON.stringify({ topics: [topic] }))}::jsonb`;
-  if (person) sql += ` AND metadata @> $${args.push(JSON.stringify({ people: [person] }))}::jsonb`;
-  if (system) sql += ` AND metadata @> $${args.push(JSON.stringify({ systems: [system] }))}::jsonb`;
+  sql += facetSql(args, {
+    lifecycle: FULL_ID.test(String(q).trim()) ? undefined : lifecycle,
+    kind, taskStatus, project, topic, person, system,
+  });
   if (context) sql += ` AND ${IN_CONTEXT_SQL(args.push(context))}`;
   if (digest) sql += ` AND ${DIGEST_SQL}`;
   if (review) sql += ` AND ${AWAITING_REVIEW_SQL}`;
@@ -2125,11 +2145,12 @@ export async function liveCounters(tiers = ALL) {
 // Lifecycle list itself always counts every lifecycle. Left out, or "all",
 // every lifecycle is counted, as thought_stats has always done.
 export async function stats(tiers, { lifecycle } = {}) {
-  const facetLifecycle = lifecycle && lifecycle !== "all" ? lifecycle : null;
+  const lifecycles = asList(lifecycle);
+  const facetLifecycle = lifecycles.length && !lifecycles.includes("all") ? lifecycles : null;
   const { rows } = await pool.query(
     `WITH base AS (SELECT metadata, tier, created_at FROM thoughts WHERE tier = ANY($1)),
           facet AS (SELECT metadata FROM base
-                     WHERE $2::text IS NULL OR coalesce(metadata->>'lifecycle', 'current') = $2)
+                     WHERE $2::text[] IS NULL OR coalesce(metadata->>'lifecycle', 'current') = ANY($2))
      SELECT
        (SELECT count(*)        FROM base) AS total,
        (SELECT min(created_at) FROM base) AS first,

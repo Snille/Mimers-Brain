@@ -620,19 +620,34 @@ function withHelp(select, group) {
 const FACET_SHOWN = 20;
 const facetOpen = new Set();
 
+// Several chips can be on in one group. Lifecycle, kind, task status and project
+// show memories with any of them (a memory has one project); topics, people and
+// systems show memories with all of them (Home Assistant and ESPHome). Review,
+// start pack and context hold one choice. lib.mjs facetSql() does the same.
+const MULTI = new Set(["lifecycle", "kind", "task_status", "project", "topic", "person", "system"]);
+const chosen = (key) => [state.filters[key]].flat().filter(Boolean);
+function toggleFilter(key, name) {
+  const now = chosen(key);
+  if (!MULTI.has(key)) state.filters[key] = now.includes(name) ? undefined : name;
+  else {
+    const next = now.includes(name) ? now.filter((v) => v !== name) : [...now, name];
+    state.filters[key] = next.length ? next : undefined;
+  }
+}
+
 // `shown` replaces the plain count on the chip, for example "8 / 12".
 function chips(container, entries, key, label = (name) => name, shown = (name, count) => count, limit = Infinity) {
   const el = $(container);
   el.innerHTML = "";
   const sorted = sortEntries(entries, key, label);
-  const cut = facetOpen.has(key) ? sorted : sorted.filter(([name], i) => i < limit || state.filters[key] === name);
+  const cut = facetOpen.has(key) ? sorted : sorted.filter(([name], i) => i < limit || chosen(key).includes(name));
   for (const [name, count] of cut) {
     const b = document.createElement("button");
-    b.className = "chip" + (state.filters[key] === name ? " on" : "");
+    b.className = "chip" + (chosen(key).includes(name) ? " on" : "");
     b.innerHTML = `${esc(label(name))} <b>${esc(shown(name, count))}</b>`;
     if (HELP_GROUPS[key]) b.title = helpText(HELP_GROUPS[key], name);
     b.onclick = () => {
-      state.filters[key] = state.filters[key] === name ? undefined : name;
+      toggleFilter(key, name);
       refresh();
     };
     el.appendChild(b);
@@ -973,9 +988,9 @@ const FILTER_LABELS = {
 };
 function showActiveFilters() {
   const box = $("#active-filters");
-  const active = Object.entries(state.filters).filter(([, v]) => v);
+  const active = Object.keys(state.filters).flatMap((key) => chosen(key).map((value) => [key, value]));
   for (const facet of document.querySelectorAll(".facet"))
-    facet.classList.toggle("has-choice", Boolean(state.filters[facet.dataset.facet]));
+    facet.classList.toggle("has-choice", chosen(facet.dataset.facet).length > 0);
   box.hidden = !active.length;
   box.innerHTML = "";
   if (!active.length) return;
@@ -983,16 +998,25 @@ function showActiveFilters() {
   label.className = "active-label";
   label.textContent = tr("filters.active");
   box.append(label);
-  for (const [key, value] of active) {
+  const ALL_OF = new Set(["topic", "person", "system"]);
+  active.forEach(([key, value], i) => {
+    // Between two chips of one group: "and" where a memory must have both,
+    // "or" where it can have only one of them (see MULTI).
+    if (i && active[i - 1][0] === key) {
+      const joint = document.createElement("span");
+      joint.className = "active-label";
+      joint.textContent = tr(ALL_OF.has(key) ? "filters.and" : "filters.or");
+      box.append(joint);
+    }
     const group = document.querySelector(`.facet[data-facet="${key}"] h2`)?.textContent || key;
     const b = document.createElement("button");
     b.type = "button";
     b.className = "chip on";
     b.title = tr("filters.remove");
     b.innerHTML = `${esc(group)}: ${esc((FILTER_LABELS[key] || String)(value))}<span class="x">✕</span>`;
-    b.onclick = () => { state.filters[key] = undefined; refresh(); };
+    b.onclick = () => { toggleFilter(key, value); refresh(); };
     box.append(b);
-  }
+  });
   if (active.length > 1) {
     const all = document.createElement("button");
     all.type = "button";
@@ -1013,7 +1037,8 @@ async function refresh() {
   // Asked for at once and read before the cards are drawn: a context tag says
   // whether the memory is in that context's start pack.
   // Counted for the lifecycle the list shows, so a chip's count is what it opens.
-  const statsCall = api(`/api/stats?lifecycle=${encodeURIComponent(state.filters.lifecycle || "current")}`);
+  const lifecycles = chosen("lifecycle").length ? chosen("lifecycle") : ["current"];
+  const statsCall = api(`/api/stats?${new URLSearchParams(lifecycles.map((v) => ["lifecycle", v]))}`);
   statsCall.catch(() => {});
   try {
     let rows;
@@ -1025,10 +1050,13 @@ async function refresh() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: state.q, limit: 40,
-          kind: state.filters.kind,
-          lifecycle: state.filters.lifecycle || "current",
-          task_status: state.filters.task_status,
-          project: state.filters.project,
+          kind: chosen("kind"),
+          lifecycle: lifecycles,
+          task_status: chosen("task_status"),
+          project: chosen("project"),
+          topic: chosen("topic"),
+          person: chosen("person"),
+          system: chosen("system"),
         }),
       });
       // Semantic search has no digest filter of its own; the rule is the
@@ -1040,7 +1068,7 @@ async function refresh() {
     } else {
       const p = new URLSearchParams();
       if (state.q) p.set("q", state.q);
-      for (const [k, v] of Object.entries(state.filters)) if (v) p.set(k, v);
+      for (const key of Object.keys(state.filters)) for (const v of chosen(key)) p.append(key, v);
       rows = await api(`/api/thoughts?${p}`);
     }
 

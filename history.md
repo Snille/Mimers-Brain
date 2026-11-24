@@ -6,6 +6,29 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.30.0: several choices in one group
+
+One wants to see every memory about both Home Assistant and ESPHome. Each
+sidebar group held one choice; a new click replaced the old one.
+
+Several chips can now be on in one group. Topics, People and Systems take
+memories with all of them: a memory can name many systems, so two systems mean
+both. Lifecycle, Kind, Tasks and Projects take memories with any of them: a
+memory has one project, so "both" can only mean "either". Contexts, Start pack
+and Review still hold one choice. The "Filtered by" line shows "and" or "or"
+between two choices of one group.
+
+The rule lives in one place, `facetSql()` in `lib.mjs`, which the list, text
+search and semantic search now share. `/api/thoughts` and `/api/stats` take a
+filter more than once (`?system=A&system=B`), and `/api/search` takes lists. A
+single value works as before, so the MCP tools are unchanged.
+
+Also: People and Systems now match in any letter case, as the sidebar counts
+them, and semantic search now applies Topics, People and Systems, which it did
+not before.
+
+---
+
 ## 2026-11-24 — 0.29.8: the filters in use show, and the counts match the list
 
 A click on `spectrogon` under Projects gave an empty list. A choice was still

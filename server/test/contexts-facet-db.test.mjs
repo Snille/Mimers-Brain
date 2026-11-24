@@ -50,6 +50,19 @@ test("the sidebar lists each context with a count and filters on it", {
     assert.deepEqual(ids(await db.listThoughts(db.ALL, { context: "spectrogon" })), [standing]);
     assert.deepEqual(ids(await db.listThoughts(db.ALL, { context: "draft" })), []);
     assert.deepEqual(ids(await db.textSearch(db.ALL, "Work", { context: "spectrogon" })), [standing]);
+
+    // Several chips in one group: a memory has one project, so two projects
+    // mean either; it can name many systems, so two systems mean both. People
+    // and systems match in any letter case, as the sidebar counts them.
+    const both = await insert("Both systems", { project: "home", systems: ["Home Assistant", "ESPHome"] });
+    const ha = await insert("One system", { project: "home", systems: ["home assistant"] });
+    const sorted = async (filters) => ids(await db.listThoughts(db.ALL, filters)).sort();
+    assert.deepEqual(await sorted({ system: ["Home Assistant", "ESPHome"] }), [both]);
+    assert.deepEqual(await sorted({ system: "Home Assistant" }), [both, ha].sort());
+    assert.equal((await db.listThoughts(db.ALL, { project: ["home", "spectrogon"] })).length, 4);
+    assert.equal((await db.listThoughts(db.ALL, { project: "spectrogon", lifecycle: ["current", "superseded"] })).length, 3);
+    assert.equal((await db.stats(db.ALL, { lifecycle: ["current", "superseded"] })).projects.spectrogon, 3);
+    assert.deepEqual(ids(await db.textSearch(db.ALL, "system", { system: ["ESPHome", "home assistant"] })), [both]);
   } finally {
     await db.pool.end();
   }

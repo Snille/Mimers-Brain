@@ -517,7 +517,7 @@ function makeListener(tiers, {
         if (!authOk(req, url, { allowAuthelia, allowReadKey }))
           return json(res, 401, { error: "Not signed in" });
         if (path === "/api/stats")
-          return json(res, 200, await db.stats(tiers, { lifecycle: url.searchParams.get("lifecycle") || undefined }));
+          return json(res, 200, await db.stats(tiers, { lifecycle: url.searchParams.getAll("lifecycle") }));
         if (path === "/api/graph") return json(res, 200, await db.memoryGraph(tiers));
 
         if (path === "/api/connect")
@@ -842,17 +842,23 @@ function makeListener(tiers, {
           return json(res, 200, { published: await publishNow(), ...mqttStatus() });
 
         if (path === "/api/thoughts" && req.method === "GET") {
+          // A filter may be given more than once (?system=A&system=B); a
+          // missing lifecycle still means current memories only.
+          const many = (key, fallback) => {
+            const values = url.searchParams.getAll(key).filter(Boolean);
+            return values.length ? values : fallback;
+          };
           const q = url.searchParams.get("q");
           const rows = q
             ? await db.textSearch(tiers, q, {
                 limit: 100,
-                kind: url.searchParams.get("kind") || undefined,
-                lifecycle: url.searchParams.get("lifecycle") || "current",
-                taskStatus: url.searchParams.get("task_status") || undefined,
-                project: url.searchParams.get("project") || undefined,
-                topic: url.searchParams.get("topic") || undefined,
-                person: url.searchParams.get("person") || undefined,
-                system: url.searchParams.get("system") || undefined,
+                kind: url.searchParams.getAll("kind"),
+                lifecycle: many("lifecycle", "current"),
+                taskStatus: url.searchParams.getAll("task_status"),
+                project: url.searchParams.getAll("project"),
+                topic: url.searchParams.getAll("topic"),
+                person: url.searchParams.getAll("person"),
+                system: url.searchParams.getAll("system"),
                 context: url.searchParams.get("context") || undefined,
                 digest: url.searchParams.get("digest") === "1",
                 review: url.searchParams.get("review") === "1",
@@ -860,13 +866,13 @@ function makeListener(tiers, {
             : await db.listThoughts(tiers, {
                 limit: Number(url.searchParams.get("limit")) || 100,
                 type: url.searchParams.get("type") || undefined,
-                kind: url.searchParams.get("kind") || undefined,
-                lifecycle: url.searchParams.get("lifecycle") || "current",
-                task_status: url.searchParams.get("task_status") || undefined,
-                project: url.searchParams.get("project") || undefined,
-                topic: url.searchParams.get("topic") || undefined,
-                person: url.searchParams.get("person") || undefined,
-                system: url.searchParams.get("system") || undefined,
+                kind: url.searchParams.getAll("kind"),
+                lifecycle: many("lifecycle", "current"),
+                task_status: url.searchParams.getAll("task_status"),
+                project: url.searchParams.getAll("project"),
+                topic: url.searchParams.getAll("topic"),
+                person: url.searchParams.getAll("person"),
+                system: url.searchParams.getAll("system"),
                 context: url.searchParams.get("context") || undefined,
                 digest: url.searchParams.get("digest") === "1",
                 review: url.searchParams.get("review") === "1",
@@ -887,10 +893,10 @@ function makeListener(tiers, {
         }
 
         if (path === "/api/search" && req.method === "POST") {
-          const { query, limit, threshold, kind, lifecycle, task_status, project } = await body(req);
+          const { query, limit, threshold, kind, lifecycle, task_status, project, topic, person, system } = await body(req);
           if (!query?.trim()) return json(res, 400, { error: "Empty search" });
           const rows = await db.searchThoughts(tiers, query.trim(), {
-            limit, threshold, kind, lifecycle, taskStatus: task_status, project,
+            limit, threshold, kind, lifecycle, taskStatus: task_status, project, topic, person, system,
           });
           note("ui.search", "read", { results: rows.length });
           return json(res, 200, rows);

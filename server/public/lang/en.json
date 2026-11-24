@@ -45,6 +45,8 @@
     "active": "Filtered by:",
     "remove": "Remove this filter",
     "removeAll": "Remove all",
+    "and": "and",
+    "or": "or",
     "showMore": "Show {hidden} more",
     "showFewer": "Show fewer",
     "expand": "Show this list",

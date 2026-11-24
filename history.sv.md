@@ -6,6 +6,30 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.30.0: flera val i samma grupp
+
+Man vill kunna se alla minnen om både Home Assistant och ESPHome. Förut höll
+varje grupp i sidofältet ett val; ett nytt klick bytte ut det gamla.
+
+Nu kan flera chips vara valda i samma grupp. Ämnen, Personer och System tar
+minnen med alla valen: ett minne kan nämna många system, så två system betyder
+båda. Livscykel, Sort, Uppgifter och Projekt tar minnen med något av valen: ett
+minne har ett projekt, så "båda" kan bara betyda "något av dem". Sammanhang,
+Startpaket och Granskning håller fortfarande ett val. Raden "Filtrerar på"
+visar "och" eller "eller" mellan två val i samma grupp.
+
+Regeln ligger på ett ställe, `facetSql()` i `lib.mjs`, som listan,
+textsökningen och den semantiska sökningen nu delar. `/api/thoughts` och
+`/api/stats` tar samma filter flera gånger (`?system=A&system=B`), och
+`/api/search` tar listor. Ett ensamt värde fungerar som förut, så MCP-verktygen
+är oförändrade.
+
+På köpet: Personer och System matchar nu i alla skiftlägen, som sidofältet
+räknar dem, och den semantiska sökningen tar hänsyn till Ämnen, Personer och
+System, som den inte gjorde förut.
+
+---
+
 ## 2026-11-24 — 0.29.8: valda filter syns, och räknarna visar vad listan visar
 
 Ett klick på `spectrogon` under Projekt gav en tom lista. Orsaken var ett val
