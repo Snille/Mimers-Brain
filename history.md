@@ -6,6 +6,14 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-24 — 0.29.2: Contexts folds away like the other groups
+
+Contexts inside the start pack group had no fold arrow, unlike every other
+group in the sidebar. It is now a nested group of its own: it folds away, and
+each browser remembers the choice, like the others.
+
+---
+
 ## 2026-11-24 — 0.29.1: new summaries for memories in the wrong language
 
 After 0.29.0 the audit listed 189 of 1445 memories whose title or summary was

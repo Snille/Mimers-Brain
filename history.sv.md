@@ -6,6 +6,14 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-24 — 0.29.2: Sammanhang går att fälla ihop som de andra grupperna
+
+Sammanhang inne i gruppen Startpaket hade ingen pil för att fälla ihop, till
+skillnad från alla andra grupper i sidopanelen. Nu är det en egen grupp inuti:
+den går att fälla ihop, och varje webbläsare minns valet, som de andra.
+
+---
+
 ## 2026-11-24 — 0.29.1: nya sammandrag för minnen på fel språk
 
 Efter 0.29.0 listade audit 189 av 1445 minnen där titeln eller sammandraget var
