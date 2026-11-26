@@ -199,3 +199,5 @@ into both `server/mcp.mjs` and `server/openapi.mjs`.
 The Compose project, containers and volume keep their old `valv` names on
 purpose; renaming them would start an empty database. See
 [docs/how-it-works.md](docs/how-it-works.md#naming).
+
+[![M8ven Verified](https://m8ven.ai/badge/mcp/snille-mimers-brain-ffr79b?variant=verified&v=dde7a0be598cd04fe70fe27c30e579ed)](https://m8ven.ai/mcp/snille-mimers-brain-ffr79b?s=readme)
