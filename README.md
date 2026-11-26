@@ -194,10 +194,15 @@ npm run audit     # read-only quality report on the database in DATABASE_URL
 Database tests need a disposable pgvector Postgres; see the header of
 `server/testing/db.mjs`. A new environment variable must be added to `.env.example`
 and passed under `app.environment` in `docker-compose.yml`. A new MCP tool goes
-into both `server/mcp.mjs` and `server/openapi.mjs`.
+into both `server/mcp.mjs` and `server/openapi.mjs`, and in `mcp.mjs` it gets
+`annotations` that say whether it reads, writes or deletes.
 
 The Compose project, containers and volume keep their old `valv` names on
 purpose; renaming them would start an empty database. See
 [docs/how-it-works.md](docs/how-it-works.md#naming).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 [![M8ven Verified](https://m8ven.ai/badge/mcp/snille-mimers-brain-ffr79b?variant=verified&v=dde7a0be598cd04fe70fe27c30e579ed)](https://m8ven.ai/mcp/snille-mimers-brain-ffr79b?s=readme)

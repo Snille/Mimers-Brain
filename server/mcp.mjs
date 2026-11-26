@@ -115,6 +115,7 @@ export function buildServer(tiers, ctx = {}) {
   const registerWrite = (...args) => { if (writable) server.registerTool(...args); };
 
   server.registerTool("search_thoughts", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "Search the memory",
     description: `Search the memory by meaning. Use this before answering about the user, their systems, access, configuration, workflows, preferences, prior decisions, or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately, even when all results were ignored. ${scope}`,
     inputSchema: {
@@ -148,6 +149,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   server.registerTool("list_thoughts", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "List memories",
     description: `List the most recent memories, with optional filters. ${scope}`,
     inputSchema: {
@@ -172,6 +174,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   registerWrite("capture_thought", {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     title: "Save a memory",
     description:
       `Save a durable conclusion, not ordinary conversation or tentative reasoning. If this corrects existing knowledge, use supersede_thought when available. ${CAPTURE_GUIDANCE} Never report success unless this call succeeds. ${scope}`,
@@ -206,6 +209,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   registerWrite("preview_ingest", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "Preview atomic memories",
     description: `Split source text into proposed standalone memories without writing anything. Use this before saving text longer than ${SMART_INGEST_THRESHOLD} characters.`,
     inputSchema: { content: z.string() },
@@ -218,6 +222,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   registerWrite("apply_ingest", {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     title: "Apply reviewed atomic memories",
     description: "Save candidates returned by preview_ingest and archive the verbatim source. Call only after the user approved the proposed memories.",
     inputSchema: {
@@ -240,6 +245,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   server.registerTool("report_memory_usage", {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     title: "Report which recalled memories were used",
     description: "Before the final answer, call this exactly once for every non-empty search trace. Multiple searches need separate reports. Report materially influential ids as used and all other returned ids as ignored; if none were used, send used_ids=[] and ignore every returned id. Never send the query or answer.",
     inputSchema: {
@@ -257,6 +263,7 @@ export function buildServer(tiers, ctx = {}) {
 
   if (full) {
     registerWrite("review_memory", {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: "Review an agent memory",
       description: "Confirm, reject, mark stale, or keep a memory as evidence only. Full trusted connection only.",
       inputSchema: {
@@ -274,6 +281,7 @@ export function buildServer(tiers, ctx = {}) {
     }));
 
     registerWrite("supersede_thought", {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       title: "Replace one or more memories",
       description:
         "Create a current replacement and preserve the old memories as navigable superseded history. " +
@@ -326,6 +334,7 @@ export function buildServer(tiers, ctx = {}) {
     : "");
 
   server.registerTool("memory_digest", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "Session digest",
     description: `Call once at the start of a session. Returns the standing rules and preferences the user has confirmed for every session - the things to know before asking anything - and the list of contexts (kinds of work, such as a workplace or a hobby). When the task fits a context, or the user names one, call it again with that context: its memories hold in that work and win over general preferences where they differ. Search for everything else. ${scope}`,
     inputSchema: {
@@ -370,6 +379,7 @@ export function buildServer(tiers, ctx = {}) {
   // be an agent's words read as the user's by every later session. Full
   // listener only, like the rest of Settings.
   if (full) registerWrite("propose_context", {
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     title: "Propose a context",
     description: "Suggest a new context: a kind of work with a start pack of its own, for example a workplace, a hobby or a trip. It is saved as a proposal; the user confirms or changes it on the Settings page, and until then it is not listed or used. Propose one only when the user asks for it or agrees.",
     inputSchema: {
@@ -387,6 +397,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   server.registerTool("thought_stats", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "Statistics",
     description: `A summary of the memory: totals, types, most common topics and people. ${scope}`,
     inputSchema: {},
@@ -406,6 +417,7 @@ export function buildServer(tiers, ctx = {}) {
 
   // ChatGPT / deep-research compatibility pair, same contract as OB1.
   server.registerTool("search", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "Search",
     description: `Read-only discovery over the memory, for clients expecting search/fetch. Use it before answering about the user, their systems, prior decisions, preferences or pending work. Every non-empty search must be reported exactly once with report_memory_usage before the final answer; report multiple searches separately. ${scope}`,
     inputSchema: { query: z.string() },
@@ -427,6 +439,7 @@ export function buildServer(tiers, ctx = {}) {
   }));
 
   server.registerTool("fetch", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "Fetch",
     description: "Fetch one memory by id after search when the compact result is not enough. The requested id may be historical: inspect lifecycle, is_current and superseded_by before using the text, and follow superseded_by when present.",
     inputSchema: { id: z.string() },
@@ -453,6 +466,7 @@ export function buildServer(tiers, ctx = {}) {
   // key. getThought is tier-bound, so the open ports cannot reach a vault
   // memory's media either. A read, so it is on every listener.
   server.registerTool("get_media", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     title: "Get media",
     description: "Show the media a memory links to: pictures of a person, an album such as a how-to, one photo or video, or a web link. Use it when a search result lists Media and the answer is helped by seeing or linking it. Returns a line with a link per item and up to `images` pictures. Videos come as a still picture and a link; give the link to the user.",
     inputSchema: {
@@ -497,6 +511,7 @@ export function buildServer(tiers, ctx = {}) {
   // a vault memory, and the verdicts are his.
   if (full) {
     server.registerTool("list_contradictions", {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: "List possible contradictions",
       description: CONTRADICTION_GUIDANCE,
       inputSchema: { limit: z.number().int().min(1).max(50).default(10) },
@@ -510,6 +525,7 @@ export function buildServer(tiers, ctx = {}) {
     }));
 
     registerWrite("dismiss_contradiction", {
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: "Dismiss a possible contradiction",
       description: "Mark a pair from list_contradictions as not a contradiction, as the Review page does. The verdict holds until the text of either memory changes. Only after the user has agreed; when one memory is wrong, use supersede_thought instead and the pair leaves the list by itself.",
       inputSchema: { left_id: z.string().uuid(), right_id: z.string().uuid() },
@@ -523,6 +539,7 @@ export function buildServer(tiers, ctx = {}) {
 
     // And its "Possible duplicates", on the same terms.
     server.registerTool("list_duplicates", {
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       title: "List possible duplicates",
       description: DUPLICATE_GUIDANCE,
       inputSchema: { limit: z.number().int().min(1).max(50).default(10) },
@@ -536,6 +553,7 @@ export function buildServer(tiers, ctx = {}) {
     }));
 
     registerWrite("resolve_duplicate", {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
       title: "Resolve a possible duplicate",
       description: "Decide a pair from list_duplicates, as the Review page does: keep_both, related (link them), or supersede (canonical_id is the memory to keep). To merge, use supersede_thought with both ids instead. Only after the user has agreed. The decision holds until the text of either memory changes.",
       inputSchema: {
@@ -556,6 +574,7 @@ export function buildServer(tiers, ctx = {}) {
 
   if (full) {
     registerWrite("delete_thought", {
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
       title: "Delete a memory",
       description: `Delete a memory. Its text can be restored from the Review page for ${db.DELETED_SNAPSHOT_DAYS} days, then only the record of the delete remains. Confirm with the user first.`,
       inputSchema: { id: z.string() },

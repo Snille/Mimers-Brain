@@ -6,6 +6,23 @@ What was built, why, and what went wrong along the way. Newest first.
 
 ---
 
+## 2026-11-26 — 0.30.3: patched dependencies, tool annotations and an MIT licence
+
+M8ven, a directory that checks MCP servers, gave Mimers Brain grade D. It found
+four high-severity CVEs in `@modelcontextprotocol/sdk` 1.30.0, tools with no
+annotations, and no licence file. The SDK is now 1.32.2. `npm audit fix` also
+updated the transitive packages that had known holes (zod, proxy-addr, body-parser
+and others), so `npm audit` reports none.
+
+Each of the 19 tools in `server/mcp.mjs` now declares `readOnlyHint`,
+`destructiveHint`, `idempotentHint` and `openWorldHint`. The read tools are
+read-only. `delete_thought`, `supersede_thought` and `resolve_duplicate` are
+marked destructive. No tool reaches the open web. Some clients, such as OpenAI's
+directory, refuse tools without these hints. The repo is now MIT-licensed, and
+the README carries the M8ven badge.
+
+---
+
 ## 2026-11-24 — 0.30.2: livelier icons for Topics and Systems
 
 The label icon for Topics was dull, so Topics now has a light bulb (💡).

@@ -6,6 +6,23 @@ Vad som byggts, varför, och vad som gick fel på vägen. Nyast överst.
 
 ---
 
+## 2026-11-26 — 0.30.3: lagade beroenden, verktygsannoteringar och MIT-licens
+
+M8ven, en katalog som granskar MCP-servrar, gav Mimers Brain betyget D. Den hittade
+fyra allvarliga CVE:er i `@modelcontextprotocol/sdk` 1.30.0, verktyg utan
+annoteringar och ingen licensfil. SDK:n är nu 1.32.2. `npm audit fix` uppdaterade
+också de indirekta paket som hade kända hål (zod, proxy-addr, body-parser med
+flera), så `npm audit` hittar inga.
+
+Alla 19 verktyg i `server/mcp.mjs` anger nu `readOnlyHint`, `destructiveHint`,
+`idempotentHint` och `openWorldHint`. Läsverktygen är skrivskyddade.
+`delete_thought`, `supersede_thought` och `resolve_duplicate` är markerade som
+destruktiva. Inget verktyg når den öppna webben. Vissa klienter, som OpenAI:s
+katalog, vägrar verktyg utan dessa taggar. Repot har nu MIT-licens, och README
+har M8vens badge.
+
+---
+
 ## 2026-11-24 — 0.30.2: livligare ikoner för Ämnen och System
 
 Etikettikonen för Ämnen var tråkig, så Ämnen har nu en glödlampa (💡).

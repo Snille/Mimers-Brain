@@ -195,8 +195,13 @@ npm run audit     # läsande kvalitetsrapport över databasen i DATABASE_URL
 Databastesterna behöver en tillfällig Postgres med pgvector; se början av
 `server/testing/db.mjs`. En ny miljövariabel ska läggas i `.env.example` och
 skickas under `app.environment` i `docker-compose.yml`. Ett nytt MCP-verktyg ska
-in i både `server/mcp.mjs` och `server/openapi.mjs`.
+in i både `server/mcp.mjs` och `server/openapi.mjs`, och i `mcp.mjs` får det
+`annotations` som säger om det läser, skriver eller tar bort.
 
 Compose-projektet, containrarna och volymen behåller sina gamla `valv`-namn med
 flit; att byta namn skulle starta en tom databas. Se
 [docs/how-it-works.md](docs/how-it-works.md#naming).
+
+## Licens
+
+MIT. Se [LICENSE](LICENSE).
